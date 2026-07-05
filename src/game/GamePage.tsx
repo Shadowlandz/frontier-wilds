@@ -83,6 +83,7 @@ export default function GamePage() {
         hotbar={player.hotbar}
         selected={player.currentTool}
         onSelect={(i) => { player.currentTool = i; setSelectedHotbar(i); }}
+        game={game}
       />
 
       {/* Bottom Info Bar */}
@@ -211,18 +212,50 @@ function BarBar({ label, current, max, color }: {
 }
 
 // ── Hotbar ────────────────────────────────────────────────────────
-function Hotbar({ hotbar, selected, onSelect }: {
+function Hotbar({ hotbar, selected, onSelect, game }: {
   hotbar: GameState['player']['hotbar'];
   selected: number;
   onSelect: (i: number) => void;
+  game?: Game;
 }) {
+  const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [dragSource, setDragSource] = useState<number | null>(null);
+
+  const handleDragStart = (i: number) => setDragSource(i);
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+  const handleDrop = (i: number) => {
+    if (dragSource === null || dragSource === i) return;
+    if (game) {
+      game.swapSlots({ pool: 'hotbar', index: dragSource }, { pool: 'hotbar', index: i });
+    }
+    setDragSource(null);
+  };
+  const handleDragEnd = () => setDragSource(null);
+
   return (
+    <>
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1 pointer-events-auto">
       {hotbar.map((slot, i) => (
-        <button
+        <div
           key={i}
+          draggable={!!slot?.item}
+          onDragStart={() => handleDragStart(i)}
+          onDragOver={handleDragOver}
+          onDrop={(e) => { e.preventDefault(); handleDrop(i); }}
+          onDragEnd={handleDragEnd}
           onClick={() => onSelect(i)}
-          className={`w-12 h-12 rounded border-2 flex items-center justify-center relative transition-all ${
+          onMouseEnter={(e) => {
+            if (slot?.item) {
+              setHoveredSlot(i);
+              setTooltipPos({ x: e.clientX, y: e.clientY });
+            }
+          }}
+          onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+          onMouseLeave={() => setHoveredSlot(null)}
+          className={`w-12 h-12 rounded border-2 flex items-center justify-center relative cursor-pointer transition-all ${
+            dragSource === i ? 'opacity-30 scale-90' : ''
+          } ${
             i === selected
               ? 'border-yellow-400 bg-yellow-400/20 scale-110'
               : 'border-white/20 bg-black/60 hover:border-white/40'
@@ -230,7 +263,9 @@ function Hotbar({ hotbar, selected, onSelect }: {
         >
           {slot?.item && (
             <>
-              <span className="text-xl">{slot.item.icon}</span>
+              <span className="text-xl" style={{ color: RARITY_COLORS[slot.item.rarity] }}>
+                {slot.item.icon}
+              </span>
               {slot.count > 1 && (
                 <span className="absolute bottom-0 right-0.5 text-[9px] text-white font-bold drop-shadow">
                   {slot.count}
@@ -250,9 +285,20 @@ function Hotbar({ hotbar, selected, onSelect }: {
             </>
           )}
           <span className="absolute top-0 left-1 text-[8px] text-white/40">{i + 1}</span>
-        </button>
+        </div>
       ))}
     </div>
+
+    {/* Hotbar Tooltip */}
+    {hoveredSlot !== null && hotbar[hoveredSlot]?.item && (
+      <ItemTooltip
+        item={hotbar[hoveredSlot].item!}
+        durability={hotbar[hoveredSlot].durability}
+        position={tooltipPos}
+        playerStats={{} as any}
+      />
+    )}
+    </>
   );
 }
 
@@ -352,8 +398,35 @@ function MiniMap({ game }: { game: Game }) {
 function InventoryPanel({ game }: { game: Game }) {
   const [, forceUpdate] = useState(0);
   const state = game.state;
+  const [hoveredSlot, setHoveredSlot] = useState<{ pool: string; index: string | number } | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [dragSource, setDragSource] = useState<{ pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number } | null>(null);
 
   const refresh = () => forceUpdate(n => n + 1);
+
+  const handleDragStart = (pool: 'inventory' | 'hotbar' | 'equipment', index: string | number) => {
+    setDragSource({ pool, index });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (pool: 'inventory' | 'hotbar' | 'equipment', index: string | number) => {
+    if (!dragSource) return;
+    if (dragSource.pool === pool && dragSource.index === index) return;
+    game.swapSlots(dragSource, { pool, index });
+    setDragSource(null);
+    refresh();
+  };
+
+  const handleDragEnd = () => setDragSource(null);
+
+  const equipLabels: Record<string, string> = {
+    helmet: '🪖 Capacete', chest: '🦺 Peitoral', boots: '👢 Botas', gloves: '🧤 Luvas',
+    weapon: '⚔️ Arma', tool: '🔧 Ferramenta', ring: '💍 Anel', amulet: '📿 Amuleto',
+  };
 
   return (
     <Panel title="🎒 Inventário" onClose={() => game.setActivePanel('none')}>
@@ -361,49 +434,205 @@ function InventoryPanel({ game }: { game: Game }) {
       <div className="mb-3">
         <div className="text-white/60 text-xs mb-1">Equipamento</div>
         <div className="grid grid-cols-4 gap-1">
-          {(['helmet', 'chest', 'boots', 'gloves', 'weapon', 'tool', 'ring', 'amulet'] as const).map(slot => {
-            const equipped = state.player.equipment[slot];
+          {(['helmet', 'chest', 'boots', 'gloves', 'weapon', 'tool', 'ring', 'amulet'] as const).map(equipSlot => {
+            const equipped = state.player.equipment[equipSlot];
+            const isDropTarget = dragSource && dragSource.pool !== 'equipment';
+            const isDragging = dragSource?.pool === 'equipment' && dragSource.index === equipSlot;
+
             return (
-              <button
-                key={slot}
-                onClick={() => { game.unequipItem(slot); refresh(); }}
-                className="w-12 h-12 rounded border border-white/20 bg-black/40 flex items-center justify-center relative group hover:border-white/40"
-                title={slot}
+              <div
+                key={equipSlot}
+                draggable={!!equipped?.item}
+                onDragStart={() => handleDragStart('equipment', equipSlot)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => { e.stopPropagation(); handleDrop('equipment', equipSlot); }}
+                onDragEnd={handleDragEnd}
+                onMouseEnter={(e) => {
+                  if (equipped?.item) {
+                    setHoveredSlot({ pool: 'equipment', index: equipSlot });
+                    setTooltipPos({ x: e.clientX, y: e.clientY });
+                  }
+                }}
+                onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                onMouseLeave={() => setHoveredSlot(null)}
+                className={`w-12 h-12 rounded border flex items-center justify-center relative cursor-pointer transition-all ${
+                  isDragging ? 'opacity-30 scale-90' : ''
+                } ${
+                  isDropTarget ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/20 bg-black/40'
+                } hover:border-white/40`}
+                title={equipSlot}
               >
                 {equipped?.item ? (
                   <>
-                    <span className="text-lg">{equipped.item.icon}</span>
-                    <span className="absolute -top-1 -right-1 text-[7px] bg-white/20 rounded px-0.5">{slot.slice(0, 3)}</span>
+                    <span className="text-lg" style={{ color: RARITY_COLORS[equipped.item.rarity] }}>
+                      {equipped.item.icon}
+                    </span>
+                    <span className="absolute -top-1 -right-1 text-[7px] bg-white/20 rounded px-0.5">
+                      {equipLabels[equipSlot]?.split(' ')[0] || equipSlot.slice(0, 3)}
+                    </span>
                   </>
                 ) : (
-                  <span className="text-white/20 text-[9px] uppercase">{slot.slice(0, 3)}</span>
+                  <span className="text-white/20 text-[9px] uppercase">{equipLabels[equipSlot]?.split(' ')[1] || equipSlot}</span>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
       </div>
 
+      {/* Hotbar (in inventory panel) */}
+      <div className="text-white/60 text-xs mb-1">Hotbar</div>
+      <div className="flex gap-1 mb-3">
+        {state.player.hotbar.map((slot, i) => {
+          const isDropTarget = dragSource && dragSource.pool !== 'hotbar';
+          const isDragging = dragSource?.pool === 'hotbar' && dragSource.index === i;
+          const isSelected = state.player.currentTool === i;
+
+          return (
+            <div
+              key={i}
+              draggable={!!slot?.item}
+              onDragStart={() => handleDragStart('hotbar', i)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => { e.stopPropagation(); handleDrop('hotbar', i); }}
+              onDragEnd={handleDragEnd}
+              onClick={() => { state.player.currentTool = i; refresh(); }}
+              onMouseEnter={(e) => {
+                if (slot?.item) {
+                  setHoveredSlot({ pool: 'hotbar', index: i });
+                  setTooltipPos({ x: e.clientX, y: e.clientY });
+                }
+              }}
+              onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+              onMouseLeave={() => setHoveredSlot(null)}
+              className={`w-10 h-10 rounded border-2 flex items-center justify-center relative cursor-pointer transition-all ${
+                isDragging ? 'opacity-30 scale-90' : ''
+              } ${
+                isSelected ? 'border-yellow-400 bg-yellow-400/15' : ''
+              } ${
+                isDropTarget ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'
+              } hover:border-white/40`}
+            >
+              {slot?.item && (
+                <>
+                  <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>
+                    {slot.item.icon}
+                  </span>
+                  {slot.count > 1 && (
+                    <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>
+                  )}
+                  {slot.durability !== undefined && slot.item.maxDurability && (
+                    <div className="absolute bottom-0 left-0.5 right-0.5 h-1 bg-black/50 rounded-full">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(slot.durability / slot.item.maxDurability) * 100}%`,
+                          backgroundColor: slot.durability / slot.item.maxDurability > 0.5 ? '#4caf50' : '#ff9800',
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              <span className="absolute top-0 left-0.5 text-[7px] text-white/40">{i + 1}</span>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Backpack */}
       <div className="text-white/60 text-xs mb-1">Mochila</div>
       <div className="grid grid-cols-9 gap-1 mb-3">
-        {state.player.inventory.map((slot, i) => (
-          <SlotButton key={i} slot={slot} onClick={() => {
-            if (slot.item) {
-              // Right click = equip, left click = move to hotbar
-              if (slot.item.category === 'armor' || slot.item.category === 'weapon' || slot.item.toolType || slot.item.armorSlot || slot.item.category === 'ring' || slot.item.category === 'amulet') {
-                game.equipItem(i, 'inventory');
-              } else {
-                game.moveToHotbar(i, state.player.currentTool);
-              }
-              refresh();
-            }
-          }} />
-        ))}
+        {state.player.inventory.map((slot, i) => {
+          const isDropTarget = dragSource && dragSource.pool !== 'inventory';
+          const isDragging = dragSource?.pool === 'inventory' && dragSource.index === i;
+
+          return (
+            <div
+              key={i}
+              draggable={!!slot?.item}
+              onDragStart={() => handleDragStart('inventory', i)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => { e.stopPropagation(); handleDrop('inventory', i); }}
+              onDragEnd={handleDragEnd}
+              onDoubleClick={() => {
+                if (!slot?.item) return;                  const validSlot = game.getValidEquipSlot(slot.item);
+                if (validSlot) {
+                  game.equipFromInventory(i, validSlot);
+                  refresh();
+                } else {
+                  game.moveToHotbar(i, state.player.currentTool);
+                  refresh();
+                }
+              }}
+              onMouseEnter={(e) => {
+                if (slot?.item) {
+                  setHoveredSlot({ pool: 'inventory', index: i });
+                  setTooltipPos({ x: e.clientX, y: e.clientY });
+                }
+              }}
+              onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+              onMouseLeave={() => setHoveredSlot(null)}
+              className={`w-10 h-10 rounded border flex items-center justify-center cursor-pointer transition-all ${
+                isDragging ? 'opacity-30 scale-90' : ''
+              } ${
+                isDropTarget ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'
+              } hover:border-white/30 hover:bg-white/10`}
+            >
+              {slot?.item && (
+                <>
+                  <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>
+                    {slot.item.icon}
+                  </span>
+                  {slot.count > 1 && (
+                    <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>
+                  )}
+                  {slot.durability !== undefined && slot.item.maxDurability && (
+                    <div className="absolute bottom-0 left-0.5 right-0.5 h-1 bg-black/50 rounded-full">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(slot.durability / slot.item.maxDurability) * 100}%`,
+                          backgroundColor: slot.durability / slot.item.maxDurability > 0.5 ? '#4caf50' : '#ff9800',
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      {/* Tooltip */}
+      {hoveredSlot && (() => {
+        const slotData = (() => {
+          if (hoveredSlot.pool === 'inventory') return state.player.inventory[hoveredSlot.index as number];
+          if (hoveredSlot.pool === 'hotbar') return state.player.hotbar[hoveredSlot.index as number];
+          if (hoveredSlot.pool === 'equipment') return state.player.equipment[hoveredSlot.index as keyof typeof state.player.equipment];
+          return null;
+        })();
+        if (!slotData?.item) return null;
+        return (
+          <ItemTooltip
+            item={slotData.item}
+            durability={slotData.durability}
+            position={tooltipPos}
+            compareWith={hoveredSlot.pool === 'inventory' || hoveredSlot.pool === 'hotbar'
+              ? (() => {
+                  const eqKey = slotData.item.armorSlot || (slotData.item.toolType === 'sword' || slotData.item.toolType === 'bow' ? 'weapon' : slotData.item.toolType ? 'tool' : null);
+                  return eqKey ? state.player.equipment[eqKey as keyof typeof state.player.equipment] : null;
+                })()
+              : null}
+            playerStats={state.player.stats}
+          />
+        );
+      })()}
 
       {/* Gold */}
       <div className="text-yellow-400 text-sm">🪙 {state.player.stats.gold} ouro</div>
+      <div className="text-white/30 text-[9px] mt-1">Clique duplo = equipar | Arrastar = reorganizar</div>
     </Panel>
   );
 }
@@ -801,24 +1030,143 @@ function Panel({ title, onClose, children }: {
   );
 }
 
-// ── Slot Button (reusable) ────────────────────────────────────────
-function SlotButton({ slot, onClick }: { slot: { item: { icon: string; rarity: Rarity } | null; count: number }; onClick?: () => void }) {
+// ── Item Tooltip ──────────────────────────────────────────────────
+function ItemTooltip({ item, durability, position, compareWith, playerStats }: {
+  item: { id: string; name: string; description: string; icon: string; rarity: string; category: string; damage?: number; defense?: number; speed?: number; range?: number; maxDurability?: number; toolType?: string; armorSlot?: string; bonuses?: Record<string, number>; effects?: { type: string; value: number }[]; foodValue?: number; healAmount?: number; value: number; weight: number };
+  durability?: number;
+  position: { x: number; y: number };
+  compareWith?: { item: { damage?: number; defense?: number; bonuses?: Record<string, number> } | null } | null;
+  playerStats: GameState['player']['stats'];
+}) {
+  const rarityColor = RARITY_COLORS[item.rarity as Rarity] || '#fff';
+  const rarityLabel = item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1);
+
+  // Stat comparison helpers
+  const statLabels: Record<string, string> = {
+    maxHp: '❤️ Vida Max', strength: '⚔️ Força', defense: '🛡️ Defesa', speed: '🏃 Velocidade',
+    mining: '⛏️ Mineração', woodcutting: '🪓 Corte', farming: '🌾 Fazenda', fishing: '🎣 Pesca',
+    luck: '🍀 Sorte', maxHunger: '🍖 Fome Max', maxEnergy: '⚡ Energia Max',
+  };
+
+  const getComparison = (stat: string, newVal: number) => {
+    if (!compareWith?.item) return null;
+    const currentVal = compareWith.item.bonuses?.[stat as keyof typeof compareWith.item.bonuses] || 0;
+    if (newVal === currentVal) return null;
+    return newVal > currentVal ? 'better' : 'worse';
+  };
+
   return (
-    <button
-      onClick={onClick}
-      className="w-10 h-10 rounded border border-white/15 bg-black/40 flex items-center justify-center hover:border-white/30 hover:bg-white/10 transition-colors relative"
+    <div
+      className="fixed z-[100] pointer-events-none"
+      style={{ left: position.x + 16, top: position.y - 8 }}
     >
-      {slot?.item && (
-        <>
-          <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] || '#fff' }}>
-            {slot.item.icon}
-          </span>
-          {slot.count > 1 && (
-            <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>
+      <div className="bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 p-3 w-56 shadow-2xl shadow-black/50">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl">{item.icon}</span>
+          <div>
+            <div className="text-sm font-bold" style={{ color: rarityColor }}>{item.name}</div>
+            <div className="text-[10px]" style={{ color: rarityColor }}>{rarityLabel} {item.category}</div>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="text-white/50 text-[10px] mb-2 border-b border-white/10 pb-2">{item.description}</div>
+
+        {/* Stats */}
+        <div className="space-y-0.5">
+          {item.damage && (
+            <StatLine label="⚔️ Dano" value={item.damage} compare={compareWith ? (compareWith.item?.damage || 0) : undefined} />
           )}
-        </>
-      )}
-    </button>
+          {item.defense && (
+            <StatLine label="🛡️ Defesa" value={item.defense} compare={compareWith ? (compareWith.item?.defense || 0) : undefined} />
+          )}
+          {item.speed && (
+            <StatLine label="⚡ Velocidade" value={item.speed} />
+          )}
+          {item.range && (
+            <StatLine label="📏 Alcance" value={item.range} />
+          )}
+          {item.toolType && (
+            <div className="text-[9px] text-white/40">Tipo: {item.toolType}</div>
+          )}
+          {item.armorSlot && (
+            <div className="text-[9px] text-white/40">Slot: {item.armorSlot}</div>
+          )}
+
+          {/* Bonuses */}
+          {item.bonuses && Object.entries(item.bonuses).map(([key, val]) => {
+            if (!val) return null;
+            const comparison = getComparison(key, val);
+            return (
+              <div key={key} className="flex items-center justify-between text-[9px]">
+                <span className="text-white/50">{statLabels[key] || key}</span>
+                <span className={
+                  comparison === 'better' ? 'text-green-400' :
+                  comparison === 'worse' ? 'text-red-400' : 'text-white/70'
+                }>
+                  {comparison === 'better' ? '▲' : comparison === 'worse' ? '▼' : ''} +{val}
+                </span>
+              </div>
+            );
+          })}
+
+          {/* Effects */}
+          {item.effects && item.effects.map((eff, i) => (
+            <div key={i} className="text-[9px] text-green-400/80">
+              +{eff.value} {eff.type === 'heal' ? '❤️ Vida' : eff.type === 'hunger' ? '🍖 Fome' : eff.type === 'energy' ? '⚡ Energia' : eff.type === 'xp' ? '✨ XP' : eff.type}
+            </div>
+          ))}
+
+          {/* Durability */}
+          {durability !== undefined && item.maxDurability && (
+            <div className="mt-1">
+              <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
+                <span>Durabilidade</span>
+                <span>{durability}/{item.maxDurability}</span>
+              </div>
+              <div className="h-1.5 bg-black/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${(durability / item.maxDurability) * 100}%`,
+                    backgroundColor: durability / item.maxDurability > 0.5 ? '#4caf50' : '#ff9800',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Food value */}
+          {item.foodValue && (
+            <div className="text-[9px] text-orange-400/80">+{item.foodValue} 🍖 Fome</div>
+          )}
+          {item.healAmount && (
+            <div className="text-[9px] text-red-400/80">+{item.healAmount} ❤️ Vida</div>
+          )}
+        </div>
+
+        {/* Value/Weight */}
+        <div className="mt-2 pt-2 border-t border-white/10 flex justify-between text-[9px] text-white/30">
+          <span>💰 {item.value} 🪙</span>
+          <span>⚖️ {item.weight}kg</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatLine({ label, value, compare }: { label: string; value: number; compare?: number }) {
+  const diff = compare !== undefined ? value - compare : null;
+  return (
+    <div className="flex items-center justify-between text-[9px]">
+      <span className="text-white/50">{label}</span>
+      <span className={
+        diff !== null ? (diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-white/70') : 'text-white/70'
+      }>
+        {diff !== null && diff !== 0 ? `${diff > 0 ? '+' : ''}${diff}` : value}
+      </span>
+    </div>
   );
 }
 

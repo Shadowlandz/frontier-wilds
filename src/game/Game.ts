@@ -8,7 +8,7 @@ import {
   TICK_RATE, INTERACT_RANGE, ATTACK_RANGE, PanelType,
   Weather, Season, Biome, EnemyEntity, NpcEntity, DroppedItem,
   DamageNumber, Particle, GameUIState, Notification, ItemCategory,
-  Rarity, ItemDefinition, WORLD_WIDTH, WORLD_HEIGHT,
+  Rarity, ItemDefinition, WORLD_WIDTH, WORLD_HEIGHT, PlayerAttributes,
 } from './core/Types';
 import { Input } from './core/Input';
 import { Camera } from './core/Camera';
@@ -2219,6 +2219,82 @@ export class Game {
     this.state.player.inventory[inventoryIndex] = hbSlot;
     this.state.player.hotbar[hotbarIndex] = invSlot;
   }
+
+  // ── Drag-and-Drop: swap two inventory slots ─────────────────────
+  swapSlots(from: { pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number }, to: { pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number }): boolean {
+    const getSlot = (pool: string, index: string | number): InventorySlot | null => {
+      if (pool === 'inventory') return this.state.player.inventory[index as number];
+      if (pool === 'hotbar') return this.state.player.hotbar[index as number];
+      if (pool === 'equipment') return this.state.player.equipment[index as keyof typeof this.state.player.equipment];
+      return null;
+    };
+    const setSlot = (pool: string, index: string | number, slot: InventorySlot | null): void => {
+      if (pool === 'inventory') this.state.player.inventory[index as number] = slot!;
+      else if (pool === 'hotbar') this.state.player.hotbar[index as number] = slot!;
+      else if (pool === 'equipment') (this.state.player.equipment as any)[index] = slot;
+    };
+
+    const fromSlot = getSlot(from.pool, from.index);
+    const toSlot = getSlot(to.pool, to.index);
+    if (!fromSlot || !toSlot) return false;
+
+    // If both have same item id, try to stack
+    if (fromSlot.item && toSlot.item && fromSlot.item.id === toSlot.item.id) {
+      const maxStack = fromSlot.item.stackSize;
+      const canAdd = maxStack - toSlot.count;
+      if (canAdd > 0) {
+        const transfer = Math.min(fromSlot.count, canAdd);
+        toSlot.count += transfer;
+        fromSlot.count -= transfer;
+        if (fromSlot.count <= 0) {
+          fromSlot.item = null;
+          fromSlot.durability = undefined;
+        }
+        return true;
+      }
+    }
+
+    // Otherwise, swap the slots
+    const tempItem = fromSlot.item;
+    const tempCount = fromSlot.count;
+    const tempDurability = fromSlot.durability;
+
+    fromSlot.item = toSlot.item;
+    fromSlot.count = toSlot.count;
+    fromSlot.durability = toSlot.durability;
+
+    toSlot.item = tempItem;
+    toSlot.count = tempCount;
+    toSlot.durability = tempDurability;
+
+    return true;
+  }
+
+  // ── Equip from inventory (drag to equipment slot) ────────────────
+  equipFromInventory(inventoryIndex: number, equipSlot: string): boolean {
+    const invSlot = this.state.player.inventory[inventoryIndex];
+    if (!invSlot?.item) return false;
+
+    const item = invSlot.item;
+    const validEquipSlot = this.getValidEquipSlot(item);
+    if (!validEquipSlot || validEquipSlot !== equipSlot) return false;
+
+    return this.swapSlots(
+      { pool: 'inventory', index: inventoryIndex },
+      { pool: 'equipment', index: equipSlot }
+    );
+  }
+
+  // ── Get valid equipment slot for an item ─────────────────────────
+  getValidEquipSlot(item: ItemDefinition): string | null {
+    if (item.toolType === 'sword' || item.toolType === 'bow') return 'weapon';
+    if (item.toolType) return 'tool';
+    if (item.armorSlot) return item.armorSlot;
+    return null;
+  }
+
+
+
 }
 
 function sub(a: Vec2, b: Vec2): Vec2 {
