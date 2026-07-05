@@ -3,14 +3,11 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import {
-  Biome, TileType, TILE_SIZE, CHUNK_SIZE, WORLD_WIDTH, WORLD_HEIGHT,
-  EnemyType, ResourceType, Weather, Season, GameTime,
-  NpcType, Vec2,
+  Biome, TileType, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT,
+  EnemyType, Weather, Season, GameTime,
+  Vec2,
 } from '../core/Types';
-import { fractalNoise, SeededRandom, clamp } from '../core/Utils';
-import { ITEMS } from './Items';
-import { ENEMIES } from './Enemies';
-import { NPCS } from './Npcs';
+import { fractalNoise, SeededRandom } from '../core/Utils';
 
 // ── Tile Colors ───────────────────────────────────────────────────
 export const TILE_COLORS: Record<TileType, string> = {
@@ -125,17 +122,16 @@ export class WorldGenerator {
   private getTileForBiome(biome: Biome, x: number, y: number): TileType {
     const noise = fractalNoise(x, y, this.seed + 1000, 2, 20);
 
-    switch (biome) {
-      case Biome.Lake: return noise > 0.4 ? TileType.Water : TileType.DeepWater;
-      case Biome.River: return TileType.Water;
-      case Biome.Desert: return noise > 0.7 ? TileType.Stone : TileType.Sand;
-      case Biome.Mountains: return noise > 0.5 ? TileType.Stone : TileType.Snow;
-      case Biome.Swamp: return noise > 0.6 ? TileType.SwampWater : TileType.Grass;
-      case Biome.Cave: return TileType.CaveFloor;
-      case Biome.Ruins: return noise > 0.4 ? TileType.Floor : TileType.Stone;
-      case Biome.Village: return noise > 0.7 ? TileType.Path : TileType.Grass;
-      default: return noise > 0.8 ? TileType.Dirt : TileType.Grass;
-    }
+    if (biome === Biome.Lake) return noise > 0.4 ? TileType.Water : TileType.DeepWater;
+    if (biome === Biome.River) return TileType.Water;
+    if (biome === Biome.Desert) return noise > 0.7 ? TileType.Stone : TileType.Sand;
+    if (biome === Biome.Mountains) return noise > 0.5 ? TileType.Stone : TileType.Snow;
+    if (biome === Biome.Swamp) return noise > 0.6 ? TileType.SwampWater : TileType.Grass;
+    if (biome === Biome.Cave) return TileType.CaveFloor;
+    if (biome === Biome.Ruins) return noise > 0.4 ? TileType.Floor : TileType.Stone;
+    if (biome === Biome.Village) return noise > 0.7 ? TileType.Path : TileType.Grass;
+    if (biome === Biome.Tundra) return noise > 0.5 ? TileType.Snow : TileType.Dirt;
+    return noise > 0.8 ? TileType.Dirt : TileType.Grass;
   }
 
   generateResources(biomeMap: Biome[][]): { x: number; y: number; type: string; itemId: string }[] {
@@ -241,8 +237,8 @@ export class WorldGenerator {
               itemId: 'crystal',
             });
           }
-        } else if (biome === Biome.Plains) {
-          if (n < 0.015) {
+        } else {
+          if (biome === Biome.Plains && n < 0.015) {
             resources.push({
               x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
               y: y * TILE_SIZE + rng.range(0, TILE_SIZE),

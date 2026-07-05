@@ -5,24 +5,25 @@
 import {
   GameState, PlayerState, WorldState, GameTime, InventorySlot,
   Vec2, TileType, TILE_SIZE, PLAYER_SPEED, PLAYER_SIZE, DAY_LENGTH,
-  TICK_RATE, INTERACT_RANGE, ATTACK_RANGE, PANEL_TYPE, PanelType,
+  TICK_RATE, INTERACT_RANGE, ATTACK_RANGE, PanelType,
   Weather, Season, Biome, EnemyEntity, NpcEntity, DroppedItem,
   DamageNumber, Particle, GameUIState, Notification, ItemCategory,
-  GameSettings, Rarity, NpcType, ItemDefinition, ArmorSlot, HotbarIndex,
-} from '../core/Types';
-import { Input } from '../core/Input';
-import { Camera } from '../core/Camera';
+  Rarity, ItemDefinition, WORLD_WIDTH, WORLD_HEIGHT,
+} from './core/Types';
+import { Input } from './core/Input';
+import { Camera } from './core/Camera';
 import {
-  clamp, distance, normalize, addVec, scaleVec, generateId,
-  SeededRandom, fractalNoise, RARITY_COLORS,
-} from '../core/Utils';
-import { WorldGenerator, TILE_COLORS, getSkyColor, getSeasonTint, getSeasonForDay } from '../world/WorldGenerator';
-import { ITEMS, getItem } from '../data/Items';
-import { RECIPES } from '../data/Recipes';
-import { ENEMIES } from '../data/Enemies';
-import { NPCS } from '../data/Npcs';
-import { QUESTS, getQuestById } from '../data/Quests';
-import { SKILLS, getSkillsByTree } from '../data/Skills';
+  clamp, distance, normalize, scaleVec, generateId,
+  SeededRandom, fractalNoise,
+} from './core/Utils';
+import { WorldGenerator, TILE_COLORS, getSkyColor, getSeasonTint, getSeasonForDay } from './world/WorldGenerator';
+import { ITEMS, getItem } from './data/Items';
+import { RECIPES } from './data/Recipes';
+import { ENEMIES } from './data/Enemies';
+import { NPCS } from './data/Npcs';
+import { getQuestById } from './data/Quests';
+import { SKILLS } from './data/Skills';
+import { RARITY_COLORS } from './core/Types';
 
 type GameUpdateCallback = (state: GameState, ui: GameUIState) => void;
 
@@ -887,7 +888,7 @@ export class Game {
 
     if (gt.weatherTimer <= 0) {
       const rng = new SeededRandom(Date.now());
-      const weathers = [Weather.Clear, Weather.Clear, Weather.Clear, Weather.Rain, Weather.Fog];
+      const weathers: Weather[] = [Weather.Clear, Weather.Clear, Weather.Clear, Weather.Rain, Weather.Fog];
       if (gt.season === Season.Winter) weathers.push(Weather.Snow);
       if (gt.season === Season.Autumn) weathers.push(Weather.Rain, Weather.HeavyRain);
 
@@ -930,7 +931,7 @@ export class Game {
       dn.timer -= dt;
       dn.velocity.y += 20 * dt;
     }
-    this.damageNumbers = this.damageNumbers.filter(dn => d.timer > 0);
+    this.damageNumbers = this.damageNumbers.filter(dn => dn.timer > 0);
   }
 
   private updateNotifications(dt: number): void {
@@ -1637,7 +1638,7 @@ export class Game {
   }
 
   private getBiomeGrassColor(biome: Biome): string {
-    const colors: Record<Biome, string> = {
+    const colors: Record<string, string> = {
       [Biome.Forest]: '#3d6b34',
       [Biome.Plains]: '#5a9a4a',
       [Biome.Mountains]: '#6a7a6a',
@@ -1671,7 +1672,8 @@ export class Game {
   }
 
   private drawWeather(): void {
-    const { ctx, canvas, gameTime } = this;
+    const { ctx, canvas } = this;
+    const gameTime = this.state.gameTime;
     const weather = gameTime.weather;
 
     if (weather === Weather.Rain || weather === Weather.HeavyRain) {
@@ -1726,7 +1728,7 @@ export class Game {
     const item = slot.item;
 
     // Determine equipment slot
-    let equipSlot: keyof typeof this.state.player.equipment | null = null;
+    let equipSlot: 'helmet' | 'chest' | 'boots' | 'gloves' | 'ring' | 'amulet' | 'weapon' | 'tool' | null = null;
 
     if (item.toolType === 'sword' || item.toolType === 'bow') {
       equipSlot = 'weapon';

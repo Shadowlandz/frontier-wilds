@@ -15,163 +15,178 @@ export interface Rect {
   h: number;
 }
 
-// ── Enums ─────────────────────────────────────────────────────────
-export enum Biome {
-  Forest = 'forest',
-  Plains = 'plains',
-  Mountains = 'mountains',
-  Swamp = 'swamp',
-  Desert = 'desert',
-  Tundra = 'tundra',
-  Cave = 'cave',
-  Ruins = 'ruins',
-  Village = 'village',
-  Lake = 'lake',
-  River = 'river',
-}
+// ── Const Enums (erasableSyntaxOnly compatible) ───────────────────
+export const Biome = {
+  Forest: 'forest',
+  Plains: 'plains',
+  Mountains: 'mountains',
+  Swamp: 'swamp',
+  Desert: 'desert',
+  Tundra: 'tundra',
+  Cave: 'cave',
+  Ruins: 'ruins',
+  Village: 'village',
+  Lake: 'lake',
+  River: 'river',
+} as const;
+export type Biome = typeof Biome[keyof typeof Biome];
 
-export enum TileType {
-  Grass = 0,
-  Dirt = 1,
-  Sand = 2,
-  Water = 3,
-  DeepWater = 4,
-  Stone = 5,
-  Snow = 6,
-  SwampWater = 7,
-  Path = 8,
-  Wall = 9,
-  Floor = 10,
-  CaveFloor = 11,
-  CaveWall = 12,
-  Lava = 13,
-}
+export const TileType = {
+  Grass: 0,
+  Dirt: 1,
+  Sand: 2,
+  Water: 3,
+  DeepWater: 4,
+  Stone: 5,
+  Snow: 6,
+  SwampWater: 7,
+  Path: 8,
+  Wall: 9,
+  Floor: 10,
+  CaveFloor: 11,
+  CaveWall: 12,
+  Lava: 13,
+} as const;
+export type TileType = typeof TileType[keyof typeof TileType];
 
-export enum Season {
-  Spring = 'spring',
-  Summer = 'summer',
-  Autumn = 'autumn',
-  Winter = 'winter',
-}
+export const Season = {
+  Spring: 'spring',
+  Summer: 'summer',
+  Autumn: 'autumn',
+  Winter: 'winter',
+} as const;
+export type Season = typeof Season[keyof typeof Season];
 
-export enum Weather {
-  Clear = 'clear',
-  Rain = 'rain',
-  HeavyRain = 'heavyRain',
-  Fog = 'fog',
-  Snow = 'snow',
-  Storm = 'storm',
-}
+export const Weather = {
+  Clear: 'clear',
+  Rain: 'rain',
+  HeavyRain: 'heavyRain',
+  Fog: 'fog',
+  Snow: 'snow',
+  Storm: 'storm',
+} as const;
+export type Weather = typeof Weather[keyof typeof Weather];
 
-export enum Rarity {
-  Common = 'common',
-  Uncommon = 'uncommon',
-  Rare = 'rare',
-  Epic = 'epic',
-  Legendary = 'legendary',
-}
+export const Rarity = {
+  Common: 'common',
+  Uncommon: 'uncommon',
+  Rare: 'rare',
+  Epic: 'epic',
+  Legendary: 'legendary',
+} as const;
+export type Rarity = typeof Rarity[keyof typeof Rarity];
 
-export enum ResourceType {
-  Wood = 'wood',
-  Stone = 'stone',
-  IronOre = 'ironOre',
-  GoldOre = 'goldOre',
-  Coal = 'coal',
-  Crystal = 'crystal',
-  Plant = 'plant',
-  Fruit = 'fruit',
-  Leather = 'leather',
-  Bone = 'bone',
-  Gem = 'gem',
-  Fiber = 'fiber',
-  Clay = 'clay',
-}
+export const ResourceType = {
+  Wood: 'wood',
+  Stone: 'stone',
+  IronOre: 'ironOre',
+  GoldOre: 'goldOre',
+  Coal: 'coal',
+  Crystal: 'crystal',
+  Plant: 'plant',
+  Fruit: 'fruit',
+  Leather: 'leather',
+  Bone: 'bone',
+  Gem: 'gem',
+  Fiber: 'fiber',
+  Clay: 'clay',
+} as const;
+export type ResourceType = typeof ResourceType[keyof typeof ResourceType];
 
-export enum ItemCategory {
-  Tool = 'tool',
-  Weapon = 'weapon',
-  Armor = 'armor',
-  Consumable = 'consumable',
-  Material = 'material',
-  Quest = 'quest',
-  Seed = 'seed',
-  Fish = 'fish',
-  Furniture = 'furniture',
-  Ring = 'ring',
-  Amulet = 'amulet',
-}
+export const ItemCategory = {
+  Tool: 'tool',
+  Weapon: 'weapon',
+  Armor: 'armor',
+  Consumable: 'consumable',
+  Material: 'material',
+  Quest: 'quest',
+  Seed: 'seed',
+  Fish: 'fish',
+  Furniture: 'furniture',
+  Ring: 'ring',
+  Amulet: 'amulet',
+} as const;
+export type ItemCategory = typeof ItemCategory[keyof typeof ItemCategory];
 
-export enum ToolType {
-  Axe = 'axe',
-  Pickaxe = 'pickaxe',
-  Sword = 'sword',
-  Bow = 'bow',
-  Torch = 'torch',
-  Scythe = 'scythe',
-  Hammer = 'hammer',
-  FishingRod = 'fishingRod',
-  Hoe = 'hoe',
-}
+export const ToolType = {
+  Axe: 'axe',
+  Pickaxe: 'pickaxe',
+  Sword: 'sword',
+  Bow: 'bow',
+  Torch: 'torch',
+  Scythe: 'scythe',
+  Hammer: 'hammer',
+  FishingRod: 'fishingRod',
+  Hoe: 'hoe',
+} as const;
+export type ToolType = typeof ToolType[keyof typeof ToolType];
 
-export enum ArmorSlot {
-  Helmet = 'helmet',
-  Chest = 'chest',
-  Boots = 'boots',
-  Gloves = 'gloves',
-  Ring = 'ring',
-  Amulet = 'amulet',
-}
+export const ArmorSlot = {
+  Helmet: 'helmet',
+  Chest: 'chest',
+  Boots: 'boots',
+  Gloves: 'gloves',
+  Ring: 'ring',
+  Amulet: 'amulet',
+} as const;
+export type ArmorSlot = typeof ArmorSlot[keyof typeof ArmorSlot];
 
-export enum EnemyType {
-  Wolf = 'wolf',
-  Boar = 'boar',
-  Slime = 'slime',
-  Skeleton = 'skeleton',
-  Spider = 'spider',
-  Golem = 'golem',
-  Bat = 'bat',
-  DarkKnight = 'darkKnight',
-  Dragon = 'dragon',
-  SlimeKing = 'slimeKing',
-  ShadowLord = 'shadowLord',
-}
+export const EnemyType = {
+  Wolf: 'wolf',
+  Boar: 'boar',
+  Slime: 'slime',
+  Skeleton: 'skeleton',
+  Spider: 'spider',
+  Golem: 'golem',
+  Bat: 'bat',
+  DarkKnight: 'darkKnight',
+  Dragon: 'dragon',
+  SlimeKing: 'slimeKing',
+  ShadowLord: 'shadowLord',
+} as const;
+export type EnemyType = typeof EnemyType[keyof typeof EnemyType];
 
-export enum NpcType {
-  Merchant = 'merchant',
-  Blacksmith = 'blacksmith',
-  Farmer = 'farmer',
-  Alchemist = 'alchemist',
-  Hunter = 'hunter',
-  QuestGiver = 'questGiver',
-}
+export const NpcType = {
+  Merchant: 'merchant',
+  Blacksmith: 'blacksmith',
+  Farmer: 'farmer',
+  Alchemist: 'alchemist',
+  Hunter: 'hunter',
+  QuestGiver: 'questGiver',
+} as const;
+export type NpcType = typeof NpcType[keyof typeof NpcType];
 
-export enum SkillTree {
-  Survival = 'survival',
-  Combat = 'combat',
-  Gathering = 'gathering',
-  Crafting = 'crafting',
-  Exploration = 'exploration',
-}
+export const SkillTree = {
+  Survival: 'survival',
+  Combat: 'combat',
+  Gathering: 'gathering',
+  Crafting: 'crafting',
+  Exploration: 'exploration',
+} as const;
+export type SkillTree = typeof SkillTree[keyof typeof SkillTree];
 
-export enum AttackType {
-  Light = 'light',
-  Heavy = 'heavy',
-  Ranged = 'ranged',
-}
+export const AttackType = {
+  Light: 'light',
+  Heavy: 'heavy',
+  Ranged: 'ranged',
+} as const;
+export type AttackType = typeof AttackType[keyof typeof AttackType];
 
-export enum QuestType {
-  Main = 'main',
-  Side = 'side',
-  Daily = 'daily',
-  Weekly = 'weekly',
-}
+export const QuestType = {
+  Main: 'main',
+  Side: 'side',
+  Daily: 'daily',
+  Weekly: 'weekly',
+} as const;
+export type QuestType = typeof QuestType[keyof typeof QuestType];
 
-export enum QuestStatus {
-  Available = 'available',
-  Active = 'active',
-  Completed = 'completed',
-  Failed = 'failed',
-}
+export const QuestStatus = {
+  Available: 'available',
+  Active: 'active',
+  Completed: 'completed',
+  Failed: 'failed',
+} as const;
+export type QuestStatus = typeof QuestStatus[keyof typeof QuestStatus];
 
 // ── Interfaces ────────────────────────────────────────────────────
 export interface ItemDefinition {
@@ -182,8 +197,8 @@ export interface ItemDefinition {
   rarity: Rarity;
   stackSize: number;
   weight: number;
-  value: number; // gold value
-  icon: string; // emoji icon
+  value: number;
+  icon: string;
   toolType?: ToolType;
   armorSlot?: ArmorSlot;
   damage?: number;
@@ -264,12 +279,12 @@ export interface CraftingRecipe {
   id: string;
   name: string;
   category: ItemCategory;
-  result: string; // item id
+  result: string;
   resultCount: number;
   ingredients: { itemId: string; count: number }[];
   requiredLevel: number;
-  craftTime: number; // ms
-  station?: string; // required station item id
+  craftTime: number;
+  station?: string;
 }
 
 export interface EnemyDefinition {
@@ -283,7 +298,7 @@ export interface EnemyDefinition {
   level: number;
   aggroRange: number;
   attackRange: number;
-  attackSpeed: number; // ms between attacks
+  attackSpeed: number;
   loot: { itemId: string; chance: number; minCount: number; maxCount: number }[];
   color: string;
   size: number;
@@ -295,7 +310,7 @@ export interface NpcDefinition {
   type: NpcType;
   name: string;
   dialogue: string[];
-  shopItems?: string[]; // item ids
+  shopItems?: string[];
   questIds?: string[];
   color: string;
   icon: string;
@@ -339,7 +354,7 @@ export interface SkillDefinition {
   description: string;
   tree: SkillTree;
   maxLevel: number;
-  cost: number; // skill points per level
+  cost: number;
   effect: (level: number) => Partial<PlayerAttributes>;
   prerequisites?: string[];
   icon: string;
@@ -360,8 +375,8 @@ export interface FarmPlot {
   x: number;
   y: number;
   seedId: string | null;
-  growthStage: number; // 0-4
-  growthProgress: number; // 0-1
+  growthStage: number;
+  growthProgress: number;
   watered: boolean;
   plantedAt: number;
 }
@@ -380,7 +395,7 @@ export interface GameState {
   player: PlayerState;
   world: WorldState;
   quests: ActiveQuest[];
-  skills: { [skillId: string]: number }; // skill id -> level
+  skills: { [skillId: string]: number };
   structures: PlacedStructure[];
   farmPlots: FarmPlot[];
   discoveredAreas: string[];
@@ -400,7 +415,7 @@ export interface PlayerState {
   isAttacking: boolean;
   attackTimer: number;
   invincibleTimer: number;
-  currentTool: number; // hotbar index
+  currentTool: number;
   stamina: number;
   maxStamina: number;
 }
@@ -417,7 +432,7 @@ export interface WorldState {
 export interface GameTime {
   totalTicks: number;
   dayTicks: number;
-  dayLength: number; // ticks per day
+  dayLength: number;
   hour: number;
   minute: number;
   day: number;
@@ -509,14 +524,31 @@ export interface GameUIState {
 
 // ── Constants ─────────────────────────────────────────────────────
 export const TILE_SIZE = 32;
-export const CHUNK_SIZE = 16; // tiles per chunk
-export const WORLD_WIDTH = 200; // tiles
-export const WORLD_HEIGHT = 200; // tiles
-export const PLAYER_SPEED = 120; // pixels per second
+export const CHUNK_SIZE = 16;
+export const WORLD_WIDTH = 200;
+export const WORLD_HEIGHT = 200;
+export const PLAYER_SPEED = 120;
 export const PLAYER_SIZE = 24;
-export const DAY_LENGTH = 24000; // ticks per full day (about 10 real minutes at 4 ticks/sec)
-export const TICK_RATE = 60; // ticks per second
-export const INVENTORY_SIZE = 36; // 9 hotbar + 27 main
+export const DAY_LENGTH = 24000;
+export const TICK_RATE = 60;
+export const INVENTORY_SIZE = 36;
 export const HOTBAR_SIZE = 9;
 export const INTERACT_RANGE = 48;
 export const ATTACK_RANGE = 40;
+
+// ── Rarity Colors ─────────────────────────────────────────────────
+export const RARITY_COLORS: Record<Rarity, string> = {
+  [Rarity.Common]: '#b0b0b0',
+  [Rarity.Uncommon]: '#4caf50',
+  [Rarity.Rare]: '#2196f3',
+  [Rarity.Epic]: '#9c27b0',
+  [Rarity.Legendary]: '#ff9800',
+};
+
+export const RARITY_WEIGHTS: Record<Rarity, number> = {
+  [Rarity.Common]: 50,
+  [Rarity.Uncommon]: 30,
+  [Rarity.Rare]: 14,
+  [Rarity.Epic]: 5,
+  [Rarity.Legendary]: 1,
+};
