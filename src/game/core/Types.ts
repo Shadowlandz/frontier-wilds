@@ -509,7 +509,7 @@ export interface Particle {
 }
 
 // ── UI State ──────────────────────────────────────────────────────
-export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'none';
+export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'save' | 'none';
 
 export interface GameUIState {
   activePanel: PanelType;

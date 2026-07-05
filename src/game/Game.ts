@@ -23,6 +23,7 @@ import { ENEMIES } from './data/Enemies';
 import { NPCS } from './data/Npcs';
 import { getQuestById } from './data/Quests';
 import { SKILLS } from './data/Skills';
+import { saveGame, loadGame, loadAutoSave, autoSave } from './systems/SaveSystem';
 
 type GameUpdateCallback = (state: GameState, ui: GameUIState) => void;
 
@@ -242,6 +243,9 @@ export class Game {
   };
 
   // ── Update ──────────────────────────────────────────────────────
+  private autoSaveTimer = 0;
+  private autoSaveInterval = 60; // Auto-save every 60 seconds
+
   private update(dt: number): void {
     const { player, gameTime } = this.state;
 
@@ -266,6 +270,14 @@ export class Game {
     this.updateSurvival(dt);
     this.updateRegeneration(dt);
     this.updateNotifications(dt);
+    this.updateFarming(dt);
+
+    // Auto-save
+    this.autoSaveTimer += dt;
+    if (this.autoSaveTimer >= this.autoSaveInterval) {
+      this.autoSaveTimer = 0;
+      this.performAutoSave();
+    }
 
     this.onUpdate?.(this.state, this.ui);
   }
@@ -313,6 +325,16 @@ export class Game {
     // M for map
     if (input.isKeyPressed('m')) {
       this.ui.showMap = !this.ui.showMap;
+    }
+
+    // H for save/load
+    if (input.isKeyPressed('h')) {
+      this.ui.activePanel = this.ui.activePanel === 'save' ? 'none' : 'save';
+    }
+
+    // P for farm actions (till/plant/harvest)
+    if (input.isKeyPressed('p')) {
+      this.tryFarmAction();
     }
 
     // Escape to close panels
@@ -1208,6 +1230,306 @@ export class Game {
     return true;
   }
 
+  // ── Farming System ─────────────────────────────────────────────
+  tillSoil(): boolean {
+    const tool = this.getCurrentItem();
+    if (!tool || tool.toolType !== 'hoe') return false;
+
+    const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
+    const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
+
+    // Check if already a farm plot
+    const existing = this.state.farmPlots.find(p => p.x === px && p.y === py);
+    if (existing) return false;
+
+    // Check tile is grass
+    const tile = this.tileMap[py]?.[px];
+    if (tile !== TileType.Grass) return false;
+
+    this.state.farmPlots.push({
+      x: px, y: py,
+      seedId: null,
+      growthStage: 0,
+      growthProgress: 0,
+      watered: false,
+      plantedAt: 0,
+    });
+
+    this.addNotification('Solo preparado para plantio!', 'success');
+    this.state.player.stats.farming += 0.1;
+    return true;
+  }
+
+  plantSeed(seedId: string): boolean {
+    const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
+    const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
+
+    const plot = this.state.farmPlots.find(p => p.x === px && p.y === py);
+    if (!plot || plot.seedId) return false;
+
+    if (!this.removeFromInventory(seedId, 1)) {
+      this.addNotification('Sem sementes!', 'warning');
+      return false;
+    }
+
+    plot.seedId = seedId;
+    plot.growthStage = 0;
+    plot.growthProgress = 0;
+    plot.watered = false;
+    plot.plantedAt = this.state.gameTime.totalTicks;
+
+    this.addNotification('Semente plantada!', 'success');
+    return true;
+  }
+
+  waterPlot(): boolean {
+    const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
+    const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
+
+    const plot = this.state.farmPlots.find(p => p.x === px && p.y === py);
+    if (!plot || !plot.seedId || plot.watered) return false;
+    if (plot.growthStage >= 3) return false; // Already fully grown
+
+    plot.watered = true;
+    this.addNotification('Plantação regada!', 'success');
+    return true;
+  }
+
+  harvestPlot(): boolean {
+    const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
+    const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
+
+    const plotIndex = this.state.farmPlots.findIndex(p => p.x === px && p.y === py);
+    if (plotIndex === -1) return false;
+    const plot = this.state.farmPlots[plotIndex];
+    if (!plot.seedId || plot.growthStage < 3) return false;
+
+    // Determine harvest yield
+    const seedToCrop: Record<string, string> = {
+      wheat_seed: 'wheat',
+      carrot_seed: 'carrot',
+      potato_seed: 'potato',
+      berry_seed: 'berry',
+      pumpkin_seed: 'pumpkin',
+    };
+
+    const cropId = seedToCrop[plot.seedId];
+    if (!cropId) return false;
+
+    const harvestCount = 2 + Math.floor(Math.random() * 3) + Math.floor(this.state.player.stats.farming / 5);
+    if (!this.addToInventory(cropId, harvestCount)) {
+      this.addNotification('Inventário cheio!', 'warning');
+      return false;
+    }
+    this.gainXp(10 + Math.floor(this.state.player.stats.farming * 2));
+    this.updateQuestProgress('farm', cropId);
+
+    this.addNotification(`+${harvestCount} ${getItem(cropId)?.name || cropId} colhido!`, 'item');
+
+    // Reset plot
+    plot.seedId = null;
+    plot.growthStage = 0;
+    plot.growthProgress = 0;
+    plot.watered = false;
+
+    return true;
+  }
+
+  private tryFarmAction(): void {
+    const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
+    const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
+
+    const plot = this.state.farmPlots.find(p => p.x === px && p.y === py);
+
+    if (!plot) {
+      const tool = this.getCurrentItem();
+      if (tool?.toolType === 'hoe') {
+        this.tillSoil();
+      } else {
+        this.addNotification('Use uma enxada para preparar o solo!', 'warning');
+      }
+    } else if (!plot.seedId) {
+      const seedIds = ['wheat_seed', 'carrot_seed', 'potato_seed', 'berry_seed', 'pumpkin_seed'];
+      for (const id of seedIds) {
+        if (this.countInInventory(id) > 0) {
+          this.plantSeed(id);
+          return;
+        }
+      }
+      this.addNotification('Sem sementes!', 'warning');
+    } else if (!plot.watered) {
+      this.waterPlot();
+    } else if (plot.growthStage >= 3) {
+      this.harvestPlot();
+    } else {
+      this.addNotification('Plantação ainda crescendo...', 'info');
+    }
+  }
+
+  // ── Farming Growth Update ──────────────────────────────────────
+  private updateFarming(dt: number): void {
+    const farmerLevel = this.state.skills['farmer_hand'] || 0;
+    const growthMultiplier = 1 + farmerLevel * 0.3;
+
+    for (const plot of this.state.farmPlots) {
+      if (!plot.seedId || plot.growthStage >= 3) continue;
+
+      // Only grow when watered
+      if (!plot.watered) continue;
+
+      const growthRate = 0.02 * growthMultiplier * dt;
+      plot.growthProgress += growthRate;
+
+      if (plot.growthProgress >= 1) {
+        plot.growthProgress = 0;
+        plot.growthStage++;
+        plot.watered = false;
+
+        if (plot.growthStage >= 3) {
+          this.addNotification('Plantação pronta para colheita!', 'success');
+        }
+      }
+    }
+  }
+
+  // ── Fishing System ─────────────────────────────────────────────
+  tryFish(): boolean {
+    const tool = this.getCurrentItem();
+    if (!tool || tool.toolType !== 'fishingRod') return false;
+
+    // Check if near water
+    const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
+    const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
+
+    const tile = this.tileMap[py]?.[px];
+    if (tile !== TileType.Water && tile !== TileType.DeepWater) {
+      this.addNotification('Precisa estar perto de água para pescar!', 'warning');
+      return false;
+    }
+
+    // Check energy
+    if (this.state.player.stats.energy < 10) {
+      this.addNotification('Sem energia para pescar!', 'warning');
+      return false;
+    }
+
+    this.state.player.stats.energy -= 10;
+
+    // Determine catch based on luck, skill, and biome
+    const luck = this.state.player.stats.luck;
+    const fishingSkill = this.state.player.stats.fishing;
+    const fisherLuckLevel = this.state.skills['fisher_luck'] || 0;
+    const catchChance = 0.5 + (fishingSkill * 0.05) + (luck * 0.02) + (fisherLuckLevel * 0.1);
+
+    if (Math.random() > catchChance) {
+      this.addNotification('Nada mordeu desta vez...', 'info');
+      this.gainXp(1);
+      return true;
+    }
+
+    // Determine fish rarity
+    const rarityRoll = Math.random() + (luck * 0.01) + (fisherLuckLevel * 0.05);
+    let fishId = 'fish';
+    if (rarityRoll > 0.95) fishId = 'golden_fish';
+
+    const count = 1 + Math.floor(Math.random() * 2);
+    this.addToInventory(fishId, count);
+    this.gainXp(5 + fishingSkill);
+    this.updateQuestProgress('fish', fishId);
+
+    const fishName = getItem(fishId)?.name || fishId;
+    this.addNotification(`Pescou ${count}x ${fishName}!`, 'item');
+    return true;
+  }
+
+  // ── Building System ────────────────────────────────────────────
+  placeStructure(itemId: string): boolean {
+    const item = getItem(itemId);
+    if (!item || !item.placeable) return false;
+
+    if (!this.removeFromInventory(itemId, 1)) return false;
+
+    const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
+    const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
+
+    // Check tile is walkable
+    const tile = this.tileMap[py]?.[px];
+    if (tile === TileType.Water || tile === TileType.DeepWater || tile === TileType.Wall || tile === TileType.CaveWall) {
+      this.addToInventory(itemId, 1);
+      this.addNotification('Não pode construir aqui!', 'warning');
+      return false;
+    }
+
+    // Check for existing structure
+    const existing = this.state.structures.find(s =>
+      s.x === px * TILE_SIZE && s.y === py * TILE_SIZE
+    );
+    if (existing) {
+      this.addToInventory(itemId, 1);
+      this.addNotification('Já existe uma construção aqui!', 'warning');
+      return false;
+    }
+
+    this.state.structures.push({
+      id: `struct_${Date.now()}`,
+      itemId,
+      x: px * TILE_SIZE,
+      y: py * TILE_SIZE,
+      width: TILE_SIZE,
+      height: TILE_SIZE,
+      health: 100,
+      maxHealth: 100,
+    });
+
+    this.gainXp(3);
+    this.addNotification(`${item.name} construído!`, 'success');
+    return true;
+  }
+
+  // ── Save/Load ─────────────────────────────────────────────────
+  saveToSlot(slot: number): boolean {
+    if (saveGame(this.state, slot)) {
+      this.addNotification(`Jogo salvo no slot ${slot + 1}!`, 'success');
+      return true;
+    }
+    this.addNotification('Erro ao salvar!', 'error');
+    return false;
+  }
+
+  loadFromSlot(slot: number): boolean {
+    const data = loadGame(slot);
+    if (!data) {
+      this.addNotification('Nenhum save encontrado!', 'warning');
+      return false;
+    }
+    this.applyLoadedState(data);
+    this.addNotification(`Jogo carregado do slot ${slot + 1}!`, 'success');
+    return true;
+  }
+
+  loadAutoSaveData(): boolean {
+    const data = loadAutoSave();
+    if (!data) return false;
+    this.applyLoadedState(data);
+    this.addNotification('Auto-save carregado!', 'success');
+    return true;
+  }
+
+  performAutoSave(): void {
+    autoSave(this.state);
+  }
+
+  private applyLoadedState(data: Partial<GameState>): void {
+    if (data.player) Object.assign(this.state.player, data.player);
+    if (data.quests) this.state.quests = data.quests;
+    if (data.skills) this.state.skills = data.skills;
+    if (data.structures) this.state.structures = data.structures;
+    if (data.farmPlots) this.state.farmPlots = data.farmPlots;
+    if (data.discoveredAreas) this.state.discoveredAreas = data.discoveredAreas;
+    if (data.gameTime) Object.assign(this.state.gameTime, data.gameTime);
+    if (data.settings) Object.assign(this.state.settings, data.settings);
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────
   private spawnDroppedItem(x: number, y: number, itemId: string, count: number): void {
     this.droppedItems.push({
@@ -1319,6 +1641,18 @@ export class Game {
     for (const enemy of this.enemies) {
       if (!camera.isVisible(enemy.x, enemy.y, enemy.width, enemy.height)) continue;
       this.drawEnemy(enemy);
+    }
+
+    // Draw farm plots
+    for (const plot of this.state.farmPlots) {
+      if (!camera.isVisible(plot.x * TILE_SIZE, plot.y * TILE_SIZE, TILE_SIZE, TILE_SIZE)) continue;
+      this.drawFarmPlot(plot);
+    }
+
+    // Draw structures
+    for (const struct of this.state.structures) {
+      if (!camera.isVisible(struct.x, struct.y, struct.width, struct.height)) continue;
+      this.drawStructure(struct);
     }
 
     // Draw player
@@ -1704,6 +2038,114 @@ export class Game {
         ctx.arc(x, y, 1 + Math.random() * 2, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+  }
+
+  private drawFarmPlot(plot: { x: number; y: number; seedId: string | null; growthStage: number; growthProgress: number; watered: boolean }): void {
+    const { ctx, camera } = this;
+    const pos = camera.worldToScreen(plot.x * TILE_SIZE, plot.y * TILE_SIZE);
+
+    // Soil base
+    ctx.fillStyle = plot.watered ? '#5a3a1a' : '#8d6e4a';
+    ctx.fillRect(pos.x + 2, pos.y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+    // Grid lines
+    ctx.strokeStyle = '#6d4e3a';
+    ctx.lineWidth = 0.5;
+    for (let i = 1; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(pos.x + 2 + i * 7, pos.y + 2);
+      ctx.lineTo(pos.x + 2 + i * 7, pos.y + TILE_SIZE - 2);
+      ctx.stroke();
+    }
+
+    // Plant growth
+    if (plot.seedId && plot.growthStage > 0) {
+      const stageColors = ['#4a7a2a', '#5a9a3a', '#6ab040', '#8ac050'];
+      const stageSizes = [4, 6, 8, 10];
+      const stage = Math.min(plot.growthStage, 3);
+      const size = stageSizes[stage];
+      const color = stageColors[stage];
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(pos.x + TILE_SIZE / 2, pos.y + TILE_SIZE / 2, size, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ready indicator
+      if (plot.growthStage >= 3) {
+        ctx.fillStyle = '#ffdd00';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('✓', pos.x + TILE_SIZE / 2, pos.y - 2);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    // Watered indicator
+    if (plot.watered) {
+      ctx.fillStyle = 'rgba(100, 150, 255, 0.3)';
+      ctx.fillRect(pos.x + 2, pos.y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+    }
+  }
+
+  private drawStructure(struct: { itemId: string; x: number; y: number; width: number; height: number }): void {
+    const { ctx, camera } = this;
+    const pos = camera.worldToScreen(struct.x, struct.y);
+
+    switch (struct.itemId) {
+      case 'workbench':
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(pos.x + 4, pos.y + 12, 24, 16);
+        ctx.fillStyle = '#A0522D';
+        ctx.fillRect(pos.x + 6, pos.y + 14, 20, 12);
+        // Tools on top
+        ctx.fillStyle = '#888';
+        ctx.fillRect(pos.x + 10, pos.y + 8, 2, 6);
+        ctx.fillRect(pos.x + 18, pos.y + 8, 2, 6);
+        break;
+      case 'furnace':
+        ctx.fillStyle = '#555';
+        ctx.fillRect(pos.x + 6, pos.y + 8, 20, 20);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(pos.x + 8, pos.y + 12, 16, 14);
+        // Fire
+        ctx.fillStyle = '#ff6600';
+        ctx.fillRect(pos.x + 12, pos.y + 16, 8, 6);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(pos.x + 14, pos.y + 14, 4, 4);
+        break;
+      case 'chest':
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(pos.x + 6, pos.y + 10, 20, 18);
+        ctx.fillStyle = '#A0522D';
+        ctx.fillRect(pos.x + 6, pos.y + 18, 20, 2);
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(pos.x + 14, pos.y + 16, 4, 4);
+        break;
+      case 'fence':
+        ctx.fillStyle = '#8B6914';
+        ctx.fillRect(pos.x + 4, pos.y + 8, 4, 20);
+        ctx.fillRect(pos.x + 24, pos.y + 8, 4, 20);
+        ctx.fillRect(pos.x + 4, pos.y + 14, 24, 3);
+        ctx.fillRect(pos.x + 4, pos.y + 22, 24, 3);
+        break;
+      case 'torch_item':
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(pos.x + 14, pos.y + 12, 4, 18);
+        ctx.fillStyle = '#ff6600';
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 10, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 8, 3, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      default:
+        ctx.fillStyle = '#666';
+        ctx.fillRect(pos.x + 4, pos.y + 4, struct.width - 8, struct.height - 8);
+        break;
     }
   }
 

@@ -11,6 +11,7 @@ import { SKILLS, getSkillsByTree } from './data/Skills';
 import { QUESTS } from './data/Quests';
 import { NPCS } from './data/Npcs';
 import { formatTime } from './core/Utils';
+import { getAllSaveSlots, formatSaveDate, getMaxSaveSlots, type SaveSlotInfo } from './systems/SaveSystem';
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -106,10 +107,16 @@ export default function GamePage() {
       {uiState.activePanel === 'dialogue' && (
         <DialoguePanel game={game} uiState={uiState} />
       )}
+      {uiState.activePanel === 'save' && (
+        <SavePanel game={game} />
+      )}
+
+      {/* Farming/Building Quick Bar */}
+      <FarmingBar game={game} />
 
       {/* Controls Help */}
-      <div className="absolute bottom-16 left-4 text-white/30 text-xs pointer-events-none">
-        WASD=Mover | E=Interagir | Q/Espaço=Atacar | F=Usar | G=Soltar | I=Inventário | C=Craft | K=Habilidades | J=Missões | M=Mapa
+      <div className="absolute bottom-16 left-4 text-white/30 text-[10px] pointer-events-none">
+        WASD=Mover | E=Interagir | Q/Espaço=Atacar | F=Usar | G=Soltar | I=Inventário | C=Craft | K=Habilidades | J=Missões | M=Mapa | P=Plantar | H=Salvar
       </div>
     </div>
   );
@@ -812,6 +819,139 @@ function SlotButton({ slot, onClick }: { slot: { item: { icon: string; rarity: R
         </>
       )}
     </button>
+  );
+}
+
+// ── Save Panel ───────────────────────────────────────────────────
+function SavePanel({ game }: { game: Game }) {
+  const [slots, setSlots] = useState<SaveSlotInfo[]>(getAllSaveSlots());
+
+  const refresh = () => setSlots(getAllSaveSlots());
+
+  return (
+    <Panel title="💾 Salvar / Carregar" onClose={() => game.setActivePanel('none')}>
+      <div className="space-y-2">
+        {slots.map(slot => (
+          <div key={slot.slot} className="flex items-center justify-between p-2 rounded border border-white/10 bg-white/5">
+            <div>
+              <div className="text-white text-xs font-bold">
+                Slot {slot.slot + 1} {slot.slot === 0 ? '(Auto)' : ''}
+              </div>
+              {slot.exists ? (
+                <div className="text-white/50 text-[10px]">
+                  Nv.{slot.playerLevel} | {slot.playTime} | {formatSaveDate(slot.timestamp)}
+                </div>
+              ) : (
+                <div className="text-white/30 text-[10px]">Vazio</div>
+              )}
+            </div>
+            <div className="flex gap-1">
+              {slot.exists && (
+                <button
+                  onClick={() => { game.loadFromSlot(slot.slot); refresh(); game.setActivePanel('none'); }}
+                  className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px]"
+                >
+                  Carregar
+                </button>
+              )}
+              <button
+                onClick={() => { game.saveToSlot(slot.slot); refresh(); }}
+                className="px-2 py-1 rounded bg-green-600 hover:bg-green-500 text-white text-[10px]"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+// ── Farming Bar ──────────────────────────────────────────────────
+function FarmingBar({ game }: { game: Game }) {
+  const state = game.state;
+
+  // Check if player is near a farm plot
+  const px = Math.floor((state.player.x + 12 + state.player.facing.x * 32) / 32);
+  const py = Math.floor((state.player.y + 12 + state.player.facing.y * 32) / 32);
+  const nearPlot = state.farmPlots.find(p => p.x === px && p.y === py);
+
+  // Check if player has seeds
+  const seedIds = ['wheat_seed', 'carrot_seed', 'potato_seed', 'berry_seed', 'pumpkin_seed'];
+  const hasSeeds = seedIds.some(id => game.countInInventory(id) > 0);
+
+  return (
+    <div className="absolute bottom-4 left-4 pointer-events-auto">
+      <div className="bg-black/60 backdrop-blur-sm rounded-lg p-2 border border-white/10">
+        <div className="flex gap-1">
+          {/* Till soil */}
+          <button
+            onClick={() => game.tillSoil()}
+            className="w-8 h-8 rounded bg-amber-900/50 hover:bg-amber-800/50 flex items-center justify-center text-xs"
+            title="Preparar solo (Hoe)"
+          >
+            🌱
+          </button>
+          {/* Plant seed */}
+          <button
+            onClick={() => {
+              if (nearPlot && !nearPlot.seedId && hasSeeds) {
+                // Find first available seed
+                for (const id of seedIds) {
+                  if (game.countInInventory(id) > 0) {
+                    game.plantSeed(id);
+                    break;
+                  }
+                }
+              }
+            }}
+            className={`w-8 h-8 rounded flex items-center justify-center text-xs ${nearPlot && !nearPlot.seedId && hasSeeds ? 'bg-green-900/50 hover:bg-green-800/50' : 'bg-white/5'}`}
+            title="Plantar semente"
+          >
+            🌿
+          </button>
+          {/* Water */}
+          <button
+            onClick={() => game.waterPlot()}
+            className={`w-8 h-8 rounded flex items-center justify-center text-xs ${nearPlot && nearPlot.seedId && !nearPlot.watered ? 'bg-blue-900/50 hover:bg-blue-800/50' : 'bg-white/5'}`}
+            title="Regar"
+          >
+            💧
+          </button>
+          {/* Harvest */}
+          <button
+            onClick={() => game.harvestPlot()}
+            className={`w-8 h-8 rounded flex items-center justify-center text-xs ${nearPlot && nearPlot.growthStage >= 3 ? 'bg-yellow-900/50 hover:bg-yellow-800/50' : 'bg-white/5'}`}
+            title="Colher"
+          >
+            🌾
+          </button>
+          {/* Fish */}
+          <button
+            onClick={() => game.tryFish()}
+            className="w-8 h-8 rounded bg-cyan-900/50 hover:bg-cyan-800/50 flex items-center justify-center text-xs"
+            title="Pescar"
+          >
+            🎣
+          </button>
+          {/* Build */}
+          <button
+            onClick={() => {
+              // Place first placeable item from hotbar
+              const slot = state.player.hotbar[state.player.currentTool];
+              if (slot?.item?.placeable) {
+                game.placeStructure(slot.item.id);
+              }
+            }}
+            className="w-8 h-8 rounded bg-stone-900/50 hover:bg-stone-800/50 flex items-center justify-center text-xs"
+            title="Construir (com item selecionado)"
+          >
+            🏗️
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
