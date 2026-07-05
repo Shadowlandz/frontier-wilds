@@ -17,13 +17,12 @@ import {
   SeededRandom, fractalNoise,
 } from './core/Utils';
 import { WorldGenerator, TILE_COLORS, getSkyColor, getSeasonTint, getSeasonForDay } from './world/WorldGenerator';
-import { ITEMS, getItem } from './data/Items';
+import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { ENEMIES } from './data/Enemies';
 import { NPCS } from './data/Npcs';
 import { getQuestById } from './data/Quests';
 import { SKILLS } from './data/Skills';
-import { RARITY_COLORS } from './core/Types';
 
 type GameUpdateCallback = (state: GameState, ui: GameUIState) => void;
 
@@ -814,6 +813,7 @@ export class Game {
     this.state.player.stats.hp = this.state.player.stats.maxHp;
     this.state.player.stats.hunger = this.state.player.stats.maxHunger;
     this.state.player.stats.gold = Math.floor(this.state.player.stats.gold * 0.8);
+    this.state.player.invincibleTimer = 2;
 
     // Respawn at village center
     const cx = (WORLD_WIDTH * TILE_SIZE) / 2;
@@ -1129,7 +1129,7 @@ export class Game {
     }
   }
 
-  private completeQuest(quest: { definition: any; progress: any; status: string }): void {
+  private completeQuest(quest: { definition: { rewards: { xp: number; gold: number; items?: { itemId: string; count: number }[] }; name: string }; progress: Record<string, number>; status: string }): void {
     quest.status = 'completed';
     const rewards = quest.definition.rewards;
 

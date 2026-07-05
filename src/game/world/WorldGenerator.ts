@@ -145,106 +145,58 @@ export class WorldGenerator {
         const biome = biomeMap[y][x];
         const n = rng.next();
 
-        if (biome === Biome.Forest || biome === Biome.Plains) {
+        // Forest: trees, bushes, rocks
+        if (biome === Biome.Forest) {
           if (n < 0.04) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'tree',
-              itemId: 'wood',
-            });
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'tree', itemId: 'wood' });
           } else if (n < 0.06) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'bush',
-              itemId: 'apple',
-            });
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'bush', itemId: 'apple' });
           } else if (n < 0.065) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'rock',
-              itemId: 'stone',
-            });
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'rock', itemId: 'stone' });
           }
-        } else if (biome === Biome.Mountains) {
-          if (n < 0.03) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'iron_rock',
-              itemId: 'iron_ore',
-            });
-          } else if (n < 0.038) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'gold_rock',
-              itemId: 'gold_ore',
-            });
-          } else if (n < 0.045) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'crystal_node',
-              itemId: 'crystal',
-            });
-          } else if (n < 0.07) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'rock',
-              itemId: 'stone',
-            });
-          }
-        } else if (biome === Biome.Cave) {
-          if (n < 0.03) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'iron_rock',
-              itemId: 'iron_ore',
-            });
-          } else if (n < 0.05) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'crystal_node',
-              itemId: 'crystal',
-            });
-          } else if (n < 0.07) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'coal_rock',
-              itemId: 'coal',
-            });
-          }
-        } else if (biome === Biome.Ruins) {
+        }
+
+        // Plains: fewer trees, berry bushes
+        if (biome === Biome.Plains) {
           if (n < 0.02) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'gold_rock',
-              itemId: 'gold_ore',
-            });
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'tree', itemId: 'wood' });
           } else if (n < 0.035) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'crystal_node',
-              itemId: 'crystal',
-            });
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'bush', itemId: 'berry' });
+          } else if (n < 0.04) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'rock', itemId: 'stone' });
           }
-        } else {
-          if (biome === Biome.Plains && n < 0.015) {
-            resources.push({
-              x: x * TILE_SIZE + rng.range(0, TILE_SIZE),
-              y: y * TILE_SIZE + rng.range(0, TILE_SIZE),
-              type: 'bush',
-              itemId: 'berry',
-            });
+        }
+
+        // Mountains: iron, gold, crystal, stone
+        if (biome === Biome.Mountains) {
+          if (n < 0.03) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'iron_rock', itemId: 'iron_ore' });
+          } else if (n < 0.038) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'gold_rock', itemId: 'gold_ore' });
+          } else if (n < 0.045) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'crystal_node', itemId: 'crystal' });
+          } else if (n < 0.07) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'rock', itemId: 'stone' });
+          }
+        }
+
+        // Cave: iron, crystal, coal
+        if (biome === Biome.Cave) {
+          if (n < 0.03) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'iron_rock', itemId: 'iron_ore' });
+          } else if (n < 0.05) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'crystal_node', itemId: 'crystal' });
+          } else if (n < 0.07) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'coal_rock', itemId: 'coal' });
+          }
+        }
+
+        // Ruins: gold, crystal
+        if (biome === Biome.Ruins) {
+          if (n < 0.02) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'gold_rock', itemId: 'gold_ore' });
+          } else if (n < 0.035) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'crystal_node', itemId: 'crystal' });
           }
         }
       }

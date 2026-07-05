@@ -2,10 +2,10 @@
 // Farm Survival - Main Game Page
 // ═══════════════════════════════════════════════════════════════════
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Game } from './Game';
 import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity } from './core/Types';
-import { ITEMS, getItem } from './data/Items';
+import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { SKILLS, getSkillsByTree } from './data/Skills';
 import { QUESTS } from './data/Quests';
@@ -23,9 +23,16 @@ export default function GamePage() {
     if (!canvasRef.current) return;
 
     const game = new Game();
+    let lastReactUpdate = 0;
+    const REACT_THROTTLE_MS = 50; // ~20fps React updates vs 60fps canvas
+
     game.init(canvasRef.current, (state, ui) => {
-      setGameState({ ...state });
-      setUiState({ ...ui });
+      const now = performance.now();
+      if (now - lastReactUpdate > REACT_THROTTLE_MS) {
+        lastReactUpdate = now;
+        setGameState({ ...state });
+        setUiState({ ...ui });
+      }
     });
     game.start();
     gameRef.current = game;
@@ -260,18 +267,20 @@ function BottomBar({ stats }: { stats: GameState['player']['stats'] }) {
 // ── Minimap ───────────────────────────────────────────────────────
 function MiniMap({ game }: { game: Game }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const biomeImageRef = useRef<ImageData | null>(null);
+  const size = 160;
 
+  // Draw static biome layer once and cache as ImageData
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const size = 160;
     canvas.width = size;
     canvas.height = size;
 
-    const { biomeMap, state } = game;
+    const { biomeMap } = game;
     const worldW = biomeMap[0]?.length || 0;
     const worldH = biomeMap.length;
     if (!worldW || !worldH) return;
@@ -279,22 +288,39 @@ function MiniMap({ game }: { game: Game }) {
     const scaleX = size / worldW;
     const scaleY = size / worldH;
 
-    // Draw biome colors
+    const biomeColors: Record<string, string> = {
+      forest: '#2d5a1e', plains: '#5a9a4a', mountains: '#6a7a6a',
+      swamp: '#4a6a2a', desert: '#c4a862', tundra: '#a8b8b0',
+      cave: '#3a3a3a', ruins: '#7a6a5a', village: '#8ab070',
+      lake: '#3a8ab0', river: '#4a90c2',
+    };
+
     for (let y = 0; y < worldH; y++) {
       for (let x = 0; x < worldW; x++) {
         const biome = biomeMap[y][x];
-        const colors: Record<string, string> = {
-          forest: '#2d5a1e', plains: '#5a9a4a', mountains: '#6a7a6a',
-          swamp: '#4a6a2a', desert: '#c4a862', tundra: '#a8b8b0',
-          cave: '#3a3a3a', ruins: '#7a6a5a', village: '#8ab070',
-          lake: '#3a8ab0', river: '#4a90c2',
-        };
-        ctx.fillStyle = colors[biome] || '#555';
+        ctx.fillStyle = biomeColors[biome] || '#555';
         ctx.fillRect(x * scaleX, y * scaleY, scaleX + 0.5, scaleY + 0.5);
       }
     }
 
-    // Player dot
+    biomeImageRef.current = ctx.getImageData(0, 0, size, size);
+  }, [game]);
+
+  // Animate player dot: restore cached biome then draw dot on top
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const biomeImage = biomeImageRef.current;
+    if (!biomeImage) return;
+
+    const { biomeMap, state } = game;
+    const worldW = biomeMap[0]?.length || 1;
+    const worldH = biomeMap.length || 1;
+
+    ctx.putImageData(biomeImage, 0, 0);
+
     const px = (state.player.x / 32 / worldW) * size;
     const py = (state.player.y / 32 / worldH) * size;
     ctx.fillStyle = '#ffff00';
@@ -777,7 +803,7 @@ function SlotButton({ slot, onClick }: { slot: { item: { icon: string; rarity: R
     >
       {slot?.item && (
         <>
-          <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] || '#fff' }}>
+          <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] || '#fff' }}>
             {slot.item.icon}
           </span>
           {slot.count > 1 && (
