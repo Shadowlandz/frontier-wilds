@@ -545,6 +545,10 @@ export class Game {
           if (!size) continue;
           const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
           if (dist < INTERACT_RANGE) {
+            if (this.state.player.stats.level < 6) {
+              this.addNotification('Precisa de nível 6 para entrar na caverna!', 'warning');
+              return;
+            }
             this.enterCave(res.x, res.y);
             return;
           }
@@ -2687,7 +2691,7 @@ export class Game {
         ctx.font = '10px monospace';
         ctx.fillStyle = '#ffdd00';
         ctx.textAlign = 'center';
-        ctx.fillText('[E] Entrar', pos.x + 16, pos.y - 4);
+        ctx.fillText('[E] Entrar (Nv.6)', pos.x + 16, pos.y - 4);
         ctx.textAlign = 'left';
         break;
       }
