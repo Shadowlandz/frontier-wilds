@@ -2000,7 +2000,7 @@ export class Game {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Sky background
-    ctx.fillStyle = this.inCave ? getCaveSkyColor(gameTime) : getSkyColor(gameTime);
+    ctx.fillStyle = this.inCave ? getCaveSkyColor() : getSkyColor(gameTime);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
@@ -2129,6 +2129,59 @@ export class Game {
       this.drawResource(res);
     }
 
+    // Draw decorations (purely visual — surface only)
+    if (!this.inCave) {
+      const decorationColors: Record<string, string> = {
+        flower: '#ff88cc', mushroom: '#cc8844', tall_grass: '#5a9a4a',
+        lily_pad: '#4a8a3a', dead_log: '#5a3a1a', small_rock: '#7a7a7a',
+        fern: '#4aaa4a', cave_moss: '#3a6a3a', glowing_shroom: '#88ffaa',
+      };
+      for (const dec of this.decorations) {
+        if (!camera.isVisible(dec.x, dec.y, 8, 8)) continue;
+        const dPos = camera.worldToScreen(dec.x, dec.y);
+        ctx.fillStyle = decorationColors[dec.type] || '#888';
+        if (dec.type === 'flower' || dec.type === 'mushroom') {
+          ctx.beginPath();
+          ctx.arc(dPos.x + 2, dPos.y + 2, 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(dPos.x + 1, dPos.y + 3, 2, 3);
+        } else if (dec.type === 'tall_grass' || dec.type === 'fern') {
+          ctx.fillRect(dPos.x, dPos.y, 1, 6);
+          ctx.fillRect(dPos.x + 2, dPos.y + 1, 1, 5);
+        } else if (dec.type === 'lily_pad') {
+          ctx.beginPath();
+          ctx.ellipse(dPos.x + 3, dPos.y + 1, 4, 2, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (dec.type === 'dead_log') {
+          ctx.fillRect(dPos.x, dPos.y + 1, 6, 2);
+          ctx.fillRect(dPos.x + 1, dPos.y, 4, 1);
+        } else {
+          ctx.fillRect(dPos.x, dPos.y, 3, 3);
+        }
+      }
+    }
+
+    // ── Cave: draw exit indicator near entrance ──
+    if (this.inCave && this.caveData && camera.isVisible(this.caveData.entranceX, this.caveData.entranceY, TILE_SIZE, TILE_SIZE)) {
+      const ex = this.caveData.entranceX;
+      const ey = this.caveData.entranceY;
+      const ePos = camera.worldToScreen(ex, ey);
+      const exitPulse = Math.sin(performance.now() / 500) * 0.3 + 0.7;
+      ctx.globalAlpha = exitPulse;
+      ctx.font = 'bold 11px monospace';
+      ctx.fillStyle = '#ffdd00';
+      ctx.textAlign = 'center';
+      ctx.fillText('[E] Sair', ePos.x + TILE_SIZE / 2, ePos.y - 6);
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
+      // Stairs/exit arrow
+      ctx.fillStyle = '#8a7a5a';
+      ctx.fillRect(ePos.x + 10, ePos.y + 8, 12, 4);
+      ctx.fillRect(ePos.x + 14, ePos.y + 4, 4, 8);
+      ctx.fillStyle = '#4a3a2a';
+      ctx.fillRect(ePos.x + 10, ePos.y + 12, 12, 6);
+    }
+
     // Draw dropped items
     for (const di of this.droppedItems) {
       const item = getItem(di.itemId);
@@ -2224,8 +2277,39 @@ export class Game {
 
     ctx.restore();
 
+    // ── Cave darkness overlay (always dark underground) ──
+    if (this.inCave) {
+      // Deep cave darkness with torch light around player
+      ctx.fillStyle = 'rgba(0, 0, 10, 0.75)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Torch/light source around player
+      const playerScreen = camera.worldToScreen(
+        player.x + PLAYER_SIZE / 2,
+        player.y + PLAYER_SIZE / 2
+      );
+      const lightRadius = this.getCurrentItem()?.toolType === 'torch' ? 200 : 120;
+      const gradient = ctx.createRadialGradient(
+        playerScreen.x, playerScreen.y, 20,
+        playerScreen.x, playerScreen.y, lightRadius
+      );
+      gradient.addColorStop(0, 'rgba(0, 0, 10, 0)');
+      gradient.addColorStop(1, 'rgba(0, 0, 10, 0.75)');
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Subtle lava ambient glow
+      if (this.caveData) {
+        const lavaGlow = Math.sin(performance.now() / 2000) * 0.03 + 0.05;
+        ctx.fillStyle = `rgba(255, 80, 0, ${lavaGlow})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
     // Night overlay
-    if (gameTime.isNight) {
+    if (!this.inCave && gameTime.isNight) {
       const nightAlpha = this.getNightAlpha(gameTime);
       ctx.fillStyle = `rgba(0, 0, 30, ${nightAlpha})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2249,13 +2333,17 @@ export class Game {
       }
     }
 
-    // Weather effects
-    this.drawWeather();
+    // Weather effects (surface only)
+    if (!this.inCave) {
+      this.drawWeather();
+    }
 
-    // Season tint
-    const seasonTint = getSeasonTint(gameTime.season);
-    ctx.fillStyle = seasonTint;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Season tint (surface only)
+    if (!this.inCave) {
+      const seasonTint = getSeasonTint(gameTime.season);
+      ctx.fillStyle = seasonTint;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
   }
 
   private drawResource(res: { x: number; y: number; type: string; itemId: string }): void {
