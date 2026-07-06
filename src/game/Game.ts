@@ -49,6 +49,7 @@ export class Game {
   droppedItems: DroppedItem[] = [];
   damageNumbers: DamageNumber[] = [];
   particles: Particle[] = [];
+  projectiles: { x: number; y: number; vx: number; vy: number; damage: number; lifetime: number; speed: number }[] = [];
 
   // World data
   biomeMap: Biome[][] = [];
@@ -270,6 +271,7 @@ export class Game {
       this.updateDroppedItems(dt);
       this.updateParticles(dt);
       this.updateDamageNumbers(dt);
+      this.updateProjectiles(dt);
       this.handleInput();
     } else {
       this.handleUIInput();
@@ -673,11 +675,47 @@ export class Game {
     player.attackTimer = 0.4 / speed;
     player.stamina -= 10;
 
-    // Check enemy hits
     const px = player.x + PLAYER_SIZE / 2;
     const py = player.y + PLAYER_SIZE / 2;
+
+    // ── Bow / Ranged Attack ──
+    if (tool?.toolType === 'bow') {
+      // Check ammo (arrows) in inventory or hotbar
+      const arrowCount = this.countInInventory('arrows');
+      if (arrowCount <= 0) {
+        this.addNotification('Sem flechas!', 'warning');
+        player.isAttacking = false;
+        player.attackTimer = 0;
+        player.stamina += 10; // Refund stamina
+        return;
+      }
+      this.removeFromInventory('arrows', 1);
+
+      const projectileSpeed = 300;
+      const projDx = player.facing.x * projectileSpeed;
+      const projDy = player.facing.y * projectileSpeed;
+
+      this.projectiles.push({
+        x: px + player.facing.x * 16,
+        y: py + player.facing.y * 16,
+        vx: projDx,
+        vy: projDy,
+        damage: damage,
+        lifetime: 1.5,
+        speed: projectileSpeed,
+      });
+
+      this.spawnParticles(px + player.facing.x * 20, py + player.facing.y * 20, '#8B4513', 2);
+      return;
+    }
+
+    // ── Melee Attack ──
     const attackX = px + player.facing.x * range;
     const attackY = py + player.facing.y * range;
+
+    // Weapon trail particles
+    const trailColor = tool?.toolType === 'sword' ? '#ddd' : '#888';
+    this.spawnParticles(attackX, attackY, trailColor, 3);
 
     for (const enemy of this.enemies) {
       if (enemy.state === 'dead') continue;
@@ -702,6 +740,10 @@ export class Game {
         enemy.state = 'hurt';
         enemy.knockback = scaleVec(player.facing, 100);
 
+        // Hit particles per weapon type
+        const hitColor = tool?.toolType === 'sword' ? '#fff' : '#ff8844';
+        this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, hitColor, 6);
+
         this.damageNumbers.push({
           x: enemy.x + enemy.width / 2,
           y: enemy.y - 10,
@@ -713,16 +755,12 @@ export class Game {
         });
 
         this.camera.shake(crit ? 6 : 3, 0.1);
-        this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ff4444', 5);
 
         if (enemy.hp <= 0) {
           this.killEnemy(enemy);
         }
       }
     }
-
-    // Attack animation particles
-    this.spawnParticles(attackX, attackY, '#ffffff', 3);
   }
 
   private killEnemy(enemy: EnemyEntity): void {
@@ -1061,6 +1099,59 @@ export class Game {
       dn.velocity.y += 20 * dt;
     }
     this.damageNumbers = this.damageNumbers.filter(dn => dn.timer > 0);
+  }
+
+  private updateProjectiles(dt: number): void {
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const p = this.projectiles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.lifetime -= dt;
+
+      // Check enemy collision
+      let hit = false;
+      for (const enemy of this.enemies) {
+        if (enemy.state === 'dead') continue;
+        const dist = distance(
+          { x: p.x, y: p.y },
+          { x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2 }
+        );
+        if (dist < enemy.width / 2 + 6) {
+          // Apply damage
+          let finalDamage = p.damage;
+          const mitigated = Math.max(1, finalDamage - enemy.definition.defense);
+          enemy.hp -= mitigated;
+          enemy.state = 'hurt';
+          const knockDir = normalize({ x: p.vx, y: p.vy });
+          enemy.knockback = scaleVec(knockDir, 60);
+
+          this.damageNumbers.push({
+            x: enemy.x + enemy.width / 2,
+            y: enemy.y - 10,
+            value: mitigated,
+            isCrit: false,
+            isHeal: false,
+            timer: 1,
+            velocity: { x: (Math.random() - 0.5) * 30, y: -60 },
+          });
+
+          this.spawnParticles(p.x, p.y, '#8B4513', 4);
+          this.camera.shake(2, 0.08);
+
+          if (enemy.hp <= 0) {
+            this.killEnemy(enemy);
+          }
+
+          hit = true;
+          break;
+        }
+      }
+
+      // Remove if hit, expired, or out of bounds
+      if (hit || p.lifetime <= 0 || p.x < 0 || p.x > WORLD_WIDTH * TILE_SIZE || p.y < 0 || p.y > WORLD_HEIGHT * TILE_SIZE) {
+        this.projectiles.splice(i, 1);
+      }
+    }
   }
 
   private updateNotifications(dt: number): void {
@@ -1826,6 +1917,35 @@ export class Game {
 
     // Draw player
     this.drawPlayer();
+
+    // Draw projectiles (arrows)
+    for (const p of this.projectiles) {
+      const pos = camera.worldToScreen(p.x, p.y);
+      // Arrow shaft
+      ctx.save();
+      ctx.translate(pos.x, pos.y);
+      const angle = Math.atan2(p.vy, p.vx);
+      ctx.rotate(angle);
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(-6, -1, 12, 2);
+      // Arrowhead
+      ctx.fillStyle = '#ddd';
+      ctx.beginPath();
+      ctx.moveTo(6, 0);
+      ctx.lineTo(3, -3);
+      ctx.lineTo(3, 3);
+      ctx.closePath();
+      ctx.fill();
+      // Fletching
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(-7, -2, 2, 4);
+      ctx.restore();
+      // Arrow glow
+      ctx.fillStyle = 'rgba(255,255,200,0.15)';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Draw particles
     for (const p of this.particles) {
