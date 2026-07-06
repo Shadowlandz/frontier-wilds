@@ -129,7 +129,7 @@ export default function Landing() {
           transition={{ delay: 1.5, duration: 0.5 }}
           className="text-white/20 text-xs text-center space-y-1"
         >
-          <div>WASD para mover · E interagir · Q atacar · I inventário · C craft</div>
+          <div>WASD mover · E coletar/interagir · Q/Clique atacar · I inventário · C craft</div>
           <div className="text-white/10">Use tocha nas cavernas • Cuidado à noite!</div>
         </motion.div>
       </div>

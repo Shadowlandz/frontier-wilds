@@ -5,6 +5,18 @@
 import { QuestDefinition, QuestType } from '../core/Types';
 
 export const QUESTS: QuestDefinition[] = [
+  // ── Tutorial ─────────────────────────────────────────────────
+  {
+    id: 'tutorial_first_steps', name: '✋ Primeiros Passos', type: QuestType.Main,
+    description: 'O Ancião Vilmar te deu as boas-vindas! Vá até a vila, fale com ele e aprenda o básico: movimente-se (WASD), corte uma árvore (aperte E perto dela), e derrote um slime (clique esquerdo ou Q).',
+    objectives: [
+      { type: 'gather', target: 'wood', count: 1, description: 'Corte uma árvore (E)' },
+      { type: 'kill', target: 'slime', count: 1, description: 'Derrote um slime (Clique/Q)' },
+    ],
+    rewards: { xp: 50, gold: 30, items: [{ itemId: 'bandage', count: 3 }, { itemId: 'torch', count: 5 }] },
+    requiredLevel: 1,
+  },
+
   // ── Main Quests ───────────────────────────────────────────────
   {
     id: 'quest_wolf_hunt', name: 'Caça ao Lobo', type: QuestType.Main,

@@ -216,6 +216,9 @@ export class Game {
 
     this.addNotification('Bem-vindo ao Farm Survival! Use WASD para mover.', 'info');
     this.addNotification('Colete recursos, faça craft e sobreviva!', 'info');
+
+    // Auto-accept tutorial quest
+    this.acceptQuest('tutorial_first_steps');
   }
 
   resize(): void {
@@ -320,8 +323,8 @@ export class Game {
       this.tryInteract();
     }
 
-    // Q to attack
-    if (input.isKeyPressed('q') || input.isKeyPressed(' ')) {
+    // Q, Space, or Left Click to attack
+    if (input.isKeyPressed('q') || input.isKeyPressed(' ') || input.isMouseClicked(0)) {
       this.tryAttack();
     }
 
@@ -2749,7 +2752,8 @@ export class Game {
     ctx.shadowBlur = 0;
 
     // HP bar
-    if (enemy.state !== 'dead' && enemy.hp < enemy.maxHp) {
+    // HP bar — always visible for alive enemies
+    if (enemy.state !== 'dead') {
       const barW = enemy.width + 8;
       const barH = 3;
       const hpRatio = enemy.hp / enemy.maxHp;

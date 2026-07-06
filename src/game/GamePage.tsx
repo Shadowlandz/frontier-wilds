@@ -118,7 +118,7 @@ export default function GamePage() {
 
           {/* Controls Help */}
           <div className="absolute bottom-16 left-4 text-white/30 text-[10px] pointer-events-none">
-            WASD=Mover | E=Interagir | Q/Espaço=Atacar | F=Usar | G=Soltar | I=Inventário | C=Craft | K=Habilidades | J=Missões | M=Mapa | P=Plantar | H=Salvar
+            WASD=Mover | E=Coletar/Interagir | Q/Clique=Atacar | F=Usar | G=Soltar | I=Inventário | C=Craft | K=Habilidades | J=Missões | M=Mapa | P=Plantar | H=Salvar
           </div>
         </>
       )}
