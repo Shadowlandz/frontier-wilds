@@ -3994,6 +3994,10 @@ export class Game {
     this.ui.showMap = !this.ui.showMap;
   }
 
+  closeMap(): void {
+    this.ui.showMap = false;
+  }
+
   equipItem(slotIndex: number, from: 'hotbar' | 'inventory'): boolean {
     const sourceSlots = from === 'hotbar' ? this.state.player.hotbar : this.state.player.inventory;
     const slot = sourceSlots[slotIndex];

@@ -4,7 +4,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { Game } from './Game';
-import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot } from './core/Types';
+import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot, TILE_SIZE } from './core/Types';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { SKILLS, getSkillsByTree } from './data/Skills';
@@ -74,9 +74,9 @@ export default function GamePage() {
             notifications={notifications}
           />
 
-          {/* Minimap */}
-          {gameState.settings.showMinimap && (
-            <MiniMap game={game!} />
+          {/* World Map (full overlay) */}
+          {uiState.showMap && (
+            <WorldMap game={game!} />
           )}
 
           {/* Hotbar */}
@@ -323,78 +323,405 @@ function BottomBar({ stats }: { stats: GameState['player']['stats'] }) {
   );
 }
 
-// ── Minimap ───────────────────────────────────────────────────────
-function MiniMap({ game }: { game: Game }) {
+// ── World Map (Full Overlay, inspired by fantasy RPG maps) ────────
+function WorldMap({ game }: { game: Game }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const biomeImageRef = useRef<ImageData | null>(null);
-  const size = 160;
+  const [activeTab, setActiveTab] = useState<'legends' | 'monsters' | 'npcs'>('legends');
 
-  // Draw static biome layer once and cache as ImageData
+  const MAP_W = 550;
+  const MAP_H = 450;
+
+  const biomeLabels: Record<string, string> = {
+    forest: 'Floresta Sombria',
+    plains: 'Planícies Verdejantes',
+    mountains: 'Montanhas Geladas',
+    swamp: 'Pântano Nebuloso',
+    desert: 'Deserto da Perdição',
+    tundra: 'Tundra Glacial',
+    cave: 'Cavernas Profundas',
+    ruins: 'Ruínas Antigas',
+    village: 'Vila de Pedra',
+    lake: 'Lago Esquecido',
+    river: 'Rio Cristalino',
+  };
+
+  const biomeColors: Record<string, string> = {
+    forest: '#1a3a12', plains: '#2a5a1e', mountains: '#4a5a4a',
+    swamp: '#2a4a1a', desert: '#8a7a4a', tundra: '#6a7a7a',
+    cave: '#2a2a2a', ruins: '#5a4a3a', village: '#4a7a4a',
+    lake: '#2a5a7a', river: '#3a6a8a',
+  };
+
+  const biomeGlowColors: Record<string, string> = {
+    forest: '#2a5a1e', plains: '#4a8a3a', mountains: '#5a7a5a',
+    swamp: '#3a5a2a', desert: '#b09a5a', tundra: '#8a9a8a',
+    cave: '#3a3a3a', ruins: '#7a6a5a', village: '#6a9a5a',
+    lake: '#3a7aaa', river: '#4a80aa',
+  };
+
+  // Find biome region centers for label placement
+  const biomeCenters: Record<string, { x: number; y: number; count: number }> = {};
+
+  // Draw static map layer
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = MAP_W;
+    canvas.height = MAP_H;
 
-    const { biomeMap } = game;
-    const worldW = biomeMap[0]?.length || 0;
-    const worldH = biomeMap.length;
-    if (!worldW || !worldH) return;
+    const { biomeMap, state, resources, npcs } = game;
+    const worldW = biomeMap[0]?.length || 1;
+    const worldH = biomeMap.length || 1;
+    const scaleX = (MAP_W - 20) / worldW;
+    const scaleY = (MAP_H - 20) / worldH;
 
-    const scaleX = size / worldW;
-    const scaleY = size / worldH;
+    // ── Dark parchment background ──
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
 
-    const biomeColors: Record<string, string> = {
-      forest: '#2d5a1e', plains: '#5a9a4a', mountains: '#6a7a6a',
-      swamp: '#4a6a2a', desert: '#c4a862', tundra: '#a8b8b0',
-      cave: '#3a3a3a', ruins: '#7a6a5a', village: '#8ab070',
-      lake: '#3a8ab0', river: '#4a90c2',
-    };
+    // ── Parchment border ──
+    ctx.strokeStyle = '#8a7a5a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(2, 2, MAP_W - 4, MAP_H - 4);
+    ctx.strokeStyle = '#6a5a3a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(5, 5, MAP_W - 10, MAP_H - 10);
+
+    // ── Draw biome map ──
+    // Reset biome centers
+    Object.keys(biomeColors).forEach(k => { biomeCenters[k] = { x: 0, y: 0, count: 0 }; });
+
+    ctx.save();
+    ctx.translate(10, 10);
 
     for (let y = 0; y < worldH; y++) {
       for (let x = 0; x < worldW; x++) {
         const biome = biomeMap[y][x];
-        ctx.fillStyle = biomeColors[biome] || '#555';
-        ctx.fillRect(x * scaleX, y * scaleY, scaleX + 0.5, scaleY + 0.5);
+        const baseColor = biomeColors[biome] || '#2a2a2a';
+        const glowColor = biomeGlowColors[biome] || '#3a3a3a';
+
+        // Multi-layer rendering for richer look
+        const px = x * scaleX;
+        const py = y * scaleY;
+        const sw = scaleX + 0.5;
+        const sh = scaleY + 0.5;
+
+        // Base color
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(px, py, sw, sh);
+
+        // Subtle texture noise overlay
+        const noise = Math.sin(x * 3.7 + y * 5.1) * 0.04 + 0.04;
+        ctx.fillStyle = `rgba(255,255,255,${noise})`;
+        ctx.fillRect(px, py, sw, sh);
+
+        // Edge highlights for biome transitions
+        if (x > 0 && biomeMap[y][x - 1] !== biome) {
+          ctx.fillStyle = 'rgba(255,255,200,0.03)';
+          ctx.fillRect(px, py, 1, sh);
+        }
+        if (y > 0 && biomeMap[y - 1][x] !== biome) {
+          ctx.fillStyle = 'rgba(255,255,200,0.03)';
+          ctx.fillRect(px, py, sw, 1);
+        }
+
+        // Track center
+        if (biomeCenters[biome]) {
+          biomeCenters[biome].x += x;
+          biomeCenters[biome].y += y;
+          biomeCenters[biome].count++;
+        }
       }
     }
 
-    biomeImageRef.current = ctx.getImageData(0, 0, size, size);
+    // ── Rivers (thin winding lines over water tiles) ──
+    ctx.strokeStyle = 'rgba(60, 120, 180, 0.4)';
+    ctx.lineWidth = 1.5;
+    for (let y = 5; y < worldH - 5; y++) {
+      for (let x = 5; x < worldW - 5; x++) {
+        if (biomeMap[y][x] === 'river' || biomeMap[y][x] === 'lake') {
+          // Draw small segments connecting water tiles
+          ctx.beginPath();
+          ctx.arc(x * scaleX + scaleX / 2, y * scaleY + scaleY / 2, scaleX * 0.4, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // ── Village marker ──
+    const cx = Math.floor(worldW / 2);
+    const cy = Math.floor(worldH / 2);
+    const vx = cx * scaleX;
+    const vy = cy * scaleY;
+    // Village icon
+    ctx.fillStyle = '#ffdd44';
+    ctx.shadowColor = 'rgba(255,220,80,0.3)';
+    ctx.shadowBlur = 8;
+    ctx.font = '18px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🏘️', vx, vy + 6);
+    ctx.shadowBlur = 0;
+    ctx.font = '9px monospace';
+    ctx.fillStyle = '#ffe066';
+    ctx.fillText('Vila', vx, vy + 20);
+
+    // ── Cave entrance markers ──
+    ctx.textAlign = 'center';
+    for (const res of resources) {
+      if (res.type === 'cave_entrance') {
+        const rx = (res.x / TILE_SIZE / worldW) * (MAP_W - 20);
+        const ry = (res.y / TILE_SIZE / worldH) * (MAP_H - 20);
+        ctx.fillStyle = '#ff6644';
+        ctx.shadowColor = 'rgba(255,100,50,0.3)';
+        ctx.shadowBlur = 6;
+        ctx.font = '12px serif';
+        ctx.fillText('🕳️', rx, ry + 4);
+        ctx.shadowBlur = 0;
+        ctx.font = '7px monospace';
+        ctx.fillStyle = '#ff8844';
+        ctx.fillText('Caverna', rx, ry + 14);
+      }
+    }
+
+    // ── NPC markers ──
+    for (const npc of npcs) {
+      const nx = ((npc.x / TILE_SIZE) / worldW) * (MAP_W - 20);
+      const ny = ((npc.y / TILE_SIZE) / worldH) * (MAP_H - 20);
+      ctx.font = '10px serif';
+      ctx.fillStyle = '#88ffaa';
+      ctx.fillText(npc.definition.icon, nx, ny + 4);
+    }
+
+    // ── Boss markers from enemy data ──
+    const bossTypes = ['SlimeKing', 'ShadowLord', 'Dragon', 'DarkKnight'];
+    for (const enemy of game.enemies) {
+      if (bossTypes.includes(enemy.type)) {
+        const ex = ((enemy.x / TILE_SIZE) / worldW) * (MAP_W - 20);
+        const ey = ((enemy.y / TILE_SIZE) / worldH) * (MAP_H - 20);
+        ctx.fillStyle = '#ff2244';
+        ctx.shadowColor = 'rgba(255,0,0,0.4)';
+        ctx.shadowBlur = 10;
+        ctx.font = '14px serif';
+        ctx.fillText('💀', ex, ey + 5);
+        ctx.shadowBlur = 0;
+        ctx.font = '7px monospace';
+        ctx.fillStyle = '#ff4444';
+        ctx.fillText('BOSS', ex, ey + 15);
+      }
+    }
+
+    // ── Player position ──
+    const px = (state.player.x / TILE_SIZE / worldW) * (MAP_W - 20);
+    const py = (state.player.y / TILE_SIZE / worldH) * (MAP_H - 20);
+    ctx.shadowColor = 'rgba(255,255,100,0.5)';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#ffee44';
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(px, py, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+
+    // ── Compass Rose (top-right) ──
+    const crx = MAP_W - 40;
+    const cry = 30;
+    ctx.save();
+    ctx.translate(crx, cry);
+    ctx.fillStyle = '#c4b07a';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // N
+    ctx.fillStyle = '#d4c08a';
+    ctx.font = 'bold 11px serif';
+    ctx.fillText('N', 0, -10);
+    ctx.font = '8px serif';
+    ctx.fillStyle = '#8a7a5a';
+    ctx.fillText('S', 0, 10);
+    ctx.fillText('O', -10, 0);
+    ctx.fillText('L', 10, 0);
+    // Cross lines
+    ctx.strokeStyle = '#8a7a5a';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -8); ctx.lineTo(0, 8);
+    ctx.moveTo(-8, 0); ctx.lineTo(8, 0);
+    ctx.stroke();
+    // Arrow head
+    ctx.fillStyle = '#d4c08a';
+    ctx.beginPath();
+    ctx.moveTo(0, -10); ctx.lineTo(-3, -6); ctx.lineTo(3, -6); ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
+
+    // ── Title ──
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#d4c08a';
+    ctx.font = 'bold 18px serif';
+    ctx.fillText('TERRAS SOMBRIAS', MAP_W / 2, 22);
+    ctx.fillStyle = '#8a7a5a';
+    ctx.font = '9px monospace';
+    ctx.fillText('UM MUNDO DE AVENTURAS E PERIGOS', MAP_W / 2, 34);
+
+    // ── Bottom banner ──
+    ctx.fillStyle = '#2a1a0a';
+    ctx.fillRect(0, MAP_H - 18, MAP_W, 18);
+    ctx.strokeStyle = '#5a4a2a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, MAP_H - 18); ctx.lineTo(MAP_W, MAP_H - 18);
+    ctx.stroke();
+    ctx.fillStyle = '#a08860';
+    ctx.font = 'bold 10px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('✧  EXPLORE  ·  SOBREVIVA  ·  EVOLUA  ✧', MAP_W / 2, MAP_H - 5);
+
   }, [game]);
 
-  // Animate player dot: restore cached biome then draw dot on top
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const biomeImage = biomeImageRef.current;
-    if (!biomeImage) return;
-
-    const { biomeMap, state } = game;
-    const worldW = biomeMap[0]?.length || 1;
-    const worldH = biomeMap.length || 1;
-
-    ctx.putImageData(biomeImage, 0, 0);
-
-    const px = (state.player.x / 32 / worldW) * size;
-    const py = (state.player.y / 32 / worldH) * size;
-    ctx.fillStyle = '#ffff00';
-    ctx.beginPath();
-    ctx.arc(px, py, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  });
-
   return (
-    <div className="absolute top-4 right-4 mt-24 pointer-events-none">
-      <div className="bg-black/70 backdrop-blur-sm rounded-lg p-1 border border-white/10">
-        <canvas ref={canvasRef} className="rounded" />
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 pointer-events-auto">
+      <div className="relative flex gap-4">
+        {/* Map Canvas */}
+        <div className="rounded-lg overflow-hidden border-2 border-amber-800/60 shadow-2xl shadow-black/80">
+          <canvas ref={canvasRef} className="block" />
+        </div>
+
+        {/* Legend Panel */}
+        <div className="w-56 bg-[#1a1410] border-2 border-amber-800/60 rounded-lg p-3 text-white/80 shadow-2xl shadow-black/80">
+          {/* Tabs */}
+          <div className="flex gap-0.5 mb-3 border-b border-amber-900/40 pb-2">
+            <button
+              onClick={() => setActiveTab('legends')}
+              className={`text-[9px] px-2 py-1 rounded-t ${activeTab === 'legends' ? 'bg-amber-900/40 text-amber-300' : 'text-white/40 hover:text-white/60'}`}
+            >
+              📜 Lendas
+            </button>
+            <button
+              onClick={() => setActiveTab('monsters')}
+              className={`text-[9px] px-2 py-1 rounded-t ${activeTab === 'monsters' ? 'bg-amber-900/40 text-amber-300' : 'text-white/40 hover:text-white/60'}`}
+            >
+              👹 Monstros
+            </button>
+            <button
+              onClick={() => setActiveTab('npcs')}
+              className={`text-[9px] px-2 py-1 rounded-t ${activeTab === 'npcs' ? 'bg-amber-900/40 text-amber-300' : 'text-white/40 hover:text-white/60'}`}
+            >
+              🧙 NPCs
+            </button>
+          </div>
+
+          {activeTab === 'legends' && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-bold text-amber-400/80 border-b border-amber-900/30 pb-1">📍 Legenda do Mapa</div>
+              <div className="space-y-1.5">
+                {[
+                  { icon: '🏘️', label: 'Vila de Pedra', desc: 'Centro de comércio' },
+                  { icon: '🕳️', label: 'Caverna', desc: 'Nv.6+ | Mitril & Rubi' },
+                  { icon: '💀', label: 'BOSS', desc: 'Inimigos lendários' },
+                  { icon: '🟡', label: 'Jogador', desc: 'Sua posição' },
+                  { icon: '⚒️', label: 'Ferreiro', desc: 'Upgrade de itens' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-sm">{item.icon}</span>
+                    <div className="flex-1">
+                      <div className="text-[10px] text-white/80">{item.label}</div>
+                      <div className="text-[8px] text-white/30">{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-2 border-t border-amber-900/30">
+                <div className="text-[10px] font-bold text-green-400/70 mb-1">🌿 Biomas</div>
+                <div className="grid grid-cols-1 gap-0.5">
+                  {Object.entries(biomeLabels).slice(0, 6).map(([key, label]) => (
+                    <div key={key} className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: biomeColors[key] }} />
+                      <span className="text-[8px] text-white/50">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'monsters' && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-bold text-red-400/80 border-b border-amber-900/30 pb-1">👹 Monstros</div>
+              <div className="space-y-1.5">
+                {[
+                  { icon: '🐺', label: 'Lobo', desc: 'Floresta' },
+                  { icon: '🐗', label: 'Javali', desc: 'Planícies' },
+                  { icon: '🟢', label: 'Slime', desc: 'Planícies' },
+                  { icon: '🕷️', label: 'Aranha', desc: 'Floresta/Pântano' },
+                  { icon: '💀', label: 'Esqueleto', desc: 'Cavernas/Ruínas' },
+                  { icon: '🗿', label: 'Golem', desc: 'Montanhas' },
+                  { icon: '🧌', label: 'Troll', desc: 'Cavernas' },
+                  { icon: '🦇', label: 'Morcego Gigante', desc: 'Cavernas' },
+                  { icon: '🐉', label: 'Dragão', desc: '🔥 Lendário' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span className="text-xs">{item.icon}</span>
+                    <div className="flex-1">
+                      <span className="text-[9px] text-white/70">{item.label}</span>
+                      <span className="text-[7px] text-white/30 ml-1">— {item.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'npcs' && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-bold text-blue-400/80 border-b border-amber-900/30 pb-1">🧙 NPCs da Vila</div>
+              <div className="space-y-1.5">
+                {[
+                  { icon: '🧔', label: 'Mercador', desc: 'Compra e vende' },
+                  { icon: '⚒️', label: 'Ferreiro', desc: 'Forja & Upgrade' },
+                  { icon: '👨‍🌾', label: 'Fazendeiro', desc: 'Sementes' },
+                  { icon: '🧙', label: 'Alquimista', desc: 'Poções' },
+                  { icon: '🏹', label: 'Caçador', desc: 'Armas' },
+                  { icon: '👴', label: 'Ancião', desc: 'Missões' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span className="text-xs">{item.icon}</span>
+                    <div className="flex-1">
+                      <span className="text-[9px] text-white/70">{item.label}</span>
+                      <span className="text-[7px] text-white/30 ml-1">— {item.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-2 border-t border-amber-900/30">
+                <div className="text-[9px] font-bold text-amber-400/60 mb-1">💡 Dicas de Sobrevivência</div>
+                <div className="text-[8px] text-white/40 space-y-1">
+                  <p>• Colete madeira e pedra para ferramentas básicas</p>
+                  <p>• Nv.6 para entrar na caverna</p>
+                  <p>• Mitril e Rubi para upgrades na forja</p>
+                  <p>• Tochas iluminam cavernas escuras</p>
+                  <p>• Coma regularmente para não morrer de fome</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Close button */}
+          <button
+            onClick={() => game.closeMap()}
+            className="w-full mt-3 py-1.5 rounded text-[10px] font-bold bg-amber-900/40 hover:bg-amber-800/50 text-amber-300/80 border border-amber-800/40"
+          >
+            ✕ Fechar Mapa [M]
+          </button>
+        </div>
       </div>
     </div>
   );
