@@ -313,12 +313,16 @@ export class Game {
     this.updateNotifications(dt);
     this.updateFarming(dt);
     this.updateResourceRespawn(dt);
+    if (this.inCave) this.updateCaveResourceRespawn(dt);
 
     // Gathering cooldown
     if (this.gatherCooldown > 0) this.gatherCooldown -= dt;
 
     // Update resource shake timers
     for (const res of this.resources) {
+      if (res.shakeTimer > 0) res.shakeTimer -= dt;
+    }
+    for (const res of this.caveResources) {
       if (res.shakeTimer > 0) res.shakeTimer -= dt;
     }
 
@@ -437,22 +441,31 @@ export class Game {
       const newY = player.y + dy;
 
       // Check collision with world boundaries
-      const worldW = WORLD_WIDTH * TILE_SIZE;
-      const worldH = WORLD_HEIGHT * TILE_SIZE;
+      const worldW = this.inCave && this.caveData
+        ? this.caveData.tileMap[0].length * TILE_SIZE
+        : WORLD_WIDTH * TILE_SIZE;
+      const worldH = this.inCave && this.caveData
+        ? this.caveData.tileMap.length * TILE_SIZE
+        : WORLD_HEIGHT * TILE_SIZE;
 
       // Check tile collision
       const tileX = Math.floor((newX + PLAYER_SIZE / 2) / TILE_SIZE);
       const tileY = Math.floor((newY + PLAYER_SIZE / 2) / TILE_SIZE);
 
-      if (tileX >= 0 && tileX < WORLD_WIDTH && tileY >= 0 && tileY < WORLD_HEIGHT) {
-        const tile = this.tileMap[tileY]?.[tileX];
+      const worldTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : WORLD_WIDTH;
+      const worldTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : WORLD_HEIGHT;
+      const tileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.tileMap;
+
+      if (tileX >= 0 && tileX < worldTileW && tileY >= 0 && tileY < worldTileH) {
+        const tile = tileMap[tileY]?.[tileX];
         const walkable = tile !== TileType.Water && tile !== TileType.DeepWater &&
           tile !== TileType.Wall && tile !== TileType.CaveWall && tile !== TileType.Lava;
 
         if (walkable) {
           // Check resource collision
+          const checkResources = this.inCave ? this.caveResources : this.resources;
           let blocked = false;
-          for (const res of this.resources) {
+          for (const res of checkResources) {
             const size = this.resourceSizes[res.type];
             if (!size) continue;
             if (newX + PLAYER_SIZE > res.x && newX < res.x + size.w &&
@@ -493,15 +506,17 @@ export class Game {
       player.stamina = Math.min(player.maxStamina, player.stamina + 15 * dt);
     }
 
-    // Discover biome
-    const tileX = Math.floor(player.x / TILE_SIZE);
-    const tileY = Math.floor(player.y / TILE_SIZE);
-    if (tileY >= 0 && tileY < this.biomeMap.length && tileX >= 0 && tileX < this.biomeMap[0].length) {
-      const biome = this.biomeMap[tileY][tileX];
-      const areaKey = `${biome}_${Math.floor(tileX / 16)}_${Math.floor(tileY / 16)}`;
-      if (!this.state.discoveredAreas.includes(areaKey)) {
-        this.state.discoveredAreas.push(areaKey);
-        this.addNotification(`Área descoberta: ${biome.charAt(0).toUpperCase() + biome.slice(1)}`, 'info');
+    // Discover biome (surface only)
+    if (!this.inCave) {
+      const tileX = Math.floor(player.x / TILE_SIZE);
+      const tileY = Math.floor(player.y / TILE_SIZE);
+      if (tileY >= 0 && tileY < this.biomeMap.length && tileX >= 0 && tileX < this.biomeMap[0].length) {
+        const biome = this.biomeMap[tileY][tileX];
+        const areaKey = `${biome}_${Math.floor(tileX / 16)}_${Math.floor(tileY / 16)}`;
+        if (!this.state.discoveredAreas.includes(areaKey)) {
+          this.state.discoveredAreas.push(areaKey);
+          this.addNotification(`Área descoberta: ${biome.charAt(0).toUpperCase() + biome.slice(1)}`, 'info');
+        }
       }
     }
   }
@@ -738,15 +753,25 @@ export class Game {
 
       // Schedule respawn
       const respawnDelay = isVegetation ? 30 : 120; // trees: 30s, ores: 120s
-      this.resourceRespawnQueue.push({
-        type: res.type,
-        x: res.x,
-        y: res.y,
-        itemId: res.itemId,
-        respawnTime: respawnDelay,
-      });
-
-      this.resources.splice(index, 1);
+      if (this.inCave) {
+        this.caveResourceRespawnQueue.push({
+          type: res.type,
+          x: res.x,
+          y: res.y,
+          itemId: res.itemId,
+          respawnTime: respawnDelay,
+        });
+        this.caveResources.splice(index, 1);
+      } else {
+        this.resourceRespawnQueue.push({
+          type: res.type,
+          x: res.x,
+          y: res.y,
+          itemId: res.itemId,
+          respawnTime: respawnDelay,
+        });
+        this.resources.splice(index, 1);
+      }
 
       // Drop extra loot
       if (res.type === 'tree' && Math.random() < 0.2) {
@@ -828,7 +853,8 @@ export class Game {
     const trailColor = tool?.toolType === 'sword' ? '#ddd' : '#888';
     this.spawnParticles(attackX, attackY, trailColor, 3);
 
-    for (const enemy of this.enemies) {
+    const attackEnemies = this.inCave ? this.caveEnemies : this.enemies;
+    for (const enemy of attackEnemies) {
       if (enemy.state === 'dead') continue;
       const dist = distance({ x: attackX, y: attackY }, { x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2 });
       if (dist < range + enemy.width / 2) {
@@ -881,8 +907,9 @@ export class Game {
     const py = player.y + PLAYER_SIZE / 2;
 
     // 1. Check resources in range → gather (cut/mineral/forage)
-    for (let i = this.resources.length - 1; i >= 0; i--) {
-      const res = this.resources[i];
+    const resources = this.inCave ? this.caveResources : this.resources;
+    for (let i = resources.length - 1; i >= 0; i--) {
+      const res = resources[i];
       const size = this.resourceSizes[res.type];
       if (!size) continue;
       const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
@@ -1017,7 +1044,12 @@ export class Game {
       y: this.state.player.y + PLAYER_SIZE / 2,
     };
 
-    for (const enemy of this.enemies) {
+    const enemies = this.inCave ? this.caveEnemies : this.enemies;
+    const tileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.tileMap;
+    const worldTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : WORLD_WIDTH;
+    const worldTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : WORLD_HEIGHT;
+
+    for (const enemy of enemies) {
       if (enemy.state === 'dead') {
         enemy.deathTimer -= dt;
         continue;
@@ -1061,9 +1093,9 @@ export class Game {
         // Simple tile collision check
         const tileX = Math.floor((newX + enemy.width / 2) / TILE_SIZE);
         const tileY = Math.floor((newY + enemy.height / 2) / TILE_SIZE);
-        if (tileX >= 0 && tileX < WORLD_WIDTH && tileY >= 0 && tileY < WORLD_HEIGHT) {
-          const tile = this.tileMap[tileY][tileX];
-          if (tile !== TileType.Water && tile !== TileType.DeepWater && tile !== TileType.Wall) {
+        if (tileX >= 0 && tileX < worldTileW && tileY >= 0 && tileY < worldTileH) {
+          const tile = tileMap[tileY][tileX];
+          if (tile !== TileType.Water && tile !== TileType.DeepWater && tile !== TileType.Wall && tile !== TileType.CaveWall && tile !== TileType.Lava) {
             enemy.x = newX;
             enemy.y = newY;
           }
@@ -1095,9 +1127,9 @@ export class Game {
         const tX = Math.floor((px + enemy.width / 2) / TILE_SIZE);
         const tY = Math.floor((py + enemy.height / 2) / TILE_SIZE);
 
-        if (tX >= 0 && tX < WORLD_WIDTH && tY >= 0 && tY < WORLD_HEIGHT) {
-          const tile = this.tileMap[tY][tX];
-          if (tile !== TileType.Water && tile !== TileType.DeepWater && tile !== TileType.Wall) {
+        if (tX >= 0 && tX < worldTileW && tY >= 0 && tY < worldTileH) {
+          const tile = tileMap[tY][tX];
+          if (tile !== TileType.Water && tile !== TileType.DeepWater && tile !== TileType.Wall && tile !== TileType.CaveWall && tile !== TileType.Lava) {
             enemy.x = px;
             enemy.y = py;
           }
@@ -1106,7 +1138,11 @@ export class Game {
     }
 
     // Remove fully dead enemies
-    this.enemies = this.enemies.filter(e => !(e.state === 'dead' && e.deathTimer <= 0));
+    if (this.inCave) {
+      this.caveEnemies = this.caveEnemies.filter(e => !(e.state === 'dead' && e.deathTimer <= 0));
+    } else {
+      this.enemies = this.enemies.filter(e => !(e.state === 'dead' && e.deathTimer <= 0));
+    }
   }
 
   private enemyAttackPlayer(enemy: EnemyEntity): void {
@@ -1140,6 +1176,11 @@ export class Game {
     this.state.player.stats.hunger = this.state.player.stats.maxHunger;
     this.state.player.stats.gold = Math.floor(this.state.player.stats.gold * 0.8);
     this.state.player.invincibleTimer = 2;
+
+    // If in cave, exit first
+    if (this.inCave) {
+      this.exitCave();
+    }
 
     // Respawn at village center
     const cx = (WORLD_WIDTH * TILE_SIZE) / 2;
@@ -1275,8 +1316,11 @@ export class Game {
       p.lifetime -= dt;
 
       // Check enemy collision
+      const projectileEnemies = this.inCave ? this.caveEnemies : this.enemies;
+      const worldW = this.inCave && this.caveData ? this.caveData.tileMap[0].length * TILE_SIZE : WORLD_WIDTH * TILE_SIZE;
+      const worldH = this.inCave && this.caveData ? this.caveData.tileMap.length * TILE_SIZE : WORLD_HEIGHT * TILE_SIZE;
       let hit = false;
-      for (const enemy of this.enemies) {
+      for (const enemy of projectileEnemies) {
         if (enemy.state === 'dead') continue;
         const dist = distance(
           { x: p.x, y: p.y },
@@ -1314,7 +1358,7 @@ export class Game {
       }
 
       // Remove if hit, expired, or out of bounds
-      if (hit || p.lifetime <= 0 || p.x < 0 || p.x > WORLD_WIDTH * TILE_SIZE || p.y < 0 || p.y > WORLD_HEIGHT * TILE_SIZE) {
+      if (hit || p.lifetime <= 0 || p.x < 0 || p.x > worldW || p.y < 0 || p.y > worldH) {
         this.projectiles.splice(i, 1);
       }
     }
@@ -1956,28 +2000,64 @@ export class Game {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Sky background
-    ctx.fillStyle = getSkyColor(gameTime);
+    ctx.fillStyle = this.inCave ? getCaveSkyColor(gameTime) : getSkyColor(gameTime);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     ctx.scale(camera.zoom, camera.zoom);
 
     // Calculate visible tile range
+    const curTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : WORLD_WIDTH;
+    const curTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : WORLD_HEIGHT;
+    const curTileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.tileMap;
+
     const startTileX = Math.max(0, Math.floor(camera.x / TILE_SIZE) - 1);
     const startTileY = Math.max(0, Math.floor(camera.y / TILE_SIZE) - 1);
-    const endTileX = Math.min(WORLD_WIDTH, Math.ceil((camera.x + canvas.width / camera.zoom) / TILE_SIZE) + 1);
-    const endTileY = Math.min(WORLD_HEIGHT, Math.ceil((camera.y + canvas.height / camera.zoom) / TILE_SIZE) + 1);
+    const endTileX = Math.min(curTileW, Math.ceil((camera.x + canvas.width / camera.zoom) / TILE_SIZE) + 1);
+    const endTileY = Math.min(curTileH, Math.ceil((camera.y + canvas.height / camera.zoom) / TILE_SIZE) + 1);
 
     // Draw tiles (no grid lines — cleaner look)
     for (let y = startTileY; y < endTileY; y++) {
       for (let x = startTileX; x < endTileX; x++) {
-        const tile = this.tileMap[y]?.[x];
+        const tile = curTileMap[y]?.[x];
         if (tile === undefined) continue;
 
         const sx = x * TILE_SIZE;
         const sy = y * TILE_SIZE;
         const screenPos = camera.worldToScreen(sx, sy);
 
+        // ── Cave tile rendering ──
+        if (this.inCave) {
+          let color = TILE_COLORS[tile] || '#1a1a2a';
+          // Cave floor variation
+          if (tile === TileType.CaveFloor) {
+            const n = fractalNoise(x, y, this.state.world.seed + 6000, 1, 8);
+            color = n > 0.6 ? '#2a2a3a' : n > 0.3 ? '#222233' : '#1a1a2a';
+          }
+          // Cave wall with stone texture
+          if (tile === TileType.CaveWall) {
+            const n = fractalNoise(x + 200, y + 200, this.state.world.seed + 7000, 1, 5);
+            color = n > 0.6 ? '#1a1a2a' : '#0d0d1a';
+          }
+          ctx.fillStyle = color;
+          ctx.fillRect(screenPos.x, screenPos.y, TILE_SIZE + 1, TILE_SIZE + 1);
+
+          // Lava glow effect
+          if (tile === TileType.Lava) {
+            const lavaPulse = Math.sin(performance.now() / 800 + x + y) * 0.3 + 0.7;
+            ctx.fillStyle = `rgba(255, 80, 0, ${lavaPulse * 0.4})`;
+            ctx.fillRect(screenPos.x, screenPos.y, TILE_SIZE, TILE_SIZE);
+            // Lava cracks
+            if (fractalNoise(x + 400, y + 400, this.state.world.seed + 8000, 1, 4) > 0.6) {
+              ctx.fillStyle = `rgba(255, 200, 50, ${lavaPulse * 0.6})`;
+              ctx.fillRect(screenPos.x + 4, screenPos.y + 8, 8, 2);
+              ctx.fillRect(screenPos.x + 12, screenPos.y + 4, 2, 6);
+            }
+          }
+          continue;
+        }
+
+        // ── Surface tile rendering ──
         // Base tile color
         let color = TILE_COLORS[tile] || '#333';
 
@@ -2042,8 +2122,9 @@ export class Game {
       }
     }
 
-    // Draw resources (trees, rocks, etc.)
-    for (const res of this.resources) {
+    // Draw resources
+    const drawResources = this.inCave ? this.caveResources : this.resources;
+    for (const res of drawResources) {
       if (!camera.isVisible(res.x, res.y, 24, 40)) continue;
       this.drawResource(res);
     }
@@ -2057,14 +2138,17 @@ export class Game {
       ctx.fillText(item.icon, pos.x - 8, pos.y + 5);
     }
 
-    // Draw NPCs
-    for (const npc of this.npcs) {
-      if (!camera.isVisible(npc.x, npc.y, npc.width, npc.height)) continue;
-      this.drawNpc(npc);
+    // Draw NPCs (surface only)
+    if (!this.inCave) {
+      for (const npc of this.npcs) {
+        if (!camera.isVisible(npc.x, npc.y, npc.width, npc.height)) continue;
+        this.drawNpc(npc);
+      }
     }
 
     // Draw enemies
-    for (const enemy of this.enemies) {
+    const drawEnemies = this.inCave ? this.caveEnemies : this.enemies;
+    for (const enemy of drawEnemies) {
       if (!camera.isVisible(enemy.x, enemy.y, enemy.width, enemy.height)) continue;
       this.drawEnemy(enemy);
     }
