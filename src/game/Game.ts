@@ -9,6 +9,7 @@ import {
   Weather, Season, Biome, EnemyEntity, NpcEntity, DroppedItem,
   DamageNumber, Particle, GameUIState, Notification, ItemCategory,
   Rarity, ItemDefinition, WORLD_WIDTH, WORLD_HEIGHT, PlayerAttributes,
+  EnemyType,
 } from './core/Types';
 import { Input } from './core/Input';
 import { Camera } from './core/Camera';
@@ -16,7 +17,8 @@ import {
   clamp, distance, normalize, scaleVec, generateId,
   SeededRandom, fractalNoise, darkenColor,
 } from './core/Utils';
-import { WorldGenerator, TILE_COLORS, getSkyColor, getSeasonTint, getSeasonForDay } from './world/WorldGenerator';
+import { WorldGenerator, TILE_COLORS, getSkyColor, getSeasonTint, getSeasonForDay, getCaveSkyColor } from './world/WorldGenerator';
+import type { CaveData, DecorationDef } from './world/WorldGenerator';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { ENEMIES } from './data/Enemies';
@@ -59,12 +61,24 @@ export class Game {
   resourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
   private gatherCooldown = 0;
 
+  // ── Cave System ─────────────────────────────────────────────────
+  inCave = false;
+  caveData: CaveData | null = null;
+  caveEnemies: EnemyEntity[] = [];
+  caveResources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
+  caveResourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
+  surfacePosition: { x: number; y: number } = { x: 0, y: 0 };
+  decorations: DecorationDef[] = [];
+
   // Resource colors per type for particles
   private resourceColors: Record<string, string> = {
     tree: '#2d5a1e', bush: '#4a8a3a',
     rock: '#8a8a8a', iron_rock: '#cd7f32',
     gold_rock: '#ffd700', coal_rock: '#4a4a4a',
     crystal_node: '#8acaff',
+    mithril_rock: '#4ae0c0',
+    ruby_rock: '#ff2244',
+    cave_entrance: '#2a1a0a',
   };
 
   // Resource sizes for collision
@@ -76,6 +90,9 @@ export class Game {
     gold_rock: { w: 18, h: 16, hp: 40 },
     coal_rock: { w: 18, h: 18, hp: 30 },
     crystal_node: { w: 16, h: 20, hp: 45 },
+    mithril_rock: { w: 20, h: 18, hp: 60 },
+    ruby_rock: { w: 18, h: 16, hp: 70 },
+    cave_entrance: { w: 32, h: 32, hp: 99999 },
   };
 
   constructor() {
@@ -112,7 +129,14 @@ export class Game {
     this.tileMap = tileMap;
     this.heightMap = heightMap;
 
-    // Generate resources
+    // Generate decorations (purely visual)
+    this.decorations = generator.generateDecorations(biomeMap);
+
+    // Generate cave data (underground layer)
+    this.caveData = generator.generateCaveData();
+    this.inCave = false;
+
+    // Generate surface resources
     const resourceDefs = generator.generateResources(biomeMap);
     this.resources = resourceDefs.map(r => ({
       ...r,
@@ -487,14 +511,41 @@ export class Game {
     const px = player.x + PLAYER_SIZE / 2;
     const py = player.y + PLAYER_SIZE / 2;
 
-    // 1. Check NPCs
-    for (const npc of this.npcs) {
-      const dist = distance({ x: px, y: py }, { x: npc.x + 12, y: npc.y + 12 });
+    // ── Cave: check for exit (near cave entrance tile) ──
+    if (this.inCave && this.caveData) {
+      const ex = this.caveData.entranceX;
+      const ey = this.caveData.entranceY;
+      const dist = distance({ x: px, y: py }, { x: ex + 16, y: ey + 16 });
       if (dist < INTERACT_RANGE) {
-        // Start dialogue
-        this.ui.activeDialogueNpc = npc;
-        this.ui.activePanel = 'dialogue';
+        this.exitCave();
         return;
+      }
+    }
+
+    // ── Surface: check for cave entrance resource ──
+    if (!this.inCave) {
+      for (const res of this.resources) {
+        if (res.type === 'cave_entrance') {
+          const size = this.resourceSizes[res.type];
+          if (!size) continue;
+          const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
+          if (dist < INTERACT_RANGE) {
+            this.enterCave(res.x, res.y);
+            return;
+          }
+        }
+      }
+    }
+
+    // 1. Check NPCs (surface only)
+    if (!this.inCave) {
+      for (const npc of this.npcs) {
+        const dist = distance({ x: px, y: py }, { x: npc.x + 12, y: npc.y + 12 });
+        if (dist < INTERACT_RANGE) {
+          this.ui.activeDialogueNpc = npc;
+          this.ui.activePanel = 'dialogue';
+          return;
+        }
       }
     }
 
@@ -513,6 +564,69 @@ export class Game {
 
     // 3. Eat/drink current hotbar item
     this.useHotbarItem();
+  }
+
+  // ══ Cave Entry / Exit ═══════════════════════════════════════
+  private enterCave(entranceX: number, entranceY: number): void {
+    if (!this.caveData) return;
+
+    // Save surface position
+    this.surfacePosition = { x: this.state.player.x, y: this.state.player.y };
+
+    // Swap surface data out, cave data in
+    // Move player to cave entrance
+    const cd = this.caveData;
+    this.state.player.x = cd.entranceX + TILE_SIZE / 2;
+    this.state.player.y = cd.entranceY + TILE_SIZE / 2 + TILE_SIZE;
+
+    // Initialize cave enemies from cave data
+    this.caveEnemies = cd.enemies.map(e => {
+      const def = ENEMIES[e.type];
+      return {
+        id: generateId(), type: e.type,
+        x: e.x, y: e.y,
+        width: def.size, height: def.size,
+        definition: def,
+        hp: def.hp, maxHp: def.hp,
+        state: 'idle' as const,
+        direction: { x: 0, y: 0 },
+        targetId: null,
+        attackCooldown: 0,
+        patrolTimer: 0,
+        patrolDirection: { x: Math.random() - 0.5, y: Math.random() - 0.5 },
+        knockback: { x: 0, y: 0 },
+        deathTimer: 0,
+      };
+    });
+
+    // Initialize cave resources from cave data
+    this.caveResources = cd.resources.map(r => ({
+      ...r,
+      hp: this.resourceSizes[r.type]?.hp ?? 10,
+      maxHp: this.resourceSizes[r.type]?.hp ?? 10,
+      id: generateId(),
+      shakeTimer: 0,
+    }));
+
+    this.inCave = true;
+    this.addNotification('Você entrou na caverna...', 'info');
+    this.addNotification('Pressione [E] perto da entrada para sair.', 'info');
+  }
+
+  private exitCave(): void {
+    if (!this.inCave) return;
+
+    // Restore surface position
+    this.state.player.x = this.surfacePosition.x;
+    this.state.player.y = this.surfacePosition.y;
+
+    // Clear cave runtime data
+    this.caveEnemies = [];
+    this.caveResources = [];
+    this.caveResourceRespawnQueue = [];
+
+    this.inCave = false;
+    this.addNotification('Você saiu da caverna.', 'info');
   }
 
   private gatherResource(res: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }, index: number): void {
@@ -878,6 +992,25 @@ export class Game {
   }
 
   // ── Enemy AI ────────────────────────────────────────────────────
+  private updateCaveResourceRespawn(dt: number): void {
+    for (let i = this.caveResourceRespawnQueue.length - 1; i >= 0; i--) {
+      const entry = this.caveResourceRespawnQueue[i];
+      entry.respawnTime -= dt;
+      if (entry.respawnTime <= 0) {
+        const size = this.resourceSizes[entry.type];
+        this.caveResources.push({
+          x: entry.x, y: entry.y,
+          type: entry.type, itemId: entry.itemId,
+          hp: size?.hp ?? 10,
+          maxHp: size?.hp ?? 10,
+          id: generateId(),
+          shakeTimer: 0,
+        });
+        this.caveResourceRespawnQueue.splice(i, 1);
+      }
+    }
+  }
+
   private updateEnemies(dt: number): void {
     const playerPos = {
       x: this.state.player.x + PLAYER_SIZE / 2,
@@ -1093,7 +1226,14 @@ export class Game {
   private updateCamera(dt: number): void {
     this.camera.follow({ x: this.state.player.x, y: this.state.player.y });
     this.camera.update(dt);
-    this.camera.clampToWorld(WORLD_WIDTH * TILE_SIZE, WORLD_HEIGHT * TILE_SIZE);
+    // Cave has a smaller world (80x80 tiles)
+    if (this.inCave && this.caveData) {
+      const caveW = this.caveData.tileMap[0].length * TILE_SIZE;
+      const caveH = this.caveData.tileMap.length * TILE_SIZE;
+      this.camera.clampToWorld(caveW, caveH);
+    } else {
+      this.camera.clampToWorld(WORLD_WIDTH * TILE_SIZE, WORLD_HEIGHT * TILE_SIZE);
+    }
   }
 
   private updateDroppedItems(dt: number): void {
@@ -2268,6 +2408,115 @@ export class Game {
         ctx.fill();
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
+        break;
+      }
+      case 'mithril_rock': {
+        // Mithril rock — teal-blue crystal ore
+        ctx.shadowColor = 'rgba(74, 224, 192, 0.3)';
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = '#5a5a5a';
+        ctx.beginPath();
+        ctx.moveTo(pos.x + 10, pos.y + 2);
+        ctx.lineTo(pos.x + 22, pos.y + 6);
+        ctx.lineTo(pos.x + 20, pos.y + 18);
+        ctx.lineTo(pos.x + 4, pos.y + 18);
+        ctx.lineTo(pos.x + 2, pos.y + 6);
+        ctx.closePath();
+        ctx.fill();
+        // Mithril veins
+        ctx.fillStyle = '#4ae0c0';
+        const mithrilSparkle = Math.sin(performance.now() / 600 + res.x) * 0.3 + 0.7;
+        ctx.globalAlpha = mithrilSparkle;
+        ctx.beginPath();
+        ctx.arc(pos.x + 8, pos.y + 8, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(pos.x + 14, pos.y + 11, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Inner glow
+        ctx.fillStyle = '#8af0e0';
+        ctx.beginPath();
+        ctx.arc(pos.x + 9, pos.y + 6, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        break;
+      }
+      case 'ruby_rock': {
+        // Ruby rock — deep red glowing crystal
+        ctx.shadowColor = 'rgba(255, 34, 68, 0.3)';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = '#5a3a3a';
+        ctx.beginPath();
+        ctx.moveTo(pos.x + 10, pos.y);
+        ctx.lineTo(pos.x + 20, pos.y + 6);
+        ctx.lineTo(pos.x + 18, pos.y + 16);
+        ctx.lineTo(pos.x + 3, pos.y + 16);
+        ctx.lineTo(pos.x + 2, pos.y + 4);
+        ctx.closePath();
+        ctx.fill();
+        // Ruby crystal
+        ctx.fillStyle = '#ff2244';
+        const rubyPulse = Math.sin(performance.now() / 500 + res.x) * 0.2 + 0.8;
+        ctx.globalAlpha = rubyPulse;
+        ctx.beginPath();
+        ctx.moveTo(pos.x + 8, pos.y + 4);
+        ctx.lineTo(pos.x + 16, pos.y + 8);
+        ctx.lineTo(pos.x + 14, pos.y + 14);
+        ctx.lineTo(pos.x + 6, pos.y + 14);
+        ctx.lineTo(pos.x + 4, pos.y + 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Bright core
+        ctx.fillStyle = '#ff6688';
+        ctx.beginPath();
+        ctx.arc(pos.x + 10, pos.y + 8, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        break;
+      }
+      case 'cave_entrance': {
+        // Cave entrance — dark hole in the mountain
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(pos.x + 16, pos.y + 28, 16, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Dark arch
+        ctx.fillStyle = '#1a0a0a';
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 18, 14, Math.PI, 0);
+        ctx.lineTo(pos.x + 30, pos.y + 32);
+        ctx.lineTo(pos.x + 2, pos.y + 32);
+        ctx.closePath();
+        ctx.fill();
+        // Stone rim
+        ctx.fillStyle = '#5a4a3a';
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 18, 16, Math.PI, 0);
+        ctx.lineTo(pos.x + 32, pos.y + 32);
+        ctx.lineTo(pos.x + 30, pos.y + 27);
+        ctx.arc(pos.x + 16, pos.y + 18, 14, 0, Math.PI, true);
+        ctx.closePath();
+        ctx.fill();
+        // Stone details
+        ctx.fillStyle = '#7a6a5a';
+        ctx.fillRect(pos.x + 6, pos.y + 14, 4, 2);
+        ctx.fillRect(pos.x + 22, pos.y + 12, 5, 2);
+        // Glow pulse to indicate interactivity
+        const glowPulse = Math.sin(performance.now() / 1000) * 0.15 + 0.3;
+        ctx.fillStyle = `rgba(100, 200, 255, ${glowPulse})`;
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 16, 6, 0, Math.PI * 2);
+        ctx.fill();
+        // Interaction label
+        ctx.font = '10px monospace';
+        ctx.fillStyle = '#ffdd00';
+        ctx.textAlign = 'center';
+        ctx.fillText('[E] Entrar', pos.x + 16, pos.y - 4);
+        ctx.textAlign = 'left';
         break;
       }
     }
