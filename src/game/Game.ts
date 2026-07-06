@@ -318,14 +318,19 @@ export class Game {
       }
     }
 
-    // E to interact
+    // E: Interact (NPC, pickup items, eat/drink)
     if (input.isKeyPressed('e')) {
       this.tryInteract();
     }
 
-    // Q, Space, or Left Click to attack
-    if (input.isKeyPressed('q') || input.isKeyPressed(' ') || input.isMouseClicked(0)) {
+    // Q / Space: keyboard attack
+    if (input.isKeyPressed('q') || input.isKeyPressed(' ')) {
       this.tryAttack();
+    }
+
+    // Left Click: Primary action (gather resources, attack, shoot)
+    if (input.isMouseClicked(0)) {
+      this.tryPrimaryAction();
     }
 
     // I for inventory
@@ -369,10 +374,7 @@ export class Game {
       this.ui.showMap = false;
     }
 
-    // F to use item from hotbar
-    if (input.isKeyPressed('f')) {
-      this.useHotbarItem();
-    }
+    // F removed — eating/drinking is now on E
 
     // G to drop item
     if (input.isKeyPressed('g')) {
@@ -485,7 +487,7 @@ export class Game {
     const px = player.x + PLAYER_SIZE / 2;
     const py = player.y + PLAYER_SIZE / 2;
 
-    // Check NPCs
+    // 1. Check NPCs
     for (const npc of this.npcs) {
       const dist = distance({ x: px, y: py }, { x: npc.x + 12, y: npc.y + 12 });
       if (dist < INTERACT_RANGE) {
@@ -496,19 +498,7 @@ export class Game {
       }
     }
 
-    // Check resources
-    for (let i = this.resources.length - 1; i >= 0; i--) {
-      const res = this.resources[i];
-      const size = this.resourceSizes[res.type];
-      if (!size) continue;
-      const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
-      if (dist < INTERACT_RANGE) {
-        this.gatherResource(res, i);
-        return;
-      }
-    }
-
-    // Pick up dropped items
+    // 2. Pick up dropped items
     for (let i = this.droppedItems.length - 1; i >= 0; i--) {
       const di = this.droppedItems[i];
       const dist = distance({ x: px, y: py }, { x: di.x, y: di.y });
@@ -517,8 +507,12 @@ export class Game {
           this.droppedItems.splice(i, 1);
           this.addNotification(`+${di.count} ${getItem(di.itemId)?.name || di.itemId}`, 'item');
         }
+        return;
       }
     }
+
+    // 3. Eat/drink current hotbar item
+    this.useHotbarItem();
   }
 
   private gatherResource(res: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }, index: number): void {
@@ -764,6 +758,35 @@ export class Game {
         }
       }
     }
+  }
+
+  // ══ Left Click Primary Action ═════════════════════════════════
+  private tryPrimaryAction(): void {
+    const { player } = this.state;
+    const px = player.x + PLAYER_SIZE / 2;
+    const py = player.y + PLAYER_SIZE / 2;
+
+    // 1. Check resources in range → gather (cut/mineral/forage)
+    for (let i = this.resources.length - 1; i >= 0; i--) {
+      const res = this.resources[i];
+      const size = this.resourceSizes[res.type];
+      if (!size) continue;
+      const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
+      if (dist < INTERACT_RANGE) {
+        this.gatherResource(res, i);
+        return;
+      }
+    }
+
+    // 2. Bow → shoot arrow
+    const tool = this.getCurrentItem();
+    if (tool?.toolType === 'bow') {
+      this.tryAttack();
+      return;
+    }
+
+    // 3. Default → melee attack
+    this.tryAttack();
   }
 
   private killEnemy(enemy: EnemyEntity): void {
