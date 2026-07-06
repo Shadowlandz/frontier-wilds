@@ -4,7 +4,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { Game } from './Game';
-import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity } from './core/Types';
+import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot } from './core/Types';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { SKILLS, getSkillsByTree } from './data/Skills';
@@ -105,6 +105,9 @@ export default function GamePage() {
           )}
           {uiState.activePanel === 'shop' && (
             <ShopPanel game={game!} uiState={uiState} />
+          )}
+          {uiState.activePanel === 'forge' && (
+            <ForgePanel game={game!} />
           )}
           {uiState.activePanel === 'dialogue' && (
             <DialoguePanel game={game!} uiState={uiState} />
@@ -969,12 +972,16 @@ function DialoguePanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
   if (!npc) return null;
 
   const dialogue = npc.definition.dialogue[npc.dialogueIndex % npc.definition.dialogue.length];
+  const isLastDialogue = npc.dialogueIndex >= npc.definition.dialogue.length - 1;
 
   const handleNext = () => {
     npc.dialogueIndex++;
     if (npc.dialogueIndex >= npc.definition.dialogue.length) {
       // Open shop or quest log
-      if (npc.definition.shopItems && npc.definition.shopItems.length > 0) {
+      if (npc.definition.type === 'blacksmith' && npc.definition.shopItems && npc.definition.shopItems.length > 0) {
+        game.ui.activeShopNpc = npc;
+        game.ui.activePanel = 'shop';
+      } else if (npc.definition.shopItems && npc.definition.shopItems.length > 0) {
         game.ui.activeShopNpc = npc;
         game.ui.activePanel = 'shop';
       } else if (npc.definition.questIds && npc.definition.questIds.length > 0) {
@@ -983,6 +990,10 @@ function DialoguePanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
         game.ui.activePanel = 'none';
       }
     }
+  };
+
+  const handleOpenForge = () => {
+    game.openForge();
   };
 
   return (
@@ -995,12 +1006,20 @@ function DialoguePanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
             <div className="text-white text-sm">{dialogue}</div>
           </div>
         </div>
-        <div className="flex justify-end mt-3">
+        <div className="flex justify-end mt-3 gap-2">
+          {isLastDialogue && npc.definition.type === 'blacksmith' && (
+            <button
+              onClick={handleOpenForge}
+              className="px-4 py-1.5 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold"
+            >
+              ⚒️ Forja (Upgrade)
+            </button>
+          )}
           <button
             onClick={handleNext}
             className="px-4 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold"
           >
-            {npc.dialogueIndex >= npc.definition.dialogue.length - 1 ? 'Fechar' : 'Próximo'}
+            {isLastDialogue ? 'Fechar' : 'Próximo'}
           </button>
         </div>
       </div>
@@ -1303,6 +1322,162 @@ function FarmingBar({ game }: { game: Game }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Forge Panel (Upgrade System) ──────────────────────────────────
+function ForgePanel({ game }: { game: Game }) {
+  const [, forceUpdate] = useState(0);
+  const refresh = () => forceUpdate(n => n + 1);
+  const state = game.state;
+
+  const forgeableSlots = game.getForgeableSlots();
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  const selectedSlot = selectedIndex !== null ? forgeableSlots[selectedIndex] : null;
+  const upgradeCost = selectedSlot ? game.getUpgradeCost(selectedSlot.slot) : null;
+  const upgLevel = selectedSlot?.slot.upgradeLevel ?? 0;
+
+  const getSlotLabel = (pool: string, index: number): string => {
+    if (pool === 'hotbar') return `Hotbar ${index + 1}`;
+    if (pool === 'equipment') {
+      const eqKeys = ['weapon', 'tool', 'helmet', 'chest', 'boots', 'gloves', 'ring', 'amulet'];
+      return eqKeys[index] || 'Equip';
+    }
+    return `Mochila ${index + 1}`;
+  };
+
+  const getStatBonus = (slot: { slot: { item: any; upgradeLevel?: number }; pool: string }): { damage: number; defense: number } => {
+    const item = slot.slot.item;
+    const level = slot.slot.upgradeLevel ?? 0;
+    const dmgBonus = item?.damage ? Math.floor(item.damage * (0.08 + level * 0.02)) : 0;
+    const defBonus = item?.defense ? Math.floor(item.defense * (0.08 + level * 0.02)) : 0;
+    return { damage: dmgBonus, defense: defBonus };
+  };
+
+  return (
+    <Panel title="⚒️ Forja do Ferreiro" onClose={() => game.setActivePanel('none')}>
+      <div className="text-white/60 text-xs mb-2">
+        Selecione um equipamento para melhorar com minérios da caverna.
+      </div>
+
+      <div className="text-yellow-400 text-xs mb-2">🪙 {state.player.stats.gold} ouro</div>
+
+      {/* Forgeable items list */}
+      <div className="max-h-48 overflow-y-auto mb-3 border border-white/10 rounded p-1">
+        {forgeableSlots.length === 0 ? (
+          <div className="text-white/40 text-xs text-center py-4">
+            Nenhum equipamento forjável no inventário.
+            <div className="text-[9px] mt-1 text-white/30">(Armas, ferramentas e armaduras)</div>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {forgeableSlots.map((fs, i) => {
+              const item = fs.slot.item!;
+              const level = fs.slot.upgradeLevel ?? 0;
+              const isSelected = i === selectedIndex;
+              return (
+                <div
+                  key={`${fs.pool}-${fs.index}`}
+                  onClick={() => setSelectedIndex(i)}
+                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer border transition-all ${
+                    isSelected
+                      ? 'border-orange-400 bg-orange-900/30'
+                      : 'border-white/10 bg-white/5 hover:border-white/30'
+                  }`}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-xs font-bold truncate" style={{ color: RARITY_COLORS[item.rarity as Rarity] }}>
+                      {item.name}
+                    </div>
+                    <div className="text-white/40 text-[9px]">
+                      {getSlotLabel(fs.pool, fs.index)} | Nv.{level}/5
+                    </div>
+                  </div>
+                  {level > 0 && (
+                    <span className="text-orange-400 text-[10px] font-bold">+{level}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Selected item upgrade details */}
+      {selectedSlot && upgradeCost && (
+        <div className="border border-white/10 rounded p-2 bg-white/5 mb-2">
+          <div className="text-white text-xs font-bold mb-1">
+            {selectedSlot.slot.item!.icon} {selectedSlot.slot.item!.name}
+            <span className="text-orange-400 ml-1">+{upgLevel}/{upgLevel + 1}</span>
+          </div>
+
+          {/* Current stats */}
+          <div className="text-[10px] text-white/60 mb-1">
+            {selectedSlot.slot.item!.damage && (
+              <span className="mr-2">⚔️ {selectedSlot.slot.item!.damage + (selectedSlot.slot as any).damageBonus || selectedSlot.slot.item!.damage}</span>
+            )}
+            {selectedSlot.slot.item!.defense && (
+              <span>🛡️ {selectedSlot.slot.item!.defense + (selectedSlot.slot as any).defenseBonus || selectedSlot.slot.item!.defense}</span>
+            )}
+          </div>
+
+          {/* Next level preview */}
+          <div className="text-[10px] text-green-400/70 mb-2">
+            {selectedSlot.slot.item!.damage && (
+              <span className="mr-2">→ ⚔️ +{Math.floor(selectedSlot.slot.item!.damage * (0.08 + (upgLevel + 1) * 0.02))}</span>
+            )}
+            {selectedSlot.slot.item!.defense && (
+              <span>→ 🛡️ +{Math.floor(selectedSlot.slot.item!.defense * (0.08 + (upgLevel + 1) * 0.02))}</span>
+            )}
+          </div>
+
+          {/* Cost breakdown */}
+          <div className="border-t border-white/10 pt-1 mb-2">
+            <div className="text-white/50 text-[9px] mb-1">Custo:</div>
+            <div className="text-yellow-400 text-[10px]">💰 {upgradeCost.gold} 🪙</div>
+            {upgradeCost.materials.map(mat => {
+              const item = getItem(mat.itemId);
+              const have = game.countInInventory(mat.itemId);
+              return (
+                <div key={mat.itemId} className={`text-[10px] ${have >= mat.count ? 'text-green-400' : 'text-red-400'}`}>
+                  {item?.icon} {item?.name || mat.itemId}: {have}/{mat.count}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Upgrade chance display */}
+          <div className="text-[9px] text-white/30 mb-2">
+            Chance: {Math.max(30, 100 - upgLevel * 10)}% (diminui com nível)
+          </div>
+
+          <button
+            onClick={() => {
+              const upgraded = game.upgradeItem(selectedSlot.pool, selectedSlot.index as any);
+              refresh();
+              if (upgraded) {
+                // After upgrading, reselect the slot to show new cost
+                setSelectedIndex(null);
+              }
+            }}
+            className="w-full py-1.5 rounded text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white"
+          >
+            ⚒️ Melhorar (+{upgLevel + 1})
+          </button>
+        </div>
+      )}
+
+      {selectedSlot && !upgradeCost && (
+        <div className="text-white/40 text-xs text-center py-2">Item no nível máximo (5)!</div>
+      )}
+
+      {/* Materials info */}
+      <div className="text-white/20 text-[9px] mt-2 border-t border-white/10 pt-2">
+        Minérios da caverna (mitril, rubi) são necessários para níveis avançados.
+      </div>
+    </Panel>
   );
 }
 

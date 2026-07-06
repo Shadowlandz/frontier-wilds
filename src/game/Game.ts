@@ -1519,6 +1519,154 @@ export class Game {
     return false;
   }
 
+  // ── Forge (Upgrade System) ────────────────────────────────────────
+  /** Open the forge/upgrade panel (only for blacksmith NPC) */
+  openForge(): void {
+    this.ui.activePanel = 'forge';
+  }
+
+  /** Check if an item can be upgraded (has damage/defense, is not at max level) */
+  canUpgrade(slot: InventorySlot): boolean {
+    if (!slot.item) return false;
+    const upgLevel = slot.upgradeLevel ?? 0;
+    if (upgLevel >= 5) return false; // Max upgrade level is 5
+    // Only items with damage or defense are forgeable
+    if (!slot.item.damage && !slot.item.defense && !slot.item.bonuses) return false;
+    return true;
+  }
+
+  /** Get the upgrade cost for a given slot */
+  getUpgradeCost(slot: InventorySlot): { gold: number; materials: { itemId: string; count: number }[] } | null {
+    if (!this.canUpgrade(slot)) return null;
+    const upgLevel = slot.upgradeLevel ?? 0;
+    const level = upgLevel + 1; // 1-indexed
+
+    const baseGold = 200;
+    const gold = Math.floor(baseGold * Math.pow(1.5, upgLevel));
+
+    const materials: { itemId: string; count: number }[] = [];
+
+    // Levels 1-2: upgrade_stone
+    if (level <= 2) {
+      materials.push({ itemId: 'upgrade_stone', count: level });
+    }
+    // Levels 3-4: upgrade_stone + mithril_ore
+    if (level >= 3) {
+      materials.push({ itemId: 'upgrade_stone', count: level });
+      materials.push({ itemId: 'mithril_ore', count: level - 1 });
+    }
+    // Level 5: needs forge_core
+    if (level === 5) {
+      materials.push({ itemId: 'forge_core', count: 1 });
+      materials.push({ itemId: 'ruby_ore', count: 3 });
+    }
+
+    return { gold, materials };
+  }
+
+  /** Attempt to upgrade an item slot (inventory or hotbar) */
+  upgradeItem(pool: 'inventory' | 'hotbar' | 'equipment', index: number): boolean {
+    let slot: InventorySlot | null = null;
+
+    if (pool === 'inventory') slot = this.state.player.inventory[index];
+    else if (pool === 'hotbar') slot = this.state.player.hotbar[index];
+    else if (pool === 'equipment') {
+      const eqKey = index as unknown as keyof typeof this.state.player.equipment;
+      slot = this.state.player.equipment[eqKey];
+    }
+
+    if (!slot || !slot.item) {
+      this.addNotification('Item inválido!', 'warning');
+      return false;
+    }
+
+    if (!this.canUpgrade(slot)) {
+      this.addNotification('Este item não pode ser melhorado!', 'warning');
+      return false;
+    }
+
+    const cost = this.getUpgradeCost(slot);
+    if (!cost) return false;
+
+    const upgLevel = slot.upgradeLevel ?? 0;
+    const newLevel = upgLevel + 1;
+
+    // Check gold
+    if (this.state.player.stats.gold < cost.gold) {
+      this.addNotification(`Ouro insuficiente! Precisa de ${cost.gold} 🪙`, 'warning');
+      return false;
+    }
+
+    // Check materials
+    for (const mat of cost.materials) {
+      if (this.countInInventory(mat.itemId) < mat.count) {
+        const item = getItem(mat.itemId);
+        this.addNotification(`Material insuficiente: ${item?.name || mat.itemId} (${this.countInInventory(mat.itemId)}/${mat.count})`, 'warning');
+        return false;
+      }
+    }
+
+    // Consume gold
+    this.state.player.stats.gold -= cost.gold;
+
+    // Consume materials
+    for (const mat of cost.materials) {
+      this.removeFromInventory(mat.itemId, mat.count);
+    }
+
+    // Apply upgrades to the item
+    slot.upgradeLevel = newLevel;
+    const item = slot.item;
+
+    // Calculate stat increases (diminishing returns)
+    const dmgBonus = item.damage ? Math.floor(item.damage * (0.08 + newLevel * 0.02)) : 0;
+    const defBonus = item.defense ? Math.floor(item.defense * (0.08 + newLevel * 0.02)) : 0;
+    const durBonus = item.maxDurability ? Math.floor(item.maxDurability * 0.05 * newLevel) : 0;
+
+    // We store bonuses as additional damage/defense on the item
+    // Since ItemDefinition is readonly from Items.ts, we track upgrade bonuses
+    // via a temporary map (simplified: we track in the slot metadata)
+    (slot as any).damageBonus = ((slot as any).damageBonus ?? 0) + dmgBonus;
+    (slot as any).defenseBonus = ((slot as any).defenseBonus ?? 0) + defBonus;
+
+    // Repair/boost durability
+    if (item.maxDurability) {
+      slot.durability = Math.min((slot.durability ?? item.maxDurability) + durBonus, item.maxDurability + durBonus);
+    }
+
+    this.addNotification(`⚒️ ${item.name} melhorado para +${newLevel}!`, 'success');
+    this.gainXp(20 + newLevel * 15);
+    this.camera.shake(3, 0.15);
+
+    return true;
+  }
+
+  /** Get all slots that can be upgraded, with pool/index info */
+  getForgeableSlots(): { slot: InventorySlot; pool: 'inventory' | 'hotbar' | 'equipment'; index: number }[] {
+    const results: { slot: InventorySlot; pool: 'inventory' | 'hotbar' | 'equipment'; index: number }[] = [];
+
+    // Check inventory
+    for (let i = 0; i < this.state.player.inventory.length; i++) {
+      const s = this.state.player.inventory[i];
+      if (this.canUpgrade(s)) results.push({ slot: s, pool: 'inventory', index: i });
+    }
+
+    // Check hotbar
+    for (let i = 0; i < this.state.player.hotbar.length; i++) {
+      const s = this.state.player.hotbar[i];
+      if (this.canUpgrade(s)) results.push({ slot: s, pool: 'hotbar', index: i });
+    }
+
+    // Check equipment
+    const eqKeys = Object.keys(this.state.player.equipment) as (keyof typeof this.state.player.equipment)[];
+    for (const key of eqKeys) {
+      const s = this.state.player.equipment[key];
+      if (s && this.canUpgrade(s)) results.push({ slot: s, pool: 'equipment', index: eqKeys.indexOf(key) });
+    }
+
+    return results;
+  }
+
   // ── Quests ──────────────────────────────────────────────────────
   acceptQuest(questId: string): boolean {
     const def = getQuestById(questId);

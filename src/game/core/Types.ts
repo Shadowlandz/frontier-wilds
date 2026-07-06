@@ -271,6 +271,7 @@ export interface InventorySlot {
   item: ItemDefinition | null;
   count: number;
   durability?: number;
+  upgradeLevel?: number;
 }
 
 export interface Equipment {
@@ -518,7 +519,7 @@ export interface Particle {
 }
 
 // ── UI State ──────────────────────────────────────────────────────
-export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'save' | 'none';
+export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'forge' | 'save' | 'none';
 
 export interface GameUIState {
   activePanel: PanelType;
