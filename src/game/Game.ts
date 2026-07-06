@@ -559,6 +559,10 @@ export class Game {
       power += this.state.skills['lumberjack'] || 0;
     }
 
+    // Trigger swing animation
+    player.isAttacking = true;
+    player.attackTimer = 0.3;
+
     // Apply damage with shake
     res.hp -= power;
     res.shakeTimer = 0.15;
