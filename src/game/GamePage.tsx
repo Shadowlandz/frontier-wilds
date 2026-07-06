@@ -585,7 +585,7 @@ function WorldMap({ game }: { game: Game }) {
     ctx.textAlign = 'center';
     ctx.fillText('✧  EXPLORE  ·  SOBREVIVA  ·  EVOLUA  ✧', MAP_W / 2, MAP_H - 5);
 
-  }, [game]);
+  }, [game, game.state.player.x, game.state.player.y]);
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 pointer-events-auto">
@@ -1665,13 +1665,17 @@ function ForgePanel({ game }: { game: Game }) {
   const upgradeCost = selectedSlot ? game.getUpgradeCost(selectedSlot.slot) : null;
   const upgLevel = selectedSlot?.slot.upgradeLevel ?? 0;
 
-  const getSlotLabel = (pool: string, index: number): string => {
-    if (pool === 'hotbar') return `Hotbar ${index + 1}`;
+  const getSlotLabel = (pool: string, index: string | number): string => {
+    if (pool === 'hotbar') return `Hotbar ${(index as number) + 1}`;
     if (pool === 'equipment') {
-      const eqKeys = ['weapon', 'tool', 'helmet', 'chest', 'boots', 'gloves', 'ring', 'amulet'];
-      return eqKeys[index] || 'Equip';
+      const eqLabels: Record<string, string> = {
+        weapon: 'Arma', tool: 'Ferramenta',
+        helmet: 'Capacete', chest: 'Peitoral', boots: 'Botas', gloves: 'Luvas',
+        ring: 'Anel', amulet: 'Amuleto',
+      };
+      return eqLabels[index as string] || 'Equip';
     }
-    return `Mochila ${index + 1}`;
+    return `Mochila ${(index as number) + 1}`;
   };
 
   const getStatBonus = (slot: { slot: { item: any; upgradeLevel?: number }; pool: string }): { damage: number; defense: number } => {
@@ -1743,10 +1747,10 @@ function ForgePanel({ game }: { game: Game }) {
           {/* Current stats */}
           <div className="text-[10px] text-white/60 mb-1">
             {selectedSlot.slot.item!.damage && (
-              <span className="mr-2">⚔️ {selectedSlot.slot.item!.damage + (selectedSlot.slot as any).damageBonus || selectedSlot.slot.item!.damage}</span>
+              <span className="mr-2">⚔️ {selectedSlot.slot.item!.damage + (selectedSlot.slot.damageBonus ?? 0)}</span>
             )}
             {selectedSlot.slot.item!.defense && (
-              <span>🛡️ {selectedSlot.slot.item!.defense + (selectedSlot.slot as any).defenseBonus || selectedSlot.slot.item!.defense}</span>
+              <span>🛡️ {selectedSlot.slot.item!.defense + (selectedSlot.slot.defenseBonus ?? 0)}</span>
             )}
           </div>
 
@@ -1775,14 +1779,9 @@ function ForgePanel({ game }: { game: Game }) {
             })}
           </div>
 
-          {/* Upgrade chance display */}
-          <div className="text-[9px] text-white/30 mb-2">
-            Chance: {Math.max(30, 100 - upgLevel * 10)}% (diminui com nível)
-          </div>
-
           <button
             onClick={() => {
-              const upgraded = game.upgradeItem(selectedSlot.pool, selectedSlot.index as any);
+              const upgraded = game.upgradeItem(selectedSlot.pool, selectedSlot.index);
               refresh();
               if (upgraded) {
                 // After upgrading, reselect the slot to show new cost

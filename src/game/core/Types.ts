@@ -272,6 +272,8 @@ export interface InventorySlot {
   count: number;
   durability?: number;
   upgradeLevel?: number;
+  damageBonus?: number;
+  defenseBonus?: number;
 }
 
 export interface Equipment {

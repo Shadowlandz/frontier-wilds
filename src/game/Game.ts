@@ -1531,7 +1531,7 @@ export class Game {
     const upgLevel = slot.upgradeLevel ?? 0;
     if (upgLevel >= 5) return false; // Max upgrade level is 5
     // Only items with damage or defense are forgeable
-    if (!slot.item.damage && !slot.item.defense && !slot.item.bonuses) return false;
+    if (!slot.item.damage && !slot.item.defense) return false;
     return true;
   }
 
@@ -1564,15 +1564,14 @@ export class Game {
     return { gold, materials };
   }
 
-  /** Attempt to upgrade an item slot (inventory or hotbar) */
-  upgradeItem(pool: 'inventory' | 'hotbar' | 'equipment', index: number): boolean {
+  /** Attempt to upgrade an item slot (inventory, hotbar, or equipment) */
+  upgradeItem(pool: 'inventory' | 'hotbar' | 'equipment', index: string | number): boolean {
     let slot: InventorySlot | null = null;
 
-    if (pool === 'inventory') slot = this.state.player.inventory[index];
-    else if (pool === 'hotbar') slot = this.state.player.hotbar[index];
+    if (pool === 'inventory') slot = this.state.player.inventory[index as number];
+    else if (pool === 'hotbar') slot = this.state.player.hotbar[index as number];
     else if (pool === 'equipment') {
-      const eqKey = index as unknown as keyof typeof this.state.player.equipment;
-      slot = this.state.player.equipment[eqKey];
+      slot = this.state.player.equipment[index as keyof typeof this.state.player.equipment];
     }
 
     if (!slot || !slot.item) {
@@ -1623,11 +1622,9 @@ export class Game {
     const defBonus = item.defense ? Math.floor(item.defense * (0.08 + newLevel * 0.02)) : 0;
     const durBonus = item.maxDurability ? Math.floor(item.maxDurability * 0.05 * newLevel) : 0;
 
-    // We store bonuses as additional damage/defense on the item
-    // Since ItemDefinition is readonly from Items.ts, we track upgrade bonuses
-    // via a temporary map (simplified: we track in the slot metadata)
-    (slot as any).damageBonus = ((slot as any).damageBonus ?? 0) + dmgBonus;
-    (slot as any).defenseBonus = ((slot as any).defenseBonus ?? 0) + defBonus;
+    // Track upgrade bonuses on the slot (persisted via InventorySlot.damageBonus/defenseBonus)
+    slot.damageBonus = (slot.damageBonus ?? 0) + dmgBonus;
+    slot.defenseBonus = (slot.defenseBonus ?? 0) + defBonus;
 
     // Repair/boost durability
     if (item.maxDurability) {
@@ -1642,8 +1639,8 @@ export class Game {
   }
 
   /** Get all slots that can be upgraded, with pool/index info */
-  getForgeableSlots(): { slot: InventorySlot; pool: 'inventory' | 'hotbar' | 'equipment'; index: number }[] {
-    const results: { slot: InventorySlot; pool: 'inventory' | 'hotbar' | 'equipment'; index: number }[] = [];
+  getForgeableSlots(): { slot: InventorySlot; pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number }[] {
+    const results: { slot: InventorySlot; pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number }[] = [];
 
     // Check inventory
     for (let i = 0; i < this.state.player.inventory.length; i++) {
@@ -1661,7 +1658,7 @@ export class Game {
     const eqKeys = Object.keys(this.state.player.equipment) as (keyof typeof this.state.player.equipment)[];
     for (const key of eqKeys) {
       const s = this.state.player.equipment[key];
-      if (s && this.canUpgrade(s)) results.push({ slot: s, pool: 'equipment', index: eqKeys.indexOf(key) });
+      if (s && this.canUpgrade(s)) results.push({ slot: s, pool: 'equipment', index: key });
     }
 
     return results;
