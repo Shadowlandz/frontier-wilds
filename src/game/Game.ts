@@ -2813,21 +2813,62 @@ export class Game {
     ctx.fillRect(cx - 5 + legSwing, by - 4, 3, 4);
     ctx.fillRect(cx + 2 - legSwing, by - 4, 3, 4);
 
-    // Arms
-    const armSwing = player.isAttacking ? 0.3 : bob * 0.1;
+    const tool = this.getCurrentItem();
+    const weaponType = tool?.toolType ?? 'none';
+    const isBowWeapon = weaponType === 'bow';
+
+    // Arms — different poses per weapon during attack
+    const attackProgress = player.isAttacking ? (1 - player.attackTimer / 0.4) : 0; // 0..1
+    const attackPhase = player.isAttacking ? Math.sin(attackProgress * Math.PI) : 0;
+
     ctx.fillStyle = '#ffcc99';
-    // Left arm
-    ctx.save();
-    ctx.translate(cx - 7, bodyTop + 2);
-    ctx.rotate(-0.2 + armSwing);
-    ctx.fillRect(0, 0, 3, 8);
-    ctx.restore();
-    // Right arm
-    ctx.save();
-    ctx.translate(cx + 4, bodyTop + 2);
-    ctx.rotate(0.2 - armSwing);
-    ctx.fillRect(0, 0, 3, 8);
-    ctx.restore();
+
+    if (player.isAttacking && isBowWeapon) {
+      // ── Bow pose: both arms extended forward ──
+      // Left arm (holding bow) — extended forward
+      ctx.save();
+      ctx.translate(cx - 7, bodyTop + 1);
+      ctx.rotate(-0.6 + attackPhase * 0.2);
+      ctx.fillRect(0, 0, 3, 9);
+      ctx.restore();
+      // Right arm (pulling string) — drawn back
+      ctx.save();
+      ctx.translate(cx + 5, bodyTop + 1);
+      ctx.rotate(0.6 - attackPhase * 0.3);
+      ctx.fillRect(0, 0, 3, 9);
+      ctx.restore();
+    } else if (player.isAttacking && (weaponType === 'axe' || weaponType === 'pickaxe')) {
+      // ── Overhead chop pose: both arms raised ──
+      const chopPhase = attackProgress * 2; // 0..2 (up then down)
+      const armAngle = chopPhase < 1
+        ? -1.2 * chopPhase        // raising arms
+        : -1.2 + 2.0 * (chopPhase - 1); // bringing down
+      ctx.save();
+      ctx.translate(cx - 6, bodyTop + 2);
+      ctx.rotate(armAngle - 0.2);
+      ctx.fillRect(0, 0, 3, 8);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(cx + 4, bodyTop + 2);
+      ctx.rotate(-armAngle + 0.2);
+      ctx.fillRect(0, 0, 3, 8);
+      ctx.restore();
+    } else {
+      // ── Default pose ──
+      const armSwing = player.isAttacking ? 0.3 : bob * 0.1;
+      // Left arm
+      ctx.save();
+      ctx.translate(cx - 7, bodyTop + 2);
+      ctx.rotate(-0.2 + armSwing);
+      ctx.fillRect(0, 0, 3, 8);
+      ctx.restore();
+      // Right arm
+      ctx.save();
+      ctx.translate(cx + 4, bodyTop + 2);
+      ctx.rotate(0.2 - armSwing);
+      ctx.fillRect(0, 0, 3, 8);
+      ctx.restore();
+    }
 
     // Body / Torso
     ctx.fillStyle = '#2196f3';
@@ -2885,25 +2926,204 @@ export class Game {
       ctx.fillRect(cx + 1, by - 3, 5, 3);
     }
 
-    // Weapon in right hand (during attack)
+    // ── Weapon & Attack Animation ──
     if (player.isAttacking) {
-      const tool = this.getCurrentItem();
-      ctx.save();
-      ctx.translate(cx + 4, bodyTop + 3);
-      ctx.rotate(1.5);
-      ctx.fillStyle = tool?.toolType === 'sword' ? '#aaa' : '#8B4513';
-      ctx.fillRect(-1, -10, 2, 12);
-      if (tool?.toolType === 'sword') {
-        ctx.fillStyle = '#ddd';
-        ctx.fillRect(-1.5, -12, 3, 3);
+      const swingAngle = attackProgress * Math.PI * 0.8 - 0.4; // -0.4 to +1.2 rad
+
+      if (isBowWeapon) {
+        // ═══ Bow Draw Animation ═══
+        const drawPull = attackPhase; // 0..1..0 pull and release
+        const bowHeight = 18;
+        const bowWidth = 8;
+
+        ctx.save();
+        ctx.translate(cx + player.facing.x * 4, bodyTop + 2);
+
+        // Bow body (curved arc mirroring facing direction)
+        ctx.strokeStyle = '#5d4037';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        const bowArcStart = player.facing.x < -0.3 ? Math.PI * 0.3 : -Math.PI * 0.3;
+        const bowArcEnd = player.facing.x < -0.3 ? -Math.PI * 0.3 : Math.PI * 0.3;
+        if (player.facing.y < -0.5) {
+          ctx.arc(0, 2, bowHeight / 2, -Math.PI * 0.6, Math.PI * 0.6);
+        } else {
+          ctx.arc(0, 2, bowHeight / 2, bowArcStart, bowArcEnd);
+        }
+        ctx.stroke();
+
+        // Bowstring (flip string side based on facing)
+        ctx.strokeStyle = '#c4a862';
+        ctx.lineWidth = 1;
+        const stringPull = drawPull * 5;
+        const strSide = player.facing.x < -0.3 ? 2 : -2; // string on opposite side of bow
+        ctx.beginPath();
+        ctx.moveTo(strSide, -bowHeight / 2 + 2);
+        ctx.lineTo(strSide + (player.facing.x < -0.3 ? stringPull : -stringPull), 2);
+        ctx.lineTo(strSide, bowHeight / 2 + 2);
+        ctx.stroke();
+
+        // Arrow nocked on string
+        if (drawPull > 0.1) {
+          const arrowDir = player.facing.x < -0.3 ? -1 : 1;
+          ctx.strokeStyle = '#8B4513';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          const strPullX = strSide + (player.facing.x < -0.3 ? stringPull : -stringPull);
+          ctx.moveTo(strPullX, 2);
+          ctx.lineTo(strPullX + arrowDir * 10, 2);
+          ctx.stroke();
+          // Arrowhead
+          ctx.fillStyle = '#ddd';
+          ctx.beginPath();
+          const ahX = strPullX + arrowDir * 10;
+          ctx.moveTo(ahX, 2);
+          ctx.lineTo(ahX - arrowDir * 3, 0);
+          ctx.lineTo(ahX - arrowDir * 3, 4);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        ctx.restore();
+      } else if (weaponType === 'sword') {
+        // ═══ Sword Swing Animation ═══
+        const swordLen = 16;
+        const bladeWidth = 3;
+
+        ctx.save();
+        ctx.translate(cx + player.facing.x * 2, bodyTop + 2);
+        ctx.rotate(swingAngle);
+
+        // Sword handle
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(-1, -2, 3, 6);
+        // Crossguard
+        ctx.fillStyle = '#888';
+        ctx.fillRect(-3, -3, 7, 2);
+        // Blade
+        ctx.fillStyle = '#ccc';
+        ctx.fillRect(-1, -18, bladeWidth, 15);
+        // Blade shine
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillRect(0, -18, 1, 15);
+        // Tip
+        ctx.beginPath();
+        ctx.moveTo(-1, -18);
+        ctx.lineTo(bladeWidth, -18);
+        ctx.lineTo(1, -22);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+
+        // Wide swing arc trail
+        ctx.strokeStyle = 'rgba(200,230,255,0.25)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const arcStart = swingAngle - 0.3;
+        const arcEnd = swingAngle + 0.8;
+        ctx.arc(cx + player.facing.x * 4, bodyTop + 6, 16, arcStart, arcEnd);
+        ctx.stroke();
+
+        // Sparkle particles on arc
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        for (let i = 0; i < 3; i++) {
+          const a = arcStart + (arcEnd - arcStart) * (i / 3);
+          const sx = cx + player.facing.x * 4 + Math.cos(a) * 16;
+          const sy = bodyTop + 6 + Math.sin(a) * 16;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (weaponType === 'axe') {
+        // ═══ Axe Overhead Chop ═══
+        const chopSwing = swingAngle * 0.8;
+        const handleLen = 14;
+
+        ctx.save();
+        ctx.translate(cx + player.facing.x * 4, bodyTop + 4);
+        ctx.rotate(-0.8 + chopSwing);
+
+        // Handle
+        ctx.fillStyle = '#6d4e3a';
+        ctx.fillRect(-1.5, -handleLen, 3, handleLen);
+        // Axe head
+        ctx.fillStyle = '#888';
+        ctx.beginPath();
+        ctx.moveTo(-5, -handleLen);
+        ctx.lineTo(5, -handleLen);
+        ctx.lineTo(5, -handleLen - 6);
+        ctx.lineTo(0, -handleLen - 8);
+        ctx.lineTo(-5, -handleLen - 6);
+        ctx.closePath();
+        ctx.fill();
+        // Edge highlight
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(-4, -handleLen - 5, 2, 4);
+
+        ctx.restore();
+
+        // Chop trail
+        ctx.strokeStyle = 'rgba(255,200,150,0.2)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const chopArc = -0.8 + chopSwing;
+        ctx.arc(cx + player.facing.x * 4, bodyTop + 16, 14, chopArc - 0.2, chopArc + 0.4);
+        ctx.stroke();
+      } else if (weaponType === 'pickaxe') {
+        // ═══ Pickaxe Overhead Jab ═══
+        const jabSwing = swingAngle * 0.6;
+
+        ctx.save();
+        ctx.translate(cx + player.facing.x * 6, bodyTop + 3);
+        ctx.rotate(-0.3 + jabSwing);
+
+        // Handle
+        ctx.fillStyle = '#6d4e3a';
+        ctx.fillRect(-1.5, -16, 3, 16);
+        // Pick head
+        ctx.fillStyle = '#666';
+        ctx.beginPath();
+        ctx.moveTo(-2, -16);
+        ctx.lineTo(4, -12);
+        ctx.lineTo(3, -8);
+        ctx.lineTo(-3, -12);
+        ctx.closePath();
+        ctx.fill();
+        // Pick point
+        ctx.fillStyle = '#999';
+        ctx.beginPath();
+        ctx.moveTo(4, -12);
+        ctx.lineTo(7, -14);
+        ctx.lineTo(4, -10);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+
+        // Jab trail
+        ctx.strokeStyle = 'rgba(180,180,180,0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, bodyTop + 6);
+        ctx.lineTo(cx + player.facing.x * 20, bodyTop + 2);
+        ctx.stroke();
+      } else {
+        // ═══ Generic Tool Swing ═══
+        ctx.save();
+        ctx.translate(cx + 4, bodyTop + 3);
+        ctx.rotate(1.2 + attackPhase * 0.5);
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(-1, -10, 2, 12);
+        ctx.restore();
+
+        // Small arc
+        ctx.strokeStyle = 'rgba(200,200,200,0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx + player.facing.x * 8, bodyTop + 4, 10, -0.3, 0.6);
+        ctx.stroke();
       }
-      // Swing arc
-      ctx.restore();
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(cx + player.facing.x * 10, bodyTop + 2, 12, -0.5, 0.8);
-      ctx.stroke();
     }
 
     ctx.globalAlpha = 1;
