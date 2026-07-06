@@ -90,6 +90,9 @@ export const ResourceType = {
   Gem: 'gem',
   Fiber: 'fiber',
   Clay: 'clay',
+  // ── Cave Resources ──
+  MithrilOre: 'mithrilOre',
+  RubyOre: 'rubyOre',
 } as const;
 export type ResourceType = typeof ResourceType[keyof typeof ResourceType];
 
@@ -144,6 +147,11 @@ export const EnemyType = {
   Dragon: 'dragon',
   SlimeKing: 'slimeKing',
   ShadowLord: 'shadowLord',
+  // ── Cave Exclusives ──
+  CaveTroll: 'caveTroll',
+  GiantBat: 'giantBat',
+  CrystalGolem: 'crystalGolem',
+  LavaSpider: 'lavaSpider',
 } as const;
 export type EnemyType = typeof EnemyType[keyof typeof EnemyType];
 

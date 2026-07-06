@@ -42,6 +42,24 @@ const BIOME_GRASS_COLORS: Record<Biome, string> = {
   [Biome.River]: '#4a90c2',
 };
 
+// ── Decorative Element Types ──────────────────────────────────────
+export type DecorationType = 'flower' | 'mushroom' | 'tall_grass' | 'lily_pad' | 'dead_log' | 'small_rock' | 'fern' | 'cave_moss' | 'glowing_shroom';
+
+export interface DecorationDef {
+  x: number;
+  y: number;
+  type: DecorationType;
+}
+
+// ── Cave data: generated separately from surface ──────────────────
+export interface CaveData {
+  tileMap: TileType[][];
+  resources: { x: number; y: number; type: string; itemId: string }[];
+  enemies: { x: number; y: number; type: EnemyType }[];
+  entranceX: number;
+  entranceY: number;
+}
+
 // ── World Generator ───────────────────────────────────────────────
 export class WorldGenerator {
   private seed: number;
@@ -134,6 +152,251 @@ export class WorldGenerator {
     return noise > 0.8 ? TileType.Dirt : TileType.Grass;
   }
 
+  /**
+   * Generate decorations — purely visual elements on the surface
+   */
+  generateDecorations(biomeMap: Biome[][]): DecorationDef[] {
+    const decorations: DecorationDef[] = [];
+    const w = WORLD_WIDTH;
+    const h = WORLD_HEIGHT;
+    const rng = new SeededRandom(this.seed + 11111);
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const biome = biomeMap[y][x];
+        const n = rng.next();
+
+        // Forest: ferns, mushrooms, tall grass, flowers
+        if (biome === Biome.Forest) {
+          if (n < 0.03) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'fern' });
+          } else if (n < 0.05) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
+          } else if (n < 0.065) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mushroom' });
+          } else if (n < 0.075) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
+          } else if (n < 0.08) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'dead_log' });
+          }
+        }
+
+        // Plains: flowers and tall grass
+        if (biome === Biome.Plains) {
+          if (n < 0.04) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
+          } else if (n < 0.055) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
+          } else if (n < 0.062) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'small_rock' });
+          }
+        }
+
+        // Swamp: mushrooms, dead logs
+        if (biome === Biome.Swamp) {
+          if (n < 0.04) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mushroom' });
+          } else if (n < 0.06) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'dead_log' });
+          }
+        }
+
+        // Water: lily pads
+        if (biome === Biome.Lake || biome === Biome.River) {
+          if (n < 0.04 && biome === Biome.Lake) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'lily_pad' });
+          }
+        }
+
+        // Mountains: small rocks
+        if (biome === Biome.Mountains) {
+          if (n < 0.03) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'small_rock' });
+          } else if (n < 0.04) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
+          }
+        }
+
+        // Village: flowers, tall grass
+        if (biome === Biome.Village) {
+          if (n < 0.03) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
+          } else if (n < 0.045) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
+          }
+        }
+      }
+    }
+    return decorations;
+  }
+
+  /**
+   * Generate the underground cave layer with exclusive enemies and resources
+   */
+  generateCaveData(): CaveData {
+    const caveW = 80; // Smaller than surface — feels like a dungeon
+    const caveH = 80;
+    const caveRng = new SeededRandom(this.seed + 55555);
+
+    // Generate cave tiles — rooms and corridors using simple noise
+    const caveTileMap: TileType[][] = Array.from({ length: caveH }, () => Array(caveW).fill(TileType.CaveWall));
+
+    // Carve out open areas
+    for (let y = 0; y < caveH; y++) {
+      for (let x = 0; x < caveW; x++) {
+        const noise = fractalNoise(x, y, this.seed + 77777, 4, 16, 0.6);
+        if (noise > 0.35) {
+          caveTileMap[y][x] = TileType.CaveFloor;
+        }
+      }
+    }
+
+    // Carve guaranteed paths (horizontal + vertical corridors)
+    // Entrance at top-center of cave
+    const entranceX = Math.floor(caveW / 2);
+    const entranceY = 0;
+
+    // Vertical corridor from entrance
+    for (let y = 0; y < caveH; y++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const cx = entranceX + dx;
+        if (cx >= 0 && cx < caveW) {
+          caveTileMap[y][cx] = TileType.CaveFloor;
+        }
+      }
+    }
+
+    // Horizontal corridors at various depths
+    const corridorYs = [20, 40, 60];
+    for (const cy of corridorYs) {
+      for (let x = 0; x < caveW; x++) {
+        if (caveTileMap[cy] && (caveTileMap[cy][x] === TileType.CaveWall)) {
+          // 30% chance to carve a horizontal path
+          if (caveRng.next() < 0.3) {
+            caveTileMap[cy][x] = TileType.CaveFloor;
+            if (cy + 1 < caveH) caveTileMap[cy + 1][x] = TileType.CaveFloor;
+          }
+        }
+      }
+    }
+
+    // Add lava pools in deeper areas (y > 50)
+    for (let y = 50; y < caveH; y++) {
+      for (let x = 0; x < caveW; x++) {
+        const noise = fractalNoise(x, y, this.seed + 88888, 2, 40);
+        if (noise > 0.45 && caveTileMap[y][x] === TileType.CaveFloor) {
+          // Check surroundings
+          let floorNeighbors = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              const nx = x + dx, ny = y + dy;
+              if (nx >= 0 && nx < caveW && ny >= 0 && ny < caveH && caveTileMap[ny][nx] === TileType.CaveFloor) {
+                floorNeighbors++;
+              }
+            }
+          }
+          if (floorNeighbors >= 3 && caveRng.chance(0.15)) {
+            // Create a small lava pool (3x3)
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                const lx = x + dx, ly = y + dy;
+                if (lx >= 0 && lx < caveW && ly >= 0 && ly < caveH) {
+                  caveTileMap[ly][lx] = TileType.Lava;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Generate cave resources
+    const caveResources: { x: number; y: number; type: string; itemId: string }[] = [];
+    for (let y = 0; y < caveH; y++) {
+      for (let x = 0; x < caveW; x++) {
+        if (caveTileMap[y][x] !== TileType.CaveFloor) continue;
+        const n = caveRng.next();
+        const px = x * TILE_SIZE + caveRng.range(0, TILE_SIZE);
+        const py = y * TILE_SIZE + caveRng.range(0, TILE_SIZE);
+
+        // Upper cave (y < 30): iron, coal, crystal
+        if (y < 30) {
+          if (n < 0.03) {
+            caveResources.push({ x: px, y: py, type: 'iron_rock', itemId: 'iron_ore' });
+          } else if (n < 0.05) {
+            caveResources.push({ x: px, y: py, type: 'coal_rock', itemId: 'coal' });
+          } else if (n < 0.065) {
+            caveResources.push({ x: px, y: py, type: 'crystal_node', itemId: 'crystal' });
+          }
+        }
+        // Middle cave (y 30-55): mithril, crystal, gold
+        else if (y < 55) {
+          if (n < 0.025) {
+            caveResources.push({ x: px, y: py, type: 'mithril_rock', itemId: 'mithril_ore' });
+          } else if (n < 0.04) {
+            caveResources.push({ x: px, y: py, type: 'crystal_node', itemId: 'crystal' });
+          } else if (n < 0.05) {
+            caveResources.push({ x: px, y: py, type: 'gold_rock', itemId: 'gold_ore' });
+          } else if (n < 0.065) {
+            caveResources.push({ x: px, y: py, type: 'coal_rock', itemId: 'coal' });
+          }
+        }
+        // Deep cave (y >= 55): ruby, lava crystal, mithril
+        else {
+          if (n < 0.02) {
+            caveResources.push({ x: px, y: py, type: 'ruby_rock', itemId: 'ruby_ore' });
+          } else if (n < 0.035) {
+            caveResources.push({ x: px, y: py, type: 'mithril_rock', itemId: 'mithril_ore' });
+          } else if (n < 0.045) {
+            caveResources.push({ x: px, y: py, type: 'crystal_node', itemId: 'crystal' });
+          } else if (n < 0.06) {
+            caveResources.push({ x: px, y: py, type: 'iron_rock', itemId: 'iron_ore' });
+          }
+        }
+      }
+    }
+
+    // Generate cave enemies
+    const caveEnemies: { x: number; y: number; type: EnemyType }[] = [];
+    for (let y = 0; y < caveH; y++) {
+      for (let x = 0; x < caveW; x++) {
+        if (caveTileMap[y][x] !== TileType.CaveFloor && caveTileMap[y][x] !== TileType.Lava) continue;
+        if (caveRng.next() > 0.005) continue;
+
+        const px = x * TILE_SIZE + caveRng.range(0, TILE_SIZE);
+        const py = y * TILE_SIZE + caveRng.range(0, TILE_SIZE);
+
+        // Upper cave: bat, skeleton, spider
+        if (y < 30) {
+          const types: EnemyType[] = [EnemyType.Bat, EnemyType.Skeleton, EnemyType.Spider];
+          caveEnemies.push({ x: px, y: py, type: caveRng.pick(types) });
+        }
+        // Middle cave: cave troll, giant bat, skeleton
+        else if (y < 55) {
+          const types: EnemyType[] = [EnemyType.CaveTroll, EnemyType.GiantBat, EnemyType.Skeleton];
+          caveEnemies.push({ x: px, y: py, type: caveRng.pick(types) });
+        }
+        // Deep cave: lava spider, crystal golem, cave troll
+        else {
+          const types: EnemyType[] = [EnemyType.LavaSpider, EnemyType.CrystalGolem, EnemyType.CaveTroll];
+          caveEnemies.push({ x: px, y: py, type: caveRng.pick(types) });
+        }
+      }
+    }
+
+    // Place the Shadow Lord boss in deep cave
+    caveEnemies.push({ x: 60 * TILE_SIZE, y: 70 * TILE_SIZE, type: EnemyType.ShadowLord });
+
+    return {
+      tileMap: caveTileMap,
+      resources: caveResources,
+      enemies: caveEnemies,
+      entranceX: entranceX * TILE_SIZE,
+      entranceY: entranceY * TILE_SIZE,
+    };
+  }
+
   generateResources(biomeMap: Biome[][]): { x: number; y: number; type: string; itemId: string }[] {
     const resources: { x: number; y: number; type: string; itemId: string }[] = [];
     const w = WORLD_WIDTH;
@@ -145,38 +408,49 @@ export class WorldGenerator {
         const biome = biomeMap[y][x];
         const n = rng.next();
 
-        // Forest: trees, bushes, rocks
+        // Forest: trees, bushes, rocks (increased density)
         if (biome === Biome.Forest) {
-          if (n < 0.04) {
+          if (n < 0.05) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'tree', itemId: 'wood' });
-          } else if (n < 0.06) {
+          } else if (n < 0.075) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'bush', itemId: 'apple' });
-          } else if (n < 0.065) {
+          } else if (n < 0.085) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'rock', itemId: 'stone' });
+          } else if (n < 0.09) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'bush', itemId: 'berry' });
           }
         }
 
         // Plains: fewer trees, berry bushes
         if (biome === Biome.Plains) {
-          if (n < 0.02) {
+          if (n < 0.025) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'tree', itemId: 'wood' });
-          } else if (n < 0.035) {
-            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'bush', itemId: 'berry' });
           } else if (n < 0.04) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'bush', itemId: 'berry' });
+          } else if (n < 0.048) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'rock', itemId: 'stone' });
           }
         }
 
         // Mountains: iron, gold, crystal, stone
         if (biome === Biome.Mountains) {
-          if (n < 0.03) {
+          if (n < 0.035) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'iron_rock', itemId: 'iron_ore' });
-          } else if (n < 0.038) {
-            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'gold_rock', itemId: 'gold_ore' });
           } else if (n < 0.045) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'gold_rock', itemId: 'gold_ore' });
+          } else if (n < 0.052) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'crystal_node', itemId: 'crystal' });
-          } else if (n < 0.07) {
+          } else if (n < 0.075) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'rock', itemId: 'stone' });
+          }
+        }
+
+        // Swamp: trees like forest but fewer
+        if (biome === Biome.Swamp) {
+          if (n < 0.03) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'tree', itemId: 'wood' });
+          } else if (n < 0.04) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'bush', itemId: 'berry' });
           }
         }
 
@@ -193,16 +467,64 @@ export class WorldGenerator {
 
         // Ruins: gold, crystal
         if (biome === Biome.Ruins) {
-          if (n < 0.02) {
+          if (n < 0.025) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'gold_rock', itemId: 'gold_ore' });
-          } else if (n < 0.035) {
+          } else if (n < 0.04) {
             resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'crystal_node', itemId: 'crystal' });
           }
         }
       }
     }
 
+    // Add cave entrances on mountains (surface-level resource that player interacts with)
+    const caveEntrances = this.findCaveEntranceLocations(biomeMap, rng);
+    for (const entrance of caveEntrances) {
+      resources.push(entrance);
+    }
+
     return resources;
+  }
+
+  /**
+   * Find good locations for cave entrances — in mountain biomes
+   */
+  private findCaveEntranceLocations(biomeMap: Biome[][], rng: SeededRandom): { x: number; y: number; type: string; itemId: string }[] {
+    const entrances: { x: number; y: number; type: string; itemId: string }[] = [];
+    const w = WORLD_WIDTH;
+    const h = WORLD_HEIGHT;
+    const candidates: { x: number; y: number }[] = [];
+
+    for (let y = 10; y < h - 10; y++) {
+      for (let x = 10; x < w - 10; x++) {
+        if (biomeMap[y][x] === Biome.Mountains) {
+          // Check that surrounding tiles are also mountains
+          let mountainCount = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (biomeMap[y + dy]?.[x + dx] === Biome.Mountains) mountainCount++;
+            }
+          }
+          if (mountainCount >= 7) {
+            candidates.push({ x, y });
+          }
+        }
+      }
+    }
+
+    // Place 2-3 cave entrances
+    const entranceCount = 2 + Math.floor(candidates.length > 20 ? 1 : 0);
+    const shuffled = rng.shuffle(candidates);
+    for (let i = 0; i < Math.min(entranceCount, shuffled.length); i++) {
+      const c = shuffled[i];
+      entrances.push({
+        x: c.x * TILE_SIZE + rng.range(0, TILE_SIZE),
+        y: c.y * TILE_SIZE + rng.range(0, TILE_SIZE),
+        type: 'cave_entrance',
+        itemId: 'cave_entrance',
+      });
+    }
+
+    return entrances;
   }
 
   generateEnemies(biomeMap: Biome[][]): { x: number; y: number; type: EnemyType }[] {
@@ -213,7 +535,7 @@ export class WorldGenerator {
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        if (rng.next() > 0.003) continue;
+        if (rng.next() > 0.0035) continue; // Slightly increased spawn rate
 
         const biome = biomeMap[y][x];
         let enemyType: EnemyType | null = null;
@@ -266,14 +588,13 @@ export class WorldGenerator {
   generateNpcs(): { x: number; y: number; npcId: string }[] {
     const cx = WORLD_WIDTH * TILE_SIZE / 2;
     const cy = WORLD_HEIGHT * TILE_SIZE / 2;
-    const rng = new SeededRandom(this.seed + 3333);
 
     return [
       { x: cx - 60, y: cy - 40, npcId: 'merchant' },
       { x: cx + 60, y: cy - 40, npcId: 'blacksmith' },
       { x: cx - 60, y: cy + 40, npcId: 'farmer' },
       { x: cx + 60, y: cy + 40, npcId: 'alchemist' },
-      { x: cx - 30, y: cy - 80, npcId: 'hunter' },
+      { x: cx - 50, y: cy - 80, npcId: 'hunter' },
       { x: cx, y: cy - 60, npcId: 'quest_giver' },
     ];
   }
@@ -356,4 +677,8 @@ export function getSeasonTint(season: Season): string {
     case Season.Autumn: return 'rgba(200, 120, 50, 0.1)';
     case Season.Winter: return 'rgba(150, 180, 220, 0.1)';
   }
+}
+
+export function getCaveSkyColor(): string {
+  return '#0a0a0a'; // Caves are always pitch black
 }

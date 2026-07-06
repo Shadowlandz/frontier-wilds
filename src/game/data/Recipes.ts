@@ -306,6 +306,46 @@ export const RECIPES: CraftingRecipe[] = [
     ingredients: [{ itemId: 'gold_ingot', count: 5 }, { itemId: 'wood', count: 3 }],
     requiredLevel: 8, craftTime: 4000, station: 'furnace',
   },
+
+  // ── Cave Ore Smelting ─────────────────────────────────────────
+  {
+    id: 'smelt_mithril', name: 'Barra de Mitril', category: ItemCategory.Material,
+    result: 'mithril_ingot', resultCount: 1,
+    ingredients: [{ itemId: 'mithril_ore', count: 3 }, { itemId: 'coal', count: 2 }],
+    requiredLevel: 10, craftTime: 6000, station: 'furnace',
+  },
+  {
+    id: 'forge_upgrade_stone', name: 'Pedra de Afiação', category: ItemCategory.Material,
+    result: 'upgrade_stone', resultCount: 1,
+    ingredients: [{ itemId: 'stone', count: 5 }, { itemId: 'coal', count: 2 }, { itemId: 'iron_ore', count: 2 }],
+    requiredLevel: 4, craftTime: 3000, station: 'furnace',
+  },
+  {
+    id: 'forge_forge_core', name: 'Núcleo de Forja', category: ItemCategory.Material,
+    result: 'forge_core', resultCount: 1,
+    ingredients: [{ itemId: 'crystal', count: 3 }, { itemId: 'mithril_ore', count: 2 }, { itemId: 'lava_crystal', count: 1 }],
+    requiredLevel: 10, craftTime: 6000, station: 'furnace',
+  },
+
+  // ── Mithril Equipment ─────────────────────────────────────────
+  {
+    id: 'craft_mithril_sword', name: 'Espada de Mitril', category: ItemCategory.Weapon,
+    result: 'mithril_sword', resultCount: 1,
+    ingredients: [{ itemId: 'mithril_ingot', count: 8 }, { itemId: 'crystal', count: 4 }, { itemId: 'forge_core', count: 1 }],
+    requiredLevel: 12, craftTime: 8000, station: 'furnace',
+  },
+  {
+    id: 'craft_mithril_pickaxe', name: 'Picareta de Mitril', category: ItemCategory.Tool,
+    result: 'mithril_pickaxe', resultCount: 1,
+    ingredients: [{ itemId: 'mithril_ingot', count: 6 }, { itemId: 'wood', count: 2 }, { itemId: 'forge_core', count: 1 }],
+    requiredLevel: 11, craftTime: 7000, station: 'furnace',
+  },
+  {
+    id: 'craft_mithril_axe', name: 'Machado de Mitril', category: ItemCategory.Tool,
+    result: 'mithril_axe', resultCount: 1,
+    ingredients: [{ itemId: 'mithril_ingot', count: 6 }, { itemId: 'wood', count: 2 }, { itemId: 'forge_core', count: 1 }],
+    requiredLevel: 11, craftTime: 7000, station: 'furnace',
+  },
 ];
 
 export function getRecipesByCategory(category: ItemCategory): CraftingRecipe[] {

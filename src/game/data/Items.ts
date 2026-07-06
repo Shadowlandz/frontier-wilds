@@ -480,6 +480,65 @@ export const ITEMS: Record<string, ItemDefinition> = {
     category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 0.3, value: 50,
     icon: '🖤',
   },
+
+  // ── Cave Resources ────────────────────────────────────────────
+  mithril_ore: {
+    id: 'mithril_ore', name: 'Minério de Mitril', description: 'Minério lendário das profundezas.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 50, weight: 3, value: 80,
+    icon: '🔮',
+  },
+  ruby_ore: {
+    id: 'ruby_ore', name: 'Minério de Rubi', description: 'Rubi bruto das cavernas vulcânicas.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 30, weight: 2, value: 60,
+    icon: '🔴',
+  },
+  mithril_ingot: {
+    id: 'mithril_ingot', name: 'Barra de Mitril', description: 'Barra do metal mais resistente.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 30, weight: 4, value: 160,
+    icon: '💠',
+  },
+  lava_crystal: {
+    id: 'lava_crystal', name: 'Cristal de Lava', description: 'Cristal pulsando com calor vulcânico.',
+    category: ItemCategory.Material, rarity: Rarity.Legendary, stackSize: 10, weight: 1, value: 200,
+    icon: '🌋',
+  },
+  troll_skin: {
+    id: 'troll_skin', name: 'Pele de Troll', description: 'Pele grossa e resistente de troll.',
+    category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 20, weight: 2, value: 40,
+    icon: '🟤',
+  },
+
+  // ── Upgradeable Crafted Items ─────────────────────────────────
+  mithril_sword: {
+    id: 'mithril_sword', name: 'Espada de Mitril', description: 'Espada forjada com o lendário mitril.',
+    category: ItemCategory.Weapon, rarity: Rarity.Epic, stackSize: 1, weight: 3, value: 600,
+    icon: '⚔️', toolType: ToolType.Sword, damage: 45, durability: 600, maxDurability: 600,
+    speed: 1.4, range: 44,
+  },
+  mithril_pickaxe: {
+    id: 'mithril_pickaxe', name: 'Picareta de Mitril', description: 'Picareta indestrutível de mitril.',
+    category: ItemCategory.Tool, rarity: Rarity.Epic, stackSize: 1, weight: 3, value: 500,
+    icon: '⛏️', toolType: ToolType.Pickaxe, damage: 15, durability: 1200, maxDurability: 1200,
+    speed: 1.5, range: 38, miningPower: 20, choppingPower: 1,
+  },
+  mithril_axe: {
+    id: 'mithril_axe', name: 'Machado de Mitril', description: 'Machado lendário de mitril.',
+    category: ItemCategory.Tool, rarity: Rarity.Epic, stackSize: 1, weight: 3, value: 500,
+    icon: '🪓', toolType: ToolType.Axe, damage: 22, durability: 1200, maxDurability: 1200,
+    speed: 1.4, range: 38, miningPower: 5, choppingPower: 22,
+  },
+
+  // ── Upgrade Forge Items ───────────────────────────────────────
+  upgrade_stone: {
+    id: 'upgrade_stone', name: 'Pedra de Afiação', description: 'Melhora armas de metal.',
+    category: ItemCategory.Material, rarity: Rarity.Uncommon, stackSize: 10, weight: 1, value: 30,
+    icon: '🪨',
+  },
+  forge_core: {
+    id: 'forge_core', name: 'Núcleo de Forja', description: 'Núcleo energético para melhorias avançadas.',
+    category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 5, weight: 2, value: 100,
+    icon: '💎',
+  },
 };
 
 export function getItem(id: string): ItemDefinition | undefined {

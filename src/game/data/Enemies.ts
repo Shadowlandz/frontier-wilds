@@ -128,6 +128,55 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
       { itemId: 'gold_coin', chance: 1, minCount: 25, maxCount: 50 },
     ],
   },
+
+  // ═══════════════════════════════════════════════════════════════
+  // Cave Exclusive Enemies
+  // ═══════════════════════════════════════════════════════════════
+  [EnemyType.CaveTroll]: {
+    type: EnemyType.CaveTroll, name: 'Troll das Cavernas', hp: 180, damage: 20, defense: 12,
+    speed: 35, xpReward: 80, level: 8, aggroRange: 140, attackRange: 36,
+    attackSpeed: 2000, color: '#5d4a3a', size: 36, behavior: 'chase',
+    biomes: [Biome.Cave],
+    loot: [
+      { itemId: 'troll_skin', chance: 0.8, minCount: 1, maxCount: 2 },
+      { itemId: 'bone', chance: 0.7, minCount: 2, maxCount: 4 },
+      { itemId: 'mithril_ore', chance: 0.2, minCount: 1, maxCount: 2 },
+      { itemId: 'gold_coin', chance: 0.5, minCount: 5, maxCount: 15 },
+    ],
+  },
+  [EnemyType.GiantBat]: {
+    type: EnemyType.GiantBat, name: 'Morcego Gigante', hp: 40, damage: 8, defense: 2,
+    speed: 90, xpReward: 25, level: 5, aggroRange: 120, attackRange: 24,
+    attackSpeed: 700, color: '#6a1b6a', size: 20, behavior: 'chase',
+    biomes: [Biome.Cave],
+    loot: [
+      { itemId: 'dark_essence', chance: 0.4, minCount: 1, maxCount: 2 },
+      { itemId: 'leather', chance: 0.3, minCount: 1, maxCount: 1 },
+    ],
+  },
+  [EnemyType.CrystalGolem]: {
+    type: EnemyType.CrystalGolem, name: 'Golem de Cristal', hp: 250, damage: 18, defense: 18,
+    speed: 25, xpReward: 120, level: 10, aggroRange: 100, attackRange: 40,
+    attackSpeed: 2200, color: '#4a8aaa', size: 40, behavior: 'patrol',
+    biomes: [Biome.Cave],
+    loot: [
+      { itemId: 'crystal', chance: 0.9, minCount: 3, maxCount: 6 },
+      { itemId: 'forge_core', chance: 0.3, minCount: 1, maxCount: 2 },
+      { itemId: 'lava_crystal', chance: 0.1, minCount: 1, maxCount: 1 },
+      { itemId: 'mithril_ore', chance: 0.4, minCount: 1, maxCount: 3 },
+    ],
+  },
+  [EnemyType.LavaSpider]: {
+    type: EnemyType.LavaSpider, name: 'Aranha de Lava', hp: 60, damage: 14, defense: 5,
+    speed: 65, xpReward: 45, level: 7, aggroRange: 150, attackRange: 28,
+    attackSpeed: 900, color: '#d44400', size: 22, behavior: 'chase',
+    biomes: [Biome.Cave],
+    loot: [
+      { itemId: 'spider_silk', chance: 0.5, minCount: 1, maxCount: 2 },
+      { itemId: 'lava_crystal', chance: 0.3, minCount: 1, maxCount: 2 },
+      { itemId: 'ruby_ore', chance: 0.2, minCount: 1, maxCount: 1 },
+    ],
+  },
 };
 
 export function getEnemiesForBiome(biome: Biome, minLevel?: number, maxLevel?: number): EnemyDefinition[] {
