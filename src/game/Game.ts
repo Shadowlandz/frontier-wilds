@@ -54,7 +54,17 @@ export class Game {
   biomeMap: Biome[][] = [];
   tileMap: TileType[][] = [];
   heightMap: number[][] = [];
-  resources: { x: number; y: number; type: string; itemId: string; hp: number; id: string }[] = [];
+  resources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
+  resourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
+  private gatherCooldown = 0;
+
+  // Resource colors per type for particles
+  private resourceColors: Record<string, string> = {
+    tree: '#2d5a1e', bush: '#4a8a3a',
+    rock: '#8a8a8a', iron_rock: '#cd7f32',
+    gold_rock: '#ffd700', coal_rock: '#4a4a4a',
+    crystal_node: '#8acaff',
+  };
 
   // Resource sizes for collision
   private resourceSizes: Record<string, { w: number; h: number; hp: number }> = {
@@ -106,7 +116,9 @@ export class Game {
     this.resources = resourceDefs.map(r => ({
       ...r,
       hp: this.resourceSizes[r.type]?.hp ?? 10,
+      maxHp: this.resourceSizes[r.type]?.hp ?? 10,
       id: generateId(),
+      shakeTimer: 0,
     }));
 
     // Generate enemies
@@ -271,6 +283,15 @@ export class Game {
     this.updateRegeneration(dt);
     this.updateNotifications(dt);
     this.updateFarming(dt);
+    this.updateResourceRespawn(dt);
+
+    // Gathering cooldown
+    if (this.gatherCooldown > 0) this.gatherCooldown -= dt;
+
+    // Update resource shake timers
+    for (const res of this.resources) {
+      if (res.shakeTimer > 0) res.shakeTimer -= dt;
+    }
 
     // Auto-save
     this.autoSaveTimer += dt;
@@ -495,24 +516,59 @@ export class Game {
     }
   }
 
-  private gatherResource(res: { x: number; y: number; type: string; itemId: string; hp: number; id: string }, index: number): void {
+  private gatherResource(res: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }, index: number): void {
     const { player } = this.state;
     const tool = this.getCurrentItem();
 
+    // Gathering cooldown
+    if (this.gatherCooldown > 0) return;
+    this.gatherCooldown = 0.25; // 4 hits per second max
+
+    // Tool requirements
+    const isVegetation = res.type === 'tree' || res.type === 'bush';
+    const isOre = res.type.includes('rock') || res.type.includes('crystal');
+
+    if (isVegetation && tool?.toolType !== 'axe' && tool?.toolType !== 'sword' && tool?.toolType !== 'scythe') {
+      this.addNotification('Use um machado para cortar!', 'warning');
+      return;
+    }
+    if (isOre && tool?.toolType !== 'pickaxe' && tool?.toolType !== 'hammer') {
+      this.addNotification('Use uma picareta para minerar!', 'warning');
+      return;
+    }
+
+    // Stamina cost
+    if (player.stats.energy < 3) {
+      this.addNotification('Sem energia para coletar!', 'warning');
+      return;
+    }
+    player.stats.energy -= 3;
+
+    // Calculate power
     let power = 1;
     if (tool?.toolType === 'axe' || tool?.toolType === 'sword') power = tool.choppingPower ?? 3;
     if (tool?.toolType === 'pickaxe') power = tool.miningPower ?? 3;
+    if (tool?.toolType === 'hammer') power = (tool.miningPower ?? 3) + 1;
+    if (tool?.toolType === 'scythe') power = tool.choppingPower ?? 2;
 
     // Skill bonus
-    if (res.type.includes('rock') || res.type.includes('iron') || res.type.includes('gold') || res.type.includes('coal') || res.type.includes('crystal')) {
+    if (isOre) {
       power += this.state.skills['miner'] || 0;
     }
-    if (res.type === 'tree' || res.type === 'bush') {
+    if (isVegetation) {
       power += this.state.skills['lumberjack'] || 0;
     }
 
+    // Apply damage with shake
     res.hp -= power;
-    this.spawnParticles(res.x + 10, res.y + 10, '#8B4513', 3);
+    res.shakeTimer = 0.15;
+
+    // Particles based on resource type
+    const particleColor = this.resourceColors[res.type] || '#8B4513';
+    this.spawnParticles(res.x + 10, res.y + 10, particleColor, 4);
+
+    // Camera micro-shake
+    this.camera.shake(1.5, 0.05);
 
     // Reduce tool durability
     if (tool && tool.durability !== undefined && tool.maxDurability !== undefined) {
@@ -527,29 +583,76 @@ export class Game {
       }
     }
 
-    // Gain XP
+    // Gain XP and skill XP
     this.gainXp(2);
+    if (isVegetation) {
+      player.stats.woodcutting = Math.min(99, player.stats.woodcutting + 0.05);
+    }
+    if (isOre) {
+      player.stats.mining = Math.min(99, player.stats.mining + 0.08);
+    }
+
+    // Damage number feedback
+    const hitX = res.x + 12;
+    const hitY = res.y;
+    this.damageNumbers.push({
+      x: hitX, y: hitY,
+      value: power,
+      isCrit: false, isHeal: false,
+      timer: 0.6,
+      velocity: { x: (Math.random() - 0.5) * 20, y: -40 },
+    });
 
     // Double yield chance from skill
     let count = 1;
     if (this.state.skills['double_yield'] && Math.random() < 0.2) count = 2;
 
     if (res.hp <= 0) {
-      this.addToInventory(res.itemId, count);
-      this.addNotification(`+${count} ${getItem(res.itemId)?.name || res.itemId}`, 'item');
-      this.spawnParticles(res.x + 10, res.y + 10, '#8B4513', 8);
+      const gathered = this.addToInventory(res.itemId, count);
+      if (!gathered) {
+        this.addNotification('Inventário cheio!', 'warning');
+        res.hp = 1; // Reset so they can try later
+        return;
+      }
+
+      const itemName = getItem(res.itemId)?.name || res.itemId;
+      this.addNotification(`+${count} ${itemName}`, 'item');
+      this.spawnParticles(res.x + 10, res.y + 10, particleColor, 12);
+
+      // Schedule respawn
+      const respawnDelay = isVegetation ? 30 : 120; // trees: 30s, ores: 120s
+      this.resourceRespawnQueue.push({
+        type: res.type,
+        x: res.x,
+        y: res.y,
+        itemId: res.itemId,
+        respawnTime: respawnDelay,
+      });
+
       this.resources.splice(index, 1);
 
-      // Drop extra loot sometimes
-      if (res.type === 'tree' && Math.random() < 0.15) {
+      // Drop extra loot
+      if (res.type === 'tree' && Math.random() < 0.2) {
         this.addToInventory('fiber', 1);
       }
-      if ((res.type === 'iron_rock' || res.type === 'gold_rock') && Math.random() < 0.1) {
+      if (res.type === 'bush' && Math.random() < 0.3) {
+        this.addToInventory('fiber', 1);
+      }
+      if ((res.type === 'iron_rock' || res.type === 'gold_rock') && Math.random() < 0.15) {
         this.addToInventory('coal', 1);
       }
-      if (res.type === 'crystal_node' && Math.random() < 0.05) {
+      if (res.type === 'coal_rock' && Math.random() < 0.2) {
+        this.addToInventory('coal', 2);
+      }
+      if (res.type === 'crystal_node' && Math.random() < 0.1) {
         this.addToInventory('magic_dust', 1);
       }
+      if (res.type === 'rock' && Math.random() < 0.1) {
+        this.addToInventory('clay', 1);
+      }
+
+      // Quest progress
+      this.updateQuestProgress('gather', res.itemId);
     }
   }
 
@@ -1388,6 +1491,26 @@ export class Game {
         if (plot.growthStage >= 3) {
           this.addNotification('Plantação pronta para colheita!', 'success');
         }
+      }
+    }
+  }
+
+  // ── Resource Respawn ──────────────────────────────────────────
+  private updateResourceRespawn(dt: number): void {
+    for (let i = this.resourceRespawnQueue.length - 1; i >= 0; i--) {
+      const entry = this.resourceRespawnQueue[i];
+      entry.respawnTime -= dt;
+      if (entry.respawnTime <= 0) {
+        const size = this.resourceSizes[entry.type];
+        this.resources.push({
+          x: entry.x, y: entry.y,
+          type: entry.type, itemId: entry.itemId,
+          hp: size?.hp ?? 10,
+          maxHp: size?.hp ?? 10,
+          id: generateId(),
+          shakeTimer: 0,
+        });
+        this.resourceRespawnQueue.splice(i, 1);
       }
     }
   }
