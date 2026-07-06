@@ -486,7 +486,7 @@ export class WorldGenerator {
   }
 
   /**
-   * Find good locations for cave entrances — in mountain biomes
+   * Find good locations for cave entrances — in mountain biomes and near village
    */
   private findCaveEntranceLocations(biomeMap: Biome[][], rng: SeededRandom): { x: number; y: number; type: string; itemId: string }[] {
     const entrances: { x: number; y: number; type: string; itemId: string }[] = [];
@@ -511,7 +511,7 @@ export class WorldGenerator {
       }
     }
 
-    // Place 2-3 cave entrances
+    // Place 2-3 cave entrances in mountains
     const entranceCount = 2 + Math.floor(candidates.length > 20 ? 1 : 0);
     const shuffled = rng.shuffle(candidates);
     for (let i = 0; i < Math.min(entranceCount, shuffled.length); i++) {
@@ -522,6 +522,63 @@ export class WorldGenerator {
         type: 'cave_entrance',
         itemId: 'cave_entrance',
       });
+    }
+
+    // ── Guaranteed entrance near village ──
+    const cx = Math.floor(w / 2);
+    const cy = Math.floor(h / 2);
+    // Search in a ring around the village (radius 11-17 tiles from center)
+    // This ensures it's visible from the village but not inside buildings/paths
+    let villageEntrancePlaced = false;
+    for (let radius = 11; radius <= 17 && !villageEntrancePlaced; radius++) {
+      // Check tiles on the perimeter of this radius
+      const perimeterPositions: { x: number; y: number }[] = [];
+      for (let dx = -radius; dx <= radius; dx++) {
+        for (let dy = -radius; dy <= radius; dy++) {
+          // Only check the outer ring
+          if (Math.abs(dx) < radius && Math.abs(dy) < radius) continue;
+          const tx = cx + dx;
+          const ty = cy + dy;
+          if (tx < 0 || tx >= w || ty < 0 || ty >= h) continue;
+          const tile = this.tileMap[ty][tx];
+          // Place on walkable ground tiles — grass, dirt, or path are good
+          if (tile === TileType.Grass || tile === TileType.Dirt || tile === TileType.Path) {
+            // Avoid placing right next to another entrance
+            const tooClose = entrances.some(e => {
+              const ex = Math.floor(e.x / TILE_SIZE);
+              const ey = Math.floor(e.y / TILE_SIZE);
+              return Math.abs(ex - tx) < 8 && Math.abs(ey - ty) < 8;
+            });
+            if (!tooClose) {
+              perimeterPositions.push({ x: tx, y: ty });
+            }
+          }
+        }
+      }
+      if (perimeterPositions.length > 0) {
+        const pos = rng.pick(perimeterPositions);
+        entrances.push({
+          x: pos.x * TILE_SIZE + rng.range(0, TILE_SIZE),
+          y: pos.y * TILE_SIZE + rng.range(0, TILE_SIZE),
+          type: 'cave_entrance',
+          itemId: 'cave_entrance',
+        });
+        villageEntrancePlaced = true;
+      }
+    }
+
+    // If we still couldn't place one near the village, place at the village edge
+    if (!villageEntrancePlaced) {
+      const edgeX = cx + 11;
+      const edgeY = cy + 8;
+      if (edgeX < w && edgeY < h) {
+        entrances.push({
+          x: edgeX * TILE_SIZE,
+          y: edgeY * TILE_SIZE,
+          type: 'cave_entrance',
+          itemId: 'cave_entrance',
+        });
+      }
     }
 
     return entrances;
