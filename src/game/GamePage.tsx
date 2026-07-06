@@ -44,81 +44,84 @@ export default function GamePage() {
   }, []);
 
   const game = gameRef.current;
-  if (!game || !gameState || !uiState) {
-    return (
-      <div className="w-screen h-screen bg-black flex items-center justify-center">
-        <div className="text-white text-xl animate-pulse">Carregando Farm Survival...</div>
-      </div>
-    );
-  }
-
-  const { player, gameTime, notifications } = gameState;
-  const stats = player.stats;
+  const loaded = game && gameState && uiState;
+  const stats = loaded ? gameState.player.stats : null;
+  const player = loaded ? gameState.player : null;
+  const gameTime = loaded ? gameState.gameTime : null;
+  const notifications = loaded ? gameState.notifications : [];
 
   return (
     <div className="w-screen h-screen bg-black overflow-hidden relative select-none" style={{ fontFamily: 'monospace' }}>
-      {/* Game Canvas */}
+      {/* Canvas is ALWAYS rendered so canvasRef is available for game init */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
         tabIndex={0}
       />
 
-      {/* HUD Overlay */}
-      <HUD
-        stats={stats}
-        gameTime={gameTime}
-        selectedTool={player.currentTool}
-        hotbar={player.hotbar}
-        notifications={notifications}
-      />
+      {!loaded ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-black">
+          <div className="text-white text-xl animate-pulse">Carregando Farm Survival...</div>
+        </div>
+      ) : (
+        <>
+          {/* HUD Overlay */}
+          <HUD
+            stats={stats!}
+            gameTime={gameTime!}
+            selectedTool={player!.currentTool}
+            hotbar={player!.hotbar}
+            notifications={notifications}
+          />
 
-      {/* Minimap */}
-      {gameState.settings.showMinimap && (
-        <MiniMap game={game} />
-      )}
+          {/* Minimap */}
+          {gameState.settings.showMinimap && (
+            <MiniMap game={game!} />
+          )}
 
-      {/* Hotbar */}
-      <Hotbar
-        hotbar={player.hotbar}
-        selected={player.currentTool}
-        onSelect={(i) => { player.currentTool = i; setSelectedHotbar(i); }}
-        game={game}
-      />
+          {/* Hotbar */}
+          <Hotbar
+            hotbar={player!.hotbar}
+            selected={player!.currentTool}
+            onSelect={(i) => { player!.currentTool = i; setSelectedHotbar(i); }}
+            game={game!}
+          />
 
-      {/* Bottom Info Bar */}
-      <BottomBar stats={stats} />
+          {/* Bottom Info Bar */}
+          <BottomBar stats={stats!} />
 
-      {/* Panels */}
-      {uiState.activePanel === 'inventory' && (
-        <InventoryPanel game={game} />
-      )}
-      {uiState.activePanel === 'crafting' && (
-        <CraftingPanel game={game} uiState={uiState} />
-      )}
-      {uiState.activePanel === 'skills' && (
-        <SkillsPanel game={game} />
-      )}
-      {uiState.activePanel === 'quests' && (
-        <QuestsPanel game={game} />
-      )}
-      {uiState.activePanel === 'shop' && (
-        <ShopPanel game={game} uiState={uiState} />
-      )}
-      {uiState.activePanel === 'dialogue' && (
-        <DialoguePanel game={game} uiState={uiState} />
-      )}
-      {uiState.activePanel === 'save' && (
-        <SavePanel game={game} />
-      )}
+          {/* Panels */}
+          {uiState.activePanel === 'inventory' && (
+            <InventoryPanel game={game!} />
+          )}
+          {uiState.activePanel === 'crafting' && (
+            <CraftingPanel game={game!} uiState={uiState} />
+          )}
+          {uiState.activePanel === 'skills' && (
+            <SkillsPanel game={game!} />
+          )}
+          {uiState.activePanel === 'quests' && (
+            <QuestsPanel game={game!} />
+          )}
+          {uiState.activePanel === 'shop' && (
+            <ShopPanel game={game!} uiState={uiState} />
+          )}
+          {uiState.activePanel === 'dialogue' && (
+            <DialoguePanel game={game!} uiState={uiState} />
+          )}
+          {uiState.activePanel === 'save' && (
+            <SavePanel game={game!} />
+          )}
 
-      {/* Farming/Building Quick Bar */}
-      <FarmingBar game={game} />
+          {/* Farming/Building Quick Bar */}
+          <FarmingBar game={game!} />
 
-      {/* Controls Help */}
-      <div className="absolute bottom-16 left-4 text-white/30 text-[10px] pointer-events-none">
-        WASD=Mover | E=Interagir | Q/Espaço=Atacar | F=Usar | G=Soltar | I=Inventário | C=Craft | K=Habilidades | J=Missões | M=Mapa | P=Plantar | H=Salvar
-      </div>
+          {/* Controls Help */}
+          <div className="absolute bottom-16 left-4 text-white/30 text-[10px] pointer-events-none">
+            WASD=Mover | E=Interagir | Q/Espaço=Atacar | F=Usar | G=Soltar | I=Inventário | C=Craft | K=Habilidades | J=Missões | M=Mapa | P=Plantar | H=Salvar
+          </div>
+        </>
+      )}
     </div>
   );
 }
