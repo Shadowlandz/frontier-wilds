@@ -418,6 +418,38 @@ export const ITEMS: Record<string, ItemDefinition> = {
     category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 9999, weight: 0.1, value: 1,
     icon: '🪙',
   },
+
+  // ── New Weapons ──────────────────────────────────────────────
+  steel_axe: {
+    id: 'steel_axe', name: 'Machado de Aço', description: 'Um machado de aço super resistente.',
+    category: ItemCategory.Tool, rarity: Rarity.Uncommon, stackSize: 1, weight: 4, value: 120,
+    icon: '🪓', toolType: ToolType.Axe, damage: 16, durability: 700, maxDurability: 700,
+    speed: 1.3, range: 36, miningPower: 3, choppingPower: 14,
+  },
+  long_bow: {
+    id: 'long_bow', name: 'Arco Longo', description: 'Um arco longo de grande alcance.',
+    category: ItemCategory.Weapon, rarity: Rarity.Uncommon, stackSize: 1, weight: 3, value: 80,
+    icon: '🏹', toolType: ToolType.Bow, damage: 10, durability: 200, maxDurability: 200,
+    speed: 1.0, range: 200,
+  },
+  gold_pickaxe: {
+    id: 'gold_pickaxe', name: 'Picareta de Ouro', description: 'Picareta dourada ultra-rápida.',
+    category: ItemCategory.Tool, rarity: Rarity.Rare, stackSize: 1, weight: 3, value: 150,
+    icon: '⛏️', toolType: ToolType.Pickaxe, damage: 10, durability: 350, maxDurability: 350,
+    speed: 1.6, range: 36, miningPower: 14, choppingPower: 1,
+  },
+  spear: {
+    id: 'spear', name: 'Lança', description: 'Lança de longo alcance para perfurar inimigos.',
+    category: ItemCategory.Weapon, rarity: Rarity.Uncommon, stackSize: 1, weight: 3, value: 60,
+    icon: '🔱', toolType: ToolType.Spear, damage: 14, durability: 250, maxDurability: 250,
+    speed: 1.2, range: 48,
+  },
+  war_hammer: {
+    id: 'war_hammer', name: 'Martelo de Guerra', description: 'Martelo pesado que esmaga inimigos.',
+    category: ItemCategory.Weapon, rarity: Rarity.Rare, stackSize: 1, weight: 6, value: 120,
+    icon: '🔨', toolType: ToolType.Hammer, damage: 22, durability: 500, maxDurability: 500,
+    speed: 0.7, range: 36,
+  },
   rope: {
     id: 'rope', name: 'Corda', description: 'Corda resistente feita de fibra.',
     category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 30, weight: 0.5, value: 5,

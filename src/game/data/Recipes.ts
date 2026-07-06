@@ -274,6 +274,38 @@ export const RECIPES: CraftingRecipe[] = [
     ingredients: [{ itemId: 'gold_ore', count: 2 }, { itemId: 'coal', count: 1 }],
     requiredLevel: 5, craftTime: 4000, station: 'furnace',
   },
+
+  // ── New Weapon Recipes ───────────────────────────────────────
+  {
+    id: 'craft_spear', name: 'Lança', category: ItemCategory.Weapon,
+    result: 'spear', resultCount: 1,
+    ingredients: [{ itemId: 'wood', count: 6 }, { itemId: 'iron_ingot', count: 4 }, { itemId: 'fiber', count: 3 }],
+    requiredLevel: 4, craftTime: 3000, station: 'workbench',
+  },
+  {
+    id: 'craft_long_bow', name: 'Arco Longo', category: ItemCategory.Weapon,
+    result: 'long_bow', resultCount: 1,
+    ingredients: [{ itemId: 'enchanted_wood', count: 3 }, { itemId: 'fiber', count: 6 }, { itemId: 'rope', count: 2 }],
+    requiredLevel: 6, craftTime: 4000, station: 'workbench',
+  },
+  {
+    id: 'craft_war_hammer', name: 'Martelo de Guerra', category: ItemCategory.Weapon,
+    result: 'war_hammer', resultCount: 1,
+    ingredients: [{ itemId: 'iron_ingot', count: 8 }, { itemId: 'wood', count: 4 }, { itemId: 'leather', count: 2 }],
+    requiredLevel: 7, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'craft_steel_axe', name: 'Machado de Aço', category: ItemCategory.Tool,
+    result: 'steel_axe', resultCount: 1,
+    ingredients: [{ itemId: 'iron_ingot', count: 6 }, { itemId: 'wood', count: 3 }, { itemId: 'coal', count: 3 }],
+    requiredLevel: 8, craftTime: 4500, station: 'furnace',
+  },
+  {
+    id: 'craft_gold_pickaxe', name: 'Picareta de Ouro', category: ItemCategory.Tool,
+    result: 'gold_pickaxe', resultCount: 1,
+    ingredients: [{ itemId: 'gold_ingot', count: 5 }, { itemId: 'wood', count: 3 }],
+    requiredLevel: 8, craftTime: 4000, station: 'furnace',
+  },
 ];
 
 export function getRecipesByCategory(category: ItemCategory): CraftingRecipe[] {

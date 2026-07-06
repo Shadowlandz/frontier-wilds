@@ -113,6 +113,7 @@ export const ToolType = {
   Pickaxe: 'pickaxe',
   Sword: 'sword',
   Bow: 'bow',
+  Spear: 'spear',
   Torch: 'torch',
   Scythe: 'scythe',
   Hammer: 'hammer',
