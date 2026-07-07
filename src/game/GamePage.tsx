@@ -328,6 +328,13 @@ function WorldMap({ game }: { game: Game }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [activeTab, setActiveTab] = useState<'legends' | 'monsters' | 'npcs'>('legends');
   const [hoveredBiome, setHoveredBiome] = useState<{ biome: string; x: number; y: number; tileX: number; tileY: number } | null>(null);
+  const [animTick, setAnimTick] = useState(0);
+
+  // 🎬 Fog dissipation animation system
+  const fogAnimations = useRef<Record<string, number>>({}); // biome -> startTime
+  const prevUnlocked = useRef<Set<string>>(new Set());
+  const animFrameRef = useRef<number>(0);
+  const FOG_DURATION = 1800; // 1.8s for full dissipation
 
   const MAP_W = 550;
   const MAP_H = 450;
@@ -453,17 +460,29 @@ function WorldMap({ game }: { game: Game }) {
         const reqLevel = biomeLevelRequirements[biome] || 1;
         const playerLevel = state.player.stats.level;
         if (playerLevel < reqLevel) {
+          // Check if this area is animating (just unlocked)
+          const animStart = fogAnimations.current[biome];
+          let fogAlpha = 0.55;
+          if (animStart !== undefined) {
+            const elapsed = performance.now() - animStart;
+            const progress = Math.min(1, elapsed / FOG_DURATION);
+            // Smooth ease-out: fog fades quickly at first, then slows
+            const eased = 1 - Math.pow(1 - progress, 3);
+            fogAlpha = 0.55 * (1 - eased);
+          }
           // Dark fog overlay
-          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          ctx.fillStyle = `rgba(0,0,0,${fogAlpha})`;
           ctx.fillRect(px, py, sw, sh);
-          // Subtle lock noise texture
-          const lockNoise = Math.sin(x * 17.3 + y * 13.7) * 0.08 + 0.08;
-          ctx.fillStyle = `rgba(40,20,10,${lockNoise})`;
-          ctx.fillRect(px, py, sw, sh);
-          // Draw level requirement number on larger tiles (visible when zoomed out but subtle)
-          if (x % 4 === 0 && y % 4 === 0) {
+          // Subtle lock noise texture (only visible when fog is still there)
+          if (fogAlpha > 0.05) {
+            const lockNoise = Math.sin(x * 17.3 + y * 13.7) * 0.08 + 0.08;
+            ctx.fillStyle = `rgba(40,20,10,${lockNoise * (fogAlpha / 0.55)})`;
+            ctx.fillRect(px, py, sw, sh);
+          }
+          // Draw level requirement number (fades with fog)
+          if (x % 4 === 0 && y % 4 === 0 && fogAlpha > 0.05) {
             ctx.font = `${Math.max(4, Math.min(7, scaleX * 0.3))}px monospace`;
-            ctx.fillStyle = 'rgba(255,100,50,0.25)';
+            ctx.fillStyle = `rgba(255,100,50,${0.25 * (fogAlpha / 0.55)})`;
             ctx.textAlign = 'center';
             ctx.fillText(`Nv.${reqLevel}`, px + sw / 2, py + sh / 2 + 2);
             ctx.textAlign = 'left';
@@ -627,7 +646,55 @@ function WorldMap({ game }: { game: Game }) {
     ctx.textAlign = 'center';
     ctx.fillText('✧  EXPLORE  ·  SOBREVIVA  ·  EVOLUA  ✧', MAP_W / 2, MAP_H - 5);
 
-  }, [game, game.state.player.x, game.state.player.y]);
+    // 🎬 Detect newly unlocked biomes and start fog dissipation animation
+    const currentUnlockedSet = new Set(
+      Object.entries(biomeLevelRequirements)
+        .filter(([_, req]) => state.player.stats.level >= req)
+        .map(([biome]) => biome)
+    );
+
+    let startedNewAnim = false;
+    for (const biome of currentUnlockedSet) {
+      if (!prevUnlocked.current.has(biome) && !(biome in fogAnimations.current)) {
+        fogAnimations.current[biome] = performance.now();
+        startedNewAnim = true;
+      }
+    }
+    prevUnlocked.current = currentUnlockedSet;
+
+    // Clean up completed animations and start rAF loop if needed
+    const now = performance.now();
+    let hasActive = false;
+    for (const [biome, startTime] of Object.entries(fogAnimations.current)) {
+      if (now - startTime >= FOG_DURATION) {
+        delete fogAnimations.current[biome];
+      } else {
+        hasActive = true;
+      }
+    }
+
+    // Start/continue animation loop
+    if (hasActive) {
+      if (!animFrameRef.current) {
+        const animate = () => {
+          setAnimTick(t => t + 1);
+          animFrameRef.current = requestAnimationFrame(animate);
+        };
+        animFrameRef.current = requestAnimationFrame(animate);
+      }
+    } else if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = 0;
+    }
+
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = 0;
+      }
+    };
+
+  }, [game, game.state.player.x, game.state.player.y, animTick]);
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 pointer-events-auto">
