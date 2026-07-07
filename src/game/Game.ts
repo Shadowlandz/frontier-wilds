@@ -1617,8 +1617,13 @@ export class Game {
 
     // Check for required station
     if (recipe.station) {
-      // Check if station is nearby (within 3 tiles)
-      // For now, simplified: just require the item in inventory
+      // Map recipe station string to structure itemId
+      const stationItemId = recipe.station === 'furnace' ? 'furnace' : recipe.station;
+      if (!this.isNearbyStructure(stationItemId, 3)) {
+        const stationName = recipe.station.charAt(0).toUpperCase() + recipe.station.slice(1);
+        this.addNotification("Precisa estar perto de uma " + stationName + "!", 'warning');
+        return false;
+      }
     }
 
     // Remove ingredients
@@ -2174,7 +2179,24 @@ export class Game {
     return true;
   }
 
-  // ── Building System ────────────────────────────────────────────
+    /** Check if a structure with given itemId exists within range tiles of the player */
+  isNearbyStructure(itemId: string, range: number): boolean {
+    const px = this.state.player.x + PLAYER_SIZE / 2;
+    const py = this.state.player.y + PLAYER_SIZE / 2;
+    const rangePx = range * TILE_SIZE;
+
+    for (const struct of this.state.structures) {
+      if (struct.itemId !== itemId) continue;
+      const sx = struct.x + struct.width / 2;
+      const sy = struct.y + struct.height / 2;
+      const dx = px - sx;
+      const dy = py - sy;
+      if (dx * dx + dy * dy <= rangePx * rangePx) return true;
+    }
+    return false;
+  }
+
+// ── Building System ────────────────────────────────────────────
 
   /** Check if a position is inside any safe zone */
   isInSafeZone(x: number, y: number): boolean {

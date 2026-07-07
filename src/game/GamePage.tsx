@@ -1527,6 +1527,11 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
                 {recipe.requiredLevel > 1 && (
                   <div className="text-yellow-400/60 text-[9px]">Nv.{recipe.requiredLevel}</div>
                 )}
+                {recipe.station && (
+                  <div className="text-cyan-400/60 text-[9px]">
+                    🏗️ Requer {(recipe.station === 'furnace' ? 'Fornalha' : recipe.station === 'workbench' ? 'Bancada de Trabalho' : recipe.station)}
+                  </div>
+                )}
               </div>
               <button
                 disabled={!canCraft}
