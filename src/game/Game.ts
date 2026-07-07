@@ -10,6 +10,7 @@ import {
   DamageNumber, Particle, GameUIState, Notification, ItemCategory,
   Rarity, ItemDefinition, WORLD_WIDTH, WORLD_HEIGHT, PlayerAttributes,
   EnemyType,
+  generateItemAffixes, computeItemPowerScore, getAffixedItemName, getAffixSlotTypes,
 } from './core/Types';
 import { Input } from './core/Input';
 import { Camera } from './core/Camera';
@@ -580,9 +581,10 @@ export class Game {
       const di = this.droppedItems[i];
       const dist = distance({ x: px, y: py }, { x: di.x, y: di.y });
       if (dist < INTERACT_RANGE) {
-        if (this.addToInventory(di.itemId, di.count)) {
+        // Generate affixes for equippable items dropped by enemies
+        const added = this.addToInventory(di.itemId, di.count, true);
+        if (added) {
           this.droppedItems.splice(i, 1);
-          this.addNotification(`+${di.count} ${getItem(di.itemId)?.name || di.itemId}`, 'item');
         }
         return;
       }
@@ -1477,27 +1479,44 @@ export class Game {
   }
 
   // ── Inventory & Crafting ────────────────────────────────────────
-  addToInventory(itemId: string, count: number): boolean {
+  addToInventory(itemId: string, count: number, generateAffixes = false): boolean {
     const item = getItem(itemId);
     if (!item) return false;
+
+    // Generate affixes if this is an equippable item
+    const affixes = generateAffixes ? generateItemAffixes(item) : undefined;
+    const affixedName = affixes && affixes.length > 0 ? getAffixedItemName(item, affixes) : undefined;
 
     // Try stacking first
     for (const slot of this.state.player.inventory) {
       if (slot.item?.id === itemId && slot.count < item.stackSize) {
-        const canAdd = Math.min(count, item.stackSize - slot.count);
-        slot.count += canAdd;
-        count -= canAdd;
-        if (count <= 0) return true;
+        // Only stack with non-affixed items or same-affix items
+        const canStack = !slot.affixes || slot.affixes.length === 0;
+        if (canStack) {
+          const canAdd = Math.min(count, item.stackSize - slot.count);
+          slot.count += canAdd;
+          count -= canAdd;
+          if (count <= 0) {
+            if (affixedName) this.addNotification(`✨ ${affixedName}`, 'item');
+            return true;
+          }
+        }
       }
     }
 
     // Try hotbar
     for (const slot of this.state.player.hotbar) {
       if (slot.item?.id === itemId && slot.count < item.stackSize) {
-        const canAdd = Math.min(count, item.stackSize - slot.count);
-        slot.count += canAdd;
-        count -= canAdd;
-        if (count <= 0) return true;
+        const canStack = !slot.affixes || slot.affixes.length === 0;
+        if (canStack) {
+          const canAdd = Math.min(count, item.stackSize - slot.count);
+          slot.count += canAdd;
+          count -= canAdd;
+          if (count <= 0) {
+            if (affixedName) this.addNotification(`✨ ${affixedName}`, 'item');
+            return true;
+          }
+        }
       }
     }
 
@@ -1507,8 +1526,12 @@ export class Game {
         slot.item = item;
         slot.count = Math.min(count, item.stackSize);
         slot.durability = item.maxDurability;
+        slot.affixes = affixes;
         count -= slot.count;
-        if (count <= 0) return true;
+        if (count <= 0) {
+          if (affixedName) this.addNotification(`✨ Pegou ${affixedName}`, 'item');
+          return true;
+        }
       }
     }
 
@@ -1517,8 +1540,12 @@ export class Game {
         slot.item = item;
         slot.count = Math.min(count, item.stackSize);
         slot.durability = item.maxDurability;
+        slot.affixes = affixes;
         count -= slot.count;
-        if (count <= 0) return true;
+        if (count <= 0) {
+          if (affixedName) this.addNotification(`✨ Pegou ${affixedName}`, 'item');
+          return true;
+        }
       }
     }
 
@@ -1575,8 +1602,8 @@ export class Game {
       this.removeFromInventory(ing.itemId, ing.count);
     }
 
-    // Add result
-    this.addToInventory(recipe.result, recipe.resultCount);
+    // Add result with affixes (for equippable crafted items)
+    this.addToInventory(recipe.result, recipe.resultCount, true);
 
     // XP for crafting
     this.gainXp(5 + recipe.requiredLevel * 2);
@@ -2088,13 +2115,13 @@ export class Game {
       return false;
     }
 
-    // Check energy
-    if (this.state.player.stats.energy < 10) {
-      this.addNotification('Sem energia para pescar!', 'warning');
+    // Check stamina
+    if (this.state.player.stamina < 10) {
+      this.addNotification('Sem stamina para pescar!', 'warning');
       return false;
     }
 
-    this.state.player.stats.energy -= 10;
+    this.state.player.stamina -= 10;
 
     // Determine catch based on luck, skill, and biome
     const luck = this.state.player.stats.luck;

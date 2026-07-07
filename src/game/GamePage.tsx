@@ -72,6 +72,7 @@ export default function GamePage() {
             selectedTool={player!.currentTool}
             hotbar={player!.hotbar}
             notifications={notifications}
+            player={player!}
           />
 
           {/* World Map (full overlay) */}
@@ -137,12 +138,13 @@ export default function GamePage() {
 }
 
 // ── HUD Component ─────────────────────────────────────────────────
-function HUD({ stats, gameTime, selectedTool, hotbar, notifications }: {
+function HUD({ stats, gameTime, selectedTool, hotbar, notifications, player }: {
   stats: GameState['player']['stats'];
   gameTime: GameState['gameTime'];
   selectedTool: number;
   hotbar: GameState['player']['hotbar'];
   notifications: GameState['notifications'];
+  player?: GameState['player'];
 }) {
   const weatherIcon = {
     clear: '☀️', rain: '🌧️', heavyRain: '⛈️', fog: '🌫️', snow: '❄️', storm: '⛈️'
@@ -158,7 +160,7 @@ function HUD({ stats, gameTime, selectedTool, hotbar, notifications }: {
       <div className="absolute top-4 left-4 space-y-1.5 pointer-events-none">
         <BarBar label="❤️ Vida" current={stats.hp} max={stats.maxHp} color="#e53935" />
         <BarBar label="🍖 Fome" current={stats.hunger} max={stats.maxHunger} color="#ff9800" />
-        <BarBar label="⚡ Energia" current={stats.energy} max={stats.maxEnergy} color="#2196f3" />
+        <BarBar label="⚡ Stamina" current={player?.stamina ?? 0} max={player?.maxStamina ?? 100} color="#2196f3" />
         <div className="flex gap-3 text-xs text-white/70 mt-1">
           <span>⚔️ {stats.strength}</span>
           <span>🛡️ {stats.defense}</span>
@@ -309,6 +311,7 @@ function Hotbar({ hotbar, selected, onSelect, game }: {
         durability={hotbar[hoveredSlot].durability}
         position={tooltipPos}
         playerStats={{} as any}
+        affixes={hotbar[hoveredSlot].affixes}
       />
     )}
     </>
@@ -1859,36 +1862,105 @@ function Panel({ title, onClose, children }: {
 }
 
 // ── Item Tooltip ──────────────────────────────────────────────────
-function ItemTooltip({ item, durability, position, compareWith, playerStats }: {
+function ItemTooltip({ item, durability, position, compareWith, playerStats, affixes }: {
   item: { id: string; name: string; description: string; icon: string; rarity: string; category: string; damage?: number; defense?: number; speed?: number; range?: number; maxDurability?: number; toolType?: string; armorSlot?: string; bonuses?: Record<string, number>; effects?: { type: string; value: number }[]; foodValue?: number; healAmount?: number; value: number; weight: number };
   durability?: number;
   position: { x: number; y: number };
-  compareWith?: { item: { damage?: number; defense?: number; bonuses?: Record<string, number> } | null } | null;
+  compareWith?: { item: { damage?: number; defense?: number; bonuses?: Record<string, number>; affixes?: { stat: string; value: number }[] } | null } | null;
   playerStats: GameState['player']['stats'];
+  affixes?: { name: string; stat: string; value: number; tier: number }[];
 }) {
   const rarityColor = RARITY_COLORS[item.rarity as Rarity] || '#fff';
   const rarityLabel = item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1);
 
-  // Stat comparison helpers
+  // Stat labels
   const statLabels: Record<string, string> = {
     maxHp: '❤️ Vida Max', strength: '⚔️ Força', defense: '🛡️ Defesa', speed: '🏃 Velocidade',
     mining: '⛏️ Mineração', woodcutting: '🪓 Corte', farming: '🌾 Fazenda', fishing: '🎣 Pesca',
-    luck: '🍀 Sorte', maxHunger: '🍖 Fome Max', maxEnergy: '⚡ Energia Max',
+    luck: '🍀 Sorte', maxHunger: '🍖 Fome Max',
   };
 
-  const getComparison = (stat: string, newVal: number) => {
-    if (!compareWith?.item) return null;
-    const currentVal = compareWith.item.bonuses?.[stat as keyof typeof compareWith.item.bonuses] || 0;
-    if (newVal === currentVal) return null;
-    return newVal > currentVal ? 'better' : 'worse';
+  // Calculate effective stats with affixes
+  const getEffectiveStat = (base: number | undefined, statKey: string): number => {
+    let total = base || 0;
+    if (affixes) {
+      for (const affix of affixes) {
+        if (affix.stat === statKey) total += affix.value;
+      }
+    }
+    return total;
   };
+
+  // Get current equipped value for comparison
+  const getEquippedValue = (statKey: string): number => {
+    if (!compareWith?.item) return 0;
+    const base = compareWith.item[statKey as keyof typeof compareWith.item] as number | undefined || 0;
+    let total = base;
+    if (compareWith.item.affixes) {
+      for (const aff of compareWith.item.affixes) {
+        if (aff.stat === statKey) total += aff.value;
+      }
+    }
+    if (compareWith.item.bonuses?.[statKey as keyof typeof compareWith.item.bonuses]) {
+      total += compareWith.item.bonuses[statKey as keyof typeof compareWith.item.bonuses]!;
+    }
+    return total;
+  };
+
+  const affixTextColors: Record<string, string> = {
+    damage: '#ff6b35', defense: '#4fc3f7', maxHp: '#e53935',
+    speed: '#66bb6a', strength: '#ff8a65', luck: '#ffd54f',
+    mining: '#a1887f', woodcutting: '#8d6e63', farming: '#81c784', fishing: '#4dd0e1',
+  };
+
+  // Calculate total power score
+  const calcPowerScore = (): number => {
+    let score = 0;
+    if (item.damage) score += item.damage * 2;
+    if (item.defense) score += item.defense * 2;
+    if (item.speed) score += item.speed;
+    if (affixes) {
+      for (const aff of affixes) {
+        if (aff.stat === 'damage') score += aff.value * 2;
+        else if (aff.stat === 'defense') score += aff.value * 2;
+        else if (aff.stat === 'strength') score += aff.value * 1.5;
+        else if (aff.stat === 'maxHp') score += aff.value * 0.5;
+        else score += aff.value;
+      }
+    }
+    return Math.round(score);
+  };
+
+  const getEquippedPowerScore = (): number => {
+    if (!compareWith?.item) return 0;
+    const ci = compareWith.item;
+    let score = 0;
+    if (ci.damage) score += ci.damage * 2;
+    if (ci.defense) score += ci.defense * 2;
+    if (ci.bonuses?.strength) score += ci.bonuses.strength * 1.5;
+    if (ci.bonuses?.maxHp) score += ci.bonuses.maxHp * 0.5;
+    if (ci.affixes) {
+      for (const aff of ci.affixes) {
+        if (aff.stat === 'damage') score += aff.value * 2;
+        else if (aff.stat === 'defense') score += aff.value * 2;
+        else if (aff.stat === 'strength') score += aff.value * 1.5;
+        else if (aff.stat === 'maxHp') score += aff.value * 0.5;
+        else score += aff.value;
+      }
+    }
+    return Math.round(score);
+  };
+
+  const powerScore = calcPowerScore();
+  const equippedPower = getEquippedPowerScore();
+  const powerDiff = compareWith?.item ? powerScore - equippedPower : null;
 
   return (
     <div
       className="fixed z-[100] pointer-events-none"
       style={{ left: position.x + 16, top: position.y - 8 }}
     >
-      <div className="bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 p-3 w-56 shadow-2xl shadow-black/50">
+      <div className="bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 p-3 w-60 shadow-2xl shadow-black/50">
         {/* Header */}
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xl">{item.icon}</span>
@@ -1898,16 +1970,45 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats }: {
           </div>
         </div>
 
+        {/* Affix banner */}
+        {affixes && affixes.length > 0 && (
+          <div className="mb-1.5 flex flex-wrap gap-1">
+            {affixes.map((aff, i) => (
+              <span
+                key={i}
+                className="text-[9px] px-1.5 py-0.5 rounded-sm font-bold"
+                style={{
+                  color: affixTextColors[aff.stat] || '#aaa',
+                  backgroundColor: `${affixTextColors[aff.stat] || '#aaa'}18`,
+                  border: `1px solid ${affixTextColors[aff.stat] || '#aaa'}40`,
+                }}
+              >
+                {aff.name}
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Description */}
         <div className="text-white/50 text-[10px] mb-2 border-b border-white/10 pb-2">{item.description}</div>
 
         {/* Stats */}
         <div className="space-y-0.5">
           {item.damage && (
-            <StatLine label="⚔️ Dano" value={item.damage} compare={compareWith ? (compareWith.item?.damage || 0) : undefined} />
+            <StatLine
+              label="⚔️ Dano"
+              value={getEffectiveStat(item.damage, 'damage')}
+              baseValue={item.damage}
+              compare={compareWith ? getEquippedValue('damage') : undefined}
+            />
           )}
           {item.defense && (
-            <StatLine label="🛡️ Defesa" value={item.defense} compare={compareWith ? (compareWith.item?.defense || 0) : undefined} />
+            <StatLine
+              label="🛡️ Defesa"
+              value={getEffectiveStat(item.defense, 'defense')}
+              baseValue={item.defense}
+              compare={compareWith ? getEquippedValue('defense') : undefined}
+            />
           )}
           {item.speed && (
             <StatLine label="⚡ Velocidade" value={item.speed} />
@@ -1915,6 +2016,25 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats }: {
           {item.range && (
             <StatLine label="📏 Alcance" value={item.range} />
           )}
+
+          {/* Affix stat bonuses */}
+          {affixes && affixes.map((aff, i) => {
+            if (aff.stat === 'damage' && item.damage) return null;
+            if (aff.stat === 'defense' && item.defense) return null;
+            const label = statLabels[aff.stat];
+            if (!label) return null;
+            const eqVal = compareWith ? getEquippedValue(aff.stat) : undefined;
+            return (
+              <StatLine
+                key={i}
+                label={label}
+                value={aff.value}
+                isAffix={true}
+                compare={eqVal}
+              />
+            );
+          })}
+
           {item.toolType && (
             <div className="text-[9px] text-white/40">Tipo: {item.toolType}</div>
           )}
@@ -1922,20 +2042,17 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats }: {
             <div className="text-[9px] text-white/40">Slot: {item.armorSlot}</div>
           )}
 
-          {/* Bonuses */}
+          {/* Item bonuses */}
           {item.bonuses && Object.entries(item.bonuses).map(([key, val]) => {
             if (!val) return null;
-            const comparison = getComparison(key, val);
+            const eqVal = compareWith ? getEquippedValue(key) : undefined;
             return (
-              <div key={key} className="flex items-center justify-between text-[9px]">
-                <span className="text-white/50">{statLabels[key] || key}</span>
-                <span className={
-                  comparison === 'better' ? 'text-green-400' :
-                  comparison === 'worse' ? 'text-red-400' : 'text-white/70'
-                }>
-                  {comparison === 'better' ? '▲' : comparison === 'worse' ? '▼' : ''} +{val}
-                </span>
-              </div>
+              <StatLine
+                key={key}
+                label={statLabels[key] || key}
+                value={val}
+                compare={eqVal !== undefined ? eqVal - val : undefined}
+              />
             );
           })}
 
@@ -1974,8 +2091,21 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats }: {
           )}
         </div>
 
+        {/* Power Score & Comparison */}
+        <div className="mt-2 pt-2 border-t border-white/10">
+          <div className="flex items-center justify-between text-[9px]">
+            <span className="text-white/40">⚡ Poder</span>
+            <span className="text-white/70 font-bold">{powerScore}</span>
+          </div>
+          {powerDiff !== null && powerDiff !== 0 && (
+            <div className={`text-[9px] font-bold mt-0.5 ${powerDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {powerDiff > 0 ? '▲' : '▼'} {Math.abs(powerDiff)} comparado ao equipado
+            </div>
+          )}
+        </div>
+
         {/* Value/Weight */}
-        <div className="mt-2 pt-2 border-t border-white/10 flex justify-between text-[9px] text-white/30">
+        <div className="mt-1.5 pt-1.5 border-t border-white/10 flex justify-between text-[9px] text-white/30">
           <span>💰 {item.value} 🪙</span>
           <span>⚖️ {item.weight}kg</span>
         </div>
@@ -1984,15 +2114,25 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats }: {
   );
 }
 
-function StatLine({ label, value, compare }: { label: string; value: number; compare?: number }) {
+function StatLine({ label, value, compare, baseValue, isAffix }: {
+  label: string;
+  value: number;
+  compare?: number;
+  baseValue?: number;
+  isAffix?: boolean;
+}) {
   const diff = compare !== undefined ? value - compare : null;
+  const showValue = baseValue !== undefined ? `${baseValue}${value > baseValue ? `+${value - baseValue}` : ''}` : `${isAffix ? '+' : ''}${value}`;
   return (
     <div className="flex items-center justify-between text-[9px]">
-      <span className="text-white/50">{label}</span>
+      <span className={isAffix ? 'text-purple-300/80 font-bold' : 'text-white/50'}>
+        {isAffix ? '✨ ' : ''}{label}
+      </span>
       <span className={
+        isAffix ? 'text-purple-300 font-bold' :
         diff !== null ? (diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-white/70') : 'text-white/70'
       }>
-        {diff !== null && diff !== 0 ? `${diff > 0 ? '+' : ''}${diff}` : value}
+        {diff !== null && diff !== 0 ? `${diff > 0 ? '▲ +' : '▼ '}${Math.abs(diff)}` : showValue}
       </span>
     </div>
   );

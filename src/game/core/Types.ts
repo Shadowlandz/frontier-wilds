@@ -273,6 +273,7 @@ export interface InventorySlot {
   upgradeLevel?: number;
   damageBonus?: number;
   defenseBonus?: number;
+  affixes?: ItemAffix[];
 }
 
 export interface Equipment {
@@ -565,3 +566,232 @@ export const RARITY_WEIGHTS: Record<Rarity, number> = {
   [Rarity.Epic]: 5,
   [Rarity.Legendary]: 1,
 };
+
+// ── Random Affix System ──────────────────────────────────────────
+export const AffixType = {
+  // Weapon prefixes
+  Sharp: 'sharp',        // +dano
+  Mighty: 'mighty',      // +força
+  Swift: 'swift',        // +velocidade
+  Precise: 'precise',    // +precisão/crit
+  Flaming: 'flaming',    // +dano fogo
+  Icy: 'icy',           // +dano gelo
+  Venomous: 'venomous',  // +dano veneno
+  Arcane: 'arcane',      // +dano mágico
+  // Armor prefixes
+  Sturdy: 'sturdy',      // +defesa
+  Guarding: 'guarding',  // +defesa
+  Resilient: 'resilient',// +vida máxima
+  Vital: 'vital',        // +vida máxima
+  Nimble: 'nimble',      // +velocidade/esquiva
+  Fortified: 'fortified',// +defesa +vida
+  // Universal suffixes
+  OfPower: 'ofPower',       // +dano
+  OfProtection: 'ofProtection', // +defesa
+  OfVitality: 'ofVitality',    // +vida
+  OfSpeed: 'ofSpeed',         // +velocidade
+  OfLuck: 'ofLuck',           // +sorte
+  OfMining: 'ofMining',       // +mineração
+  OfWoodcutting: 'ofWoodcutting', // +corte
+  OfFarming: 'ofFarming',     // +fazenda
+  OfFishing: 'ofFishing',     // +pesca
+  OfTheBear: 'ofTheBear',     // +força +defesa
+  OfTheWolf: 'ofTheWolf',     // +dano +velocidade
+} as const;
+export type AffixType = typeof AffixType[keyof typeof AffixType];
+
+export interface ItemAffix {
+  type: AffixType;
+  name: string;
+  stat: keyof PlayerAttributes | 'damage' | 'defense';
+  value: number;
+  tier: number; // 1-5, higher = better
+}
+
+export interface AffixDefinition {
+  type: AffixType;
+  name: string;
+  stat: keyof PlayerAttributes | 'damage' | 'defense';
+  slotTypes: ('weapon' | 'armor' | 'tool' | 'ring' | 'amulet')[];
+  minTier: number;
+  maxTier: number;
+  baseValue: number; // value per tier
+}
+
+export const AFFIX_DEFINITIONS: AffixDefinition[] = [
+  // ── Weapon Prefixes ──
+  { type: AffixType.Sharp, name: 'Afiado', stat: 'damage', slotTypes: ['weapon', 'tool'], minTier: 1, maxTier: 5, baseValue: 2 },
+  { type: AffixType.Mighty, name: 'Possante', stat: 'strength', slotTypes: ['weapon'], minTier: 1, maxTier: 5, baseValue: 2 },
+  { type: AffixType.Swift, name: 'Ágil', stat: 'speed', slotTypes: ['weapon', 'tool'], minTier: 1, maxTier: 5, baseValue: 3 },
+  { type: AffixType.Precise, name: 'Preciso', stat: 'damage', slotTypes: ['weapon'], minTier: 2, maxTier: 5, baseValue: 3 },
+  { type: AffixType.Flaming, name: 'Chamejante', stat: 'damage', slotTypes: ['weapon'], minTier: 3, maxTier: 5, baseValue: 4 },
+  { type: AffixType.Icy, name: 'Gélido', stat: 'defense', slotTypes: ['weapon', 'armor'], minTier: 3, maxTier: 5, baseValue: 3 },
+  { type: AffixType.Venomous, name: 'Venenoso', stat: 'damage', slotTypes: ['weapon'], minTier: 2, maxTier: 4, baseValue: 3 },
+  { type: AffixType.Arcane, name: 'Arcano', stat: 'damage', slotTypes: ['weapon', 'ring', 'amulet'], minTier: 4, maxTier: 5, baseValue: 5 },
+
+  // ── Armor Prefixes ──
+  { type: AffixType.Sturdy, name: 'Robusto', stat: 'defense', slotTypes: ['armor'], minTier: 1, maxTier: 5, baseValue: 2 },
+  { type: AffixType.Guarding, name: 'Protetor', stat: 'defense', slotTypes: ['armor', 'ring', 'amulet'], minTier: 2, maxTier: 5, baseValue: 3 },
+  { type: AffixType.Resilient, name: 'Resistente', stat: 'maxHp', slotTypes: ['armor'], minTier: 1, maxTier: 5, baseValue: 8 },
+  { type: AffixType.Vital, name: 'Vital', stat: 'maxHp', slotTypes: ['armor', 'ring', 'amulet'], minTier: 2, maxTier: 5, baseValue: 12 },
+  { type: AffixType.Nimble, name: 'Ágil', stat: 'speed', slotTypes: ['armor', 'boots'], minTier: 1, maxTier: 5, baseValue: 3 },
+  { type: AffixType.Fortified, name: 'Fortificado', stat: 'defense', slotTypes: ['armor'], minTier: 3, maxTier: 5, baseValue: 4 },
+
+  // ── Universal Suffixes ──
+  { type: AffixType.OfPower, name: 'do Poder', stat: 'damage', slotTypes: ['weapon', 'tool'], minTier: 1, maxTier: 5, baseValue: 2 },
+  { type: AffixType.OfProtection, name: 'da Proteção', stat: 'defense', slotTypes: ['armor', 'ring', 'amulet'], minTier: 1, maxTier: 5, baseValue: 2 },
+  { type: AffixType.OfVitality, name: 'da Vitalidade', stat: 'maxHp', slotTypes: ['armor', 'ring', 'amulet'], minTier: 1, maxTier: 5, baseValue: 10 },
+  { type: AffixType.OfSpeed, name: 'da Velocidade', stat: 'speed', slotTypes: ['boots', 'ring'], minTier: 1, maxTier: 5, baseValue: 3 },
+  { type: AffixType.OfLuck, name: 'da Sorte', stat: 'luck', slotTypes: ['ring', 'amulet', 'armor'], minTier: 1, maxTier: 5, baseValue: 2 },
+  { type: AffixType.OfMining, name: 'da Mineração', stat: 'mining', slotTypes: ['tool', 'pickaxe'], minTier: 1, maxTier: 5, baseValue: 2 },
+  { type: AffixType.OfWoodcutting, name: 'do Corte', stat: 'woodcutting', slotTypes: ['tool', 'axe'], minTier: 1, maxTier: 5, baseValue: 2 },
+  { type: AffixType.OfFarming, name: 'da Fazenda', stat: 'farming', slotTypes: ['tool', 'hoe'], minTier: 1, maxTier: 4, baseValue: 2 },
+  { type: AffixType.OfFishing, name: 'da Pesca', stat: 'fishing', slotTypes: ['tool', 'fishingRod'], minTier: 1, maxTier: 4, baseValue: 2 },
+  { type: AffixType.OfTheBear, name: 'do Urso', stat: 'strength', slotTypes: ['weapon', 'armor'], minTier: 3, maxTier: 5, baseValue: 3 },
+  { type: AffixType.OfTheWolf, name: 'do Lobo', stat: 'damage', slotTypes: ['weapon'], minTier: 3, maxTier: 5, baseValue: 3 },
+];
+
+// Get affixes for a specific slot type
+const slotCategoryMap: Record<string, string[]> = {
+  weapon: ['weapon'],
+  tool: ['tool'],
+  armor: ['armor'],
+  ring: ['ring'],
+  amulet: ['amulet'],
+  boots: ['armor', 'boots'],
+  chest: ['armor'],
+  helmet: ['armor'],
+  gloves: ['armor'],
+  pickaxe: ['tool', 'pickaxe'],
+  axe: ['tool', 'axe'],
+  hoe: ['tool', 'hoe'],
+  fishingRod: ['tool', 'fishingRod'],
+  sword: ['weapon'],
+  bow: ['weapon'],
+  spear: ['weapon'],
+  hammer: ['weapon', 'tool'],
+};
+
+// Get affix definitions compatible with a given item category
+const categoryToSlotType: Record<string, string> = {
+  weapon: 'weapon', tool: 'tool',
+  armor: 'armor', ring: 'ring', amulet: 'amulet',
+};
+
+const toolToSlotType: Record<string, string> = {
+  sword: 'sword', bow: 'bow', spear: 'spear', hammer: 'hammer',
+  pickaxe: 'pickaxe', axe: 'axe', hoe: 'hoe', fishingRod: 'fishingRod',
+};
+
+// Get valid affix slot types for an item
+export function getAffixSlotTypes(item: ItemDefinition): string[] {
+  if (item.category === 'weapon') return ['weapon', item.toolType ? toolToSlotType[item.toolType] || 'weapon' : 'weapon'];
+  if (item.category === 'tool') return ['tool', item.toolType ? toolToSlotType[item.toolType] || 'tool' : 'tool'];
+  if (item.category === 'armor') return ['armor', item.armorSlot || 'armor'];
+  if (item.category === 'ring') return ['ring'];
+  if (item.category === 'amulet') return ['amulet'];
+  return [];
+}
+
+export function getAffixStatValue(affix: AffixDefinition, tier: number): number {
+  return affix.baseValue * tier + Math.floor(affix.baseValue * (tier - 1) * 0.3);
+}
+
+// Calculate total power score for an item with affixes
+export function computeItemPowerScore(item: ItemDefinition, affixes: ItemAffix[] = []): number {
+  let score = 0;
+  if (item.damage) score += item.damage * 2;
+  if (item.defense) score += item.defense * 2;
+  if (item.speed) score += item.speed;
+  if (item.miningPower) score += item.miningPower;
+  if (item.choppingPower) score += item.choppingPower;
+
+  // Add affix contributions
+  for (const affix of affixes) {
+    if (affix.stat === 'damage') score += affix.value * 2;
+    else if (affix.stat === 'defense') score += affix.value * 2;
+    else if (affix.stat === 'maxHp') score += affix.value * 0.5;
+    else if (affix.stat === 'speed') score += affix.value;
+    else if (affix.stat === 'strength') score += affix.value * 1.5;
+    else if (affix.stat === 'luck') score += affix.value;
+    else if (affix.stat === 'mining') score += affix.value * 0.8;
+    else if (affix.stat === 'woodcutting') score += affix.value * 0.8;
+    else if (affix.stat === 'farming') score += affix.value * 0.5;
+    else if (affix.stat === 'fishing') score += affix.value * 0.5;
+    else score += affix.value;
+  }
+
+  return Math.round(score);
+}
+
+// Generate random affixes for an item based on its rarity
+export function generateItemAffixes(item: ItemDefinition, seed?: number): ItemAffix[] {
+  const affixes: ItemAffix[] = [];
+  const slotTypes = getAffixSlotTypes(item);
+  if (slotTypes.length === 0) return affixes;
+
+  // Determine number of affixes based on rarity
+  let numAffixes = 0;
+  switch (item.rarity) {
+    case 'common': numAffixes = 0; break;
+    case 'uncommon': numAffixes = (Math.random() < 0.5) ? 1 : 0; break; // 50% chance of 1 affix
+    case 'rare': numAffixes = 1 + Math.floor(Math.random() * 2); break; // 1-2 affixes
+    case 'epic': numAffixes = 2 + Math.floor(Math.random() * 2); break; // 2-3 affixes
+    case 'legendary': numAffixes = 3 + Math.floor(Math.random() * 2); break; // 3-4 affixes
+  }
+
+  if (numAffixes === 0) return affixes;
+
+  // Filter available affixes for this item
+  const available = AFFIX_DEFINITIONS.filter(def =>
+    def.slotTypes.some(st => slotTypes.includes(st)) &&
+    def.minTier <= Math.max(1, Math.floor(item.rarity === 'rare' ? 2 : item.rarity === 'epic' ? 3 : item.rarity === 'legendary' ? 4 : 1))
+  );
+
+  if (available.length === 0) return affixes;
+
+  // Select random affixes (no duplicates)
+  const usedTypes = new Set<string>();
+  const maxAttempts = Math.min(numAffixes, available.length);
+  let attempts = 0;
+
+  while (affixes.length < maxAttempts && attempts < 15) {
+    attempts++;
+    const def = available[Math.floor(Math.random() * available.length)];
+    if (usedTypes.has(def.type)) continue;
+    usedTypes.add(def.type);
+
+    // Determine tier based on rarity
+    const maxTier = item.rarity === 'common' ? 1 : item.rarity === 'uncommon' ? 2 : item.rarity === 'rare' ? 3 : item.rarity === 'epic' ? 4 : 5;
+    const tier = Math.min(def.maxTier, Math.max(def.minTier, 1 + Math.floor(Math.random() * maxTier)));
+    const value = getAffixStatValue(def, tier);
+
+    affixes.push({
+      type: def.type,
+      name: def.name,
+      stat: def.stat,
+      value,
+      tier,
+    });
+  }
+
+  return affixes;
+}
+
+// Get affix display string (prefix + name + suffix)
+export function getAffixedItemName(item: ItemDefinition, affixes: ItemAffix[]): string {
+  if (affixes.length === 0) return item.name;
+
+  const prefixes = affixes.filter(a => !a.name.startsWith('do '));
+  const suffixes = affixes.filter(a => a.name.startsWith('do '));
+
+  let name = item.name;
+  if (prefixes.length > 0) {
+    name = `${prefixes[0].name} ${name}`;
+  }
+  if (suffixes.length > 0) {
+    name = `${name} ${suffixes[0].name}`;
+  }
+
+  return name;
+}
