@@ -327,6 +327,7 @@ function BottomBar({ stats }: { stats: GameState['player']['stats'] }) {
 function WorldMap({ game }: { game: Game }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [activeTab, setActiveTab] = useState<'legends' | 'monsters' | 'npcs'>('legends');
+  const [hoveredBiome, setHoveredBiome] = useState<{ biome: string; x: number; y: number; tileX: number; tileY: number } | null>(null);
 
   const MAP_W = 550;
   const MAP_H = 450;
@@ -357,6 +358,26 @@ function WorldMap({ game }: { game: Game }) {
     swamp: '#3a5a2a', desert: '#b09a5a', tundra: '#8a9a8a',
     cave: '#3a3a3a', ruins: '#7a6a5a', village: '#6a9a5a',
     lake: '#3a7aaa', river: '#4a80aa',
+  };
+
+  // 🔒 Biome level requirements (areas unlock as player levels up)
+  const biomeLevelRequirements: Record<string, number> = {
+    plains: 1, forest: 1, village: 1, lake: 1, river: 1,
+    swamp: 5, cave: 6, mountains: 10, ruins: 12, desert: 15, tundra: 20,
+  };
+
+  const biomeDesc: Record<string, string> = {
+    forest: 'Floresta densa e sombria. Lobos e aranhas.',
+    plains: 'Planícies abertas. Slimes e javalis.',
+    mountains: 'Picos gelados. Golems de pedra.',
+    swamp: 'Pântano venenoso. Aranhas e morcegos.',
+    desert: 'Deserto escaldante. Criaturas da areia.',
+    tundra: 'Tundra congelada. Bestas polares.',
+    cave: 'Cavernas profundas. Minérios raros.',
+    ruins: 'Ruínas antigas. Cavaleiros das trevas.',
+    village: 'Vila segura. NPCs amigáveis.',
+    lake: 'Lago sereno. Ótimo para pesca.',
+    river: 'Rio cristalino. Água fresca.',
   };
 
   // Find biome region centers for label placement
@@ -426,6 +447,27 @@ function WorldMap({ game }: { game: Game }) {
         if (y > 0 && biomeMap[y - 1][x] !== biome) {
           ctx.fillStyle = 'rgba(255,255,200,0.03)';
           ctx.fillRect(px, py, sw, 1);
+        }
+
+        // 🔒 Level-based fog of war — lock areas above player's level
+        const reqLevel = biomeLevelRequirements[biome] || 1;
+        const playerLevel = state.player.stats.level;
+        if (playerLevel < reqLevel) {
+          // Dark fog overlay
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          ctx.fillRect(px, py, sw, sh);
+          // Subtle lock noise texture
+          const lockNoise = Math.sin(x * 17.3 + y * 13.7) * 0.08 + 0.08;
+          ctx.fillStyle = `rgba(40,20,10,${lockNoise})`;
+          ctx.fillRect(px, py, sw, sh);
+          // Draw level requirement number on larger tiles (visible when zoomed out but subtle)
+          if (x % 4 === 0 && y % 4 === 0) {
+            ctx.font = `${Math.max(4, Math.min(7, scaleX * 0.3))}px monospace`;
+            ctx.fillStyle = 'rgba(255,100,50,0.25)';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Nv.${reqLevel}`, px + sw / 2, py + sh / 2 + 2);
+            ctx.textAlign = 'left';
+          }
         }
 
         // Track center
@@ -592,7 +634,35 @@ function WorldMap({ game }: { game: Game }) {
       <div className="relative flex gap-4">
         {/* Map Canvas */}
         <div className="rounded-lg overflow-hidden border-2 border-amber-800/60 shadow-2xl shadow-black/80">
-          <canvas ref={canvasRef} className="block" />
+          <canvas
+            ref={canvasRef}
+            className="block cursor-crosshair"
+            onMouseMove={(e) => {
+              const canvas = canvasRef.current;
+              if (!canvas) return;
+              const rect = canvas.getBoundingClientRect();
+              const mouseX = e.clientX - rect.left;
+              const mouseY = e.clientY - rect.top;
+
+              const { biomeMap } = game;
+              const worldW = biomeMap[0]?.length || 1;
+              const worldH = biomeMap.length || 1;
+
+              // Reverse canvas transform (translate 10,10 then scale)
+              const relX = mouseX - 10;
+              const relY = mouseY - 10;
+              const tileX = Math.floor(relX / ((MAP_W - 20) / worldW));
+              const tileY = Math.floor(relY / ((MAP_H - 20) / worldH));
+
+              if (tileX >= 0 && tileX < worldW && tileY >= 0 && tileY < worldH) {
+                const biome = biomeMap[tileY][tileX];
+                setHoveredBiome({ biome, x: e.clientX, y: e.clientY, tileX, tileY });
+              } else {
+                setHoveredBiome(null);
+              }
+            }}
+            onMouseLeave={() => setHoveredBiome(null)}
+          />
         </div>
 
         {/* Legend Panel */}
@@ -723,6 +793,40 @@ function WorldMap({ game }: { game: Game }) {
           </button>
         </div>
       </div>
+
+      {/* 🔍 Biome Preview Tooltip */}
+      {hoveredBiome && (() => {
+        const biome = hoveredBiome.biome;
+        const reqLevel = biomeLevelRequirements[biome] || 1;
+        const playerLevel = game.state.player.stats.level;
+        const unlocked = playerLevel >= reqLevel;
+        return (
+          <div
+            className="fixed z-[60] pointer-events-none"
+            style={{ left: Math.min(hoveredBiome.x + 16, window.innerWidth - 200), top: Math.min(hoveredBiome.y - 8, window.innerHeight - 120) }}
+          >
+            <div className="bg-[#1a1410]/95 backdrop-blur-sm border border-amber-800/60 rounded-lg p-2.5 shadow-2xl shadow-black/60 w-44">
+              {/* Header with biome color */}
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: biomeColors[biome] || '#2a2a2a' }} />
+                <span className="text-[10px] font-bold text-amber-300">{biomeLabels[biome] || biome}</span>
+              </div>
+              {/* Description */}
+              <div className="text-[8px] text-white/50 leading-tight mb-1.5">
+                {biomeDesc[biome] || ''}
+              </div>
+              {/* Level requirement */}
+              <div className={`text-[9px] font-bold flex items-center gap-1 ${unlocked ? 'text-green-400' : 'text-red-400'}`}>
+                {unlocked ? '✅' : '🔒'} {unlocked ? 'Desbloqueado' : `Requer Nível ${reqLevel}`}
+              </div>
+              {/* Player level indicator */}
+              <div className="text-[7px] text-white/30 mt-0.5">
+                Seu nível: {playerLevel}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
