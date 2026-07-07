@@ -388,6 +388,11 @@ export class Game {
       this.ui.showMap = !this.ui.showMap;
     }
 
+    // N for minimap toggle
+    if (input.isKeyPressed('n')) {
+      this.state.settings.showMinimap = !this.state.settings.showMinimap;
+    }
+
     // H for save/load
     if (input.isKeyPressed('h')) {
       this.ui.activePanel = this.ui.activePanel === 'save' ? 'none' : 'save';

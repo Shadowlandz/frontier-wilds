@@ -4,7 +4,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { Game } from './Game';
-import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot, TILE_SIZE } from './core/Types';
+import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from './core/Types';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { SKILLS, getSkillsByTree } from './data/Skills';
@@ -75,6 +75,13 @@ export default function GamePage() {
           />
 
           {/* World Map (full overlay) */}
+          {/* Minimap (top-right, below HUD) */}
+          {gameState.settings.showMinimap && (
+            <div className="absolute top-24 right-4 z-10 pointer-events-none">
+              <Minmap game={game!} />
+            </div>
+          )}
+
           {uiState.showMap && (
             <WorldMap game={game!} />
           )}
@@ -313,13 +320,194 @@ function BottomBar({ stats }: { stats: GameState['player']['stats'] }) {
   return (
     <div className="absolute bottom-16 right-4 pointer-events-none">
       <div className="bg-black/50 backdrop-blur-sm rounded px-3 py-1 text-xs text-white/60 flex gap-3">
-        <span>⭐ Nv.{stats.level}</span>
-        <span>⛏️ Min:{stats.mining}</span>
-        <span>🪓 Madeira:{stats.woodcutting}</span>
-        <span>🌾 Farm:{stats.farming}</span>
-        <span>🎣 Pesca:{stats.fishing}</span>
+        <span>{/* disabled as minimap is here */}</span>
       </div>
     </div>
+  );
+}
+
+// ── Minimap ──────────────────────────────────────────────────────
+const MINIMAP_SIZE = 150;
+const MINIMAP_RADIUS = 75;
+
+function Minmap({ game }: { game: Game }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = MINIMAP_SIZE;
+    canvas.height = MINIMAP_SIZE;
+
+    const { biomeMap, enemies, npcs, resources, state, camera } = game;
+    const { player } = state;
+    const worldW = biomeMap[0]?.length || 1;
+    const worldH = biomeMap.length || 1;
+
+    // Player tile position (center of minimap)
+    const playerTx = Math.floor(player.x / TILE_SIZE);
+    const playerTy = Math.floor(player.y / TILE_SIZE);
+
+    // ── Background ──
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+
+    // ── Border ──
+    ctx.strokeStyle = 'rgba(180, 160, 100, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, MINIMAP_SIZE - 1, MINIMAP_SIZE - 1);
+
+    // ── Map pixels per tile ──
+    const scale = MINIMAP_SIZE / (MINIMAP_RADIUS * 2);
+
+    // ── Biome colors for minimap ──
+    const miniBiomeColors: Record<string, string> = {
+      forest: '#1a5a1a', plains: '#3a7a2a', mountains: '#5a5a5a',
+      swamp: '#2a4a1a', desert: '#8a7a3a', tundra: '#6a8a8a',
+      cave: '#1a1a1a', ruins: '#4a3a2a', village: '#5a8a3a',
+      lake: '#2a6a9a', river: '#3a7aaa',
+    };
+
+    // Center pixel offset
+    const cx = MINIMAP_SIZE / 2;
+    const cy = MINIMAP_SIZE / 2;
+
+    // ── Draw terrain tiles ──
+    const startTx = playerTx - MINIMAP_RADIUS;
+    const startTy = playerTy - MINIMAP_RADIUS;
+    const endTx = playerTx + MINIMAP_RADIUS;
+    const endTy = playerTy + MINIMAP_RADIUS;
+
+    // Use ImageData for faster pixel rendering
+    const imageData = ctx.createImageData(MINIMAP_SIZE, MINIMAP_SIZE);
+    const data = imageData.data;
+
+    for (let px = 0; px < MINIMAP_SIZE; px++) {
+      for (let py = 0; py < MINIMAP_SIZE; py++) {
+        const worldTx = startTx + px;
+        const worldTy = startTy + py;
+        let r = 0, g = 0, b = 0, a = 255;
+
+        if (worldTx >= 0 && worldTx < worldW && worldTy >= 0 && worldTy < worldH) {
+          const biome = biomeMap[worldTy][worldTx];
+          const color = miniBiomeColors[biome] || '#2a2a2a';
+          // Parse hex
+          const hex = color.replace('#', '');
+          r = parseInt(hex.substring(0, 2), 16);
+          g = parseInt(hex.substring(2, 4), 16);
+          b = parseInt(hex.substring(4, 6), 16);
+        } else {
+          // Out of bounds = black
+          r = 0; g = 0; b = 0;
+        }
+
+        const idx = (py * MINIMAP_SIZE + px) * 4;
+        data[idx] = r;
+        data[idx + 1] = g;
+        data[idx + 2] = b;
+        data[idx + 3] = a;
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    // ── Village marker ──
+    const villageTx = Math.floor(WORLD_WIDTH / 2);
+    const villageTy = Math.floor(WORLD_HEIGHT / 2);
+    const vx = cx + (villageTx - playerTx);
+    const vy = cy + (villageTy - playerTy);
+    if (vx > 0 && vx < MINIMAP_SIZE && vy > 0 && vy < MINIMAP_SIZE) {
+      ctx.fillStyle = '#ffdd44';
+      ctx.beginPath();
+      ctx.arc(vx, vy, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Enemies (red dots, only within visible minimap) ──
+    for (const enemy of enemies) {
+      const ex = cx + (Math.floor(enemy.x / TILE_SIZE) - playerTx);
+      const ey = cy + (Math.floor(enemy.y / TILE_SIZE) - playerTy);
+      if (ex > 0 && ex < MINIMAP_SIZE && ey > 0 && ey < MINIMAP_SIZE) {
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.7)';
+        ctx.beginPath();
+        ctx.arc(ex, ey, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ── NPCs (green dots) ──
+    for (const npc of npcs) {
+      const nx = cx + (Math.floor(npc.x / TILE_SIZE) - playerTx);
+      const ny = cy + (Math.floor(npc.y / TILE_SIZE) - playerTy);
+      if (nx > 0 && nx < MINIMAP_SIZE && ny > 0 && ny < MINIMAP_SIZE) {
+        ctx.fillStyle = 'rgba(50, 255, 100, 0.7)';
+        ctx.beginPath();
+        ctx.arc(nx, ny, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ── Cave entrance markers ──
+    for (const res of resources) {
+      if (res.type === 'cave_entrance') {
+        const rx = cx + (Math.floor(res.x / TILE_SIZE) - playerTx);
+        const ry = cy + (Math.floor(res.y / TILE_SIZE) - playerTy);
+        if (rx > 0 && rx < MINIMAP_SIZE && ry > 0 && ry < MINIMAP_SIZE) {
+          ctx.fillStyle = 'rgba(150, 100, 255, 0.8)';
+          ctx.beginPath();
+          ctx.arc(rx, ry, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // ── Camera viewport rectangle ──
+    const camLeftTx = Math.floor(camera.x / TILE_SIZE);
+    const camTopTy = Math.floor(camera.y / TILE_SIZE);
+    const camRightTx = Math.ceil((camera.x + camera.width / camera.zoom) / TILE_SIZE);
+    const camBottomTy = Math.ceil((camera.y + camera.height / camera.zoom) / TILE_SIZE);
+
+    const rectX = cx + (camLeftTx - playerTx);
+    const rectY = cy + (camTopTy - playerTy);
+    const rectW = camRightTx - camLeftTx;
+    const rectH = camBottomTy - camTopTy;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(rectX, rectY, rectW, rectH);
+
+    // ── Player dot (bright, with glow) ──
+    ctx.shadowColor = 'rgba(100, 200, 255, 0.6)';
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = '#88ddff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // Inner white dot
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── Facing direction indicator ──
+    ctx.strokeStyle = '#88ddff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + player.facing.x * 6, cy + player.facing.y * 6);
+    ctx.stroke();
+  }, [game, game.state.player.x, game.state.player.y, game.camera.x, game.camera.y]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="rounded-md shadow-lg shadow-black/60"
+      style={{ width: MINIMAP_SIZE + 4, height: MINIMAP_SIZE + 4, imageRendering: 'pixelated' }}
+    />
   );
 }
 
