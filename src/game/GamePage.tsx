@@ -334,7 +334,18 @@ function WorldMap({ game }: { game: Game }) {
   const fogAnimations = useRef<Record<string, number>>({}); // biome -> startTime
   const prevUnlocked = useRef<Set<string>>(new Set());
   const animFrameRef = useRef<number>(0);
+  const particlesRef = useRef<{ x: number; y: number; vx: number; vy: number; life: number; maxLife: number; size: number; color: string }[]>([]);
   const FOG_DURATION = 1800; // 1.8s for full dissipation
+
+  // ✨ Reveal particle colors (bright variants of biome colors)
+  const particleColors: Record<string, string> = {
+    forest: '#66ff66', plains: '#aaff44', mountains: '#aaaaff',
+    swamp: '#88ff66', desert: '#ffdd44', tundra: '#aaddff',
+    cave: '#aa66ff', ruins: '#ff8844', village: '#ffdd44',
+    lake: '#66ffff', river: '#66aaff',
+  };
+
+  // Empty - spawnRevealParticles logic is inside the useEffect where coordinates are available
 
   const MAP_W = 550;
   const MAP_H = 450;
@@ -498,6 +509,39 @@ function WorldMap({ game }: { game: Game }) {
       }
     }
 
+    // ✨ Draw reveal particles (sparkles when fog dissipates)
+    const activeParticles = particlesRef.current;
+    for (let i = activeParticles.length - 1; i >= 0; i--) {
+      const p = activeParticles[i];
+      p.x += p.vx * 0.02;
+      p.y += p.vy * 0.02;
+      p.vy += 1.5 * 0.02; // gentle gravity
+      p.life -= 0.016 / p.maxLife; // ~1.7s lifespan
+      if (p.life <= 0) { activeParticles.splice(i, 1); continue; }
+      const alpha = p.life < 0.3 ? p.life / 0.3 : Math.min(1, p.life * 2);
+      // Glow halo
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = p.size * 3;
+      ctx.fillStyle = `rgba(255,255,255,${alpha * 0.6})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      // Colored sparkle
+      ctx.shadowBlur = p.size * 2;
+      ctx.fillStyle = `rgba(${parseInt(p.color.slice(1,3),16)},${parseInt(p.color.slice(3,5),16)},${parseInt(p.color.slice(5,7),16)},${alpha})`;
+      ctx.beginPath();
+      // Star shape (diamond cross)
+      ctx.arc(p.x, p.y, p.size * (0.3 + 0.7 * p.life), 0, Math.PI * 2);
+      ctx.fill();
+      // Bright center dot
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = `rgba(255,255,255,${alpha * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
     // ── Rivers (thin winding lines over water tiles) ──
     ctx.strokeStyle = 'rgba(60, 120, 180, 0.4)';
     ctx.lineWidth = 1.5;
@@ -653,11 +697,32 @@ function WorldMap({ game }: { game: Game }) {
         .map(([biome]) => biome)
     );
 
-    let startedNewAnim = false;
     for (const biome of currentUnlockedSet) {
       if (!prevUnlocked.current.has(biome) && !(biome in fogAnimations.current)) {
         fogAnimations.current[biome] = performance.now();
-        startedNewAnim = true;
+        // ✨ Spawn reveal particles for this biome
+        const center = biomeCenters[biome];
+        if (center && center.count > 0) {
+          const avgX = (center.x / center.count) * scaleX;
+          const avgY = (center.y / center.count) * scaleY;
+          const radius = Math.sqrt(center.count) * scaleX * 1.2;
+          const color = particleColors[biome] || '#ffee88';
+          const count = Math.min(40, Math.max(20, Math.floor(center.count * 0.03)));
+          for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * radius;
+            particlesRef.current.push({
+              x: avgX + Math.cos(angle) * dist,
+              y: avgY + Math.sin(angle) * dist,
+              vx: (Math.random() - 0.5) * 12,
+              vy: -Math.random() * 15 - 3,
+              life: 1,
+              maxLife: 1 + Math.random() * 0.2,
+              size: 1.5 + Math.random() * 2.5,
+              color,
+            });
+          }
+        }
       }
     }
     prevUnlocked.current = currentUnlockedSet;
