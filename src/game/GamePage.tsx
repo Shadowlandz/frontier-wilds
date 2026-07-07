@@ -330,8 +330,39 @@ function BottomBar({ stats }: { stats: GameState['player']['stats'] }) {
 const MINIMAP_SIZE = 150;
 const MINIMAP_RADIUS = 75;
 
+const MINI_BIOME_COLORS: Record<string, string> = {
+  forest: '#1a5a1a', plains: '#3a7a2a', mountains: '#5a5a5a',
+  swamp: '#2a4a1a', desert: '#8a7a3a', tundra: '#6a8a8a',
+  cave: '#1a1a1a', ruins: '#4a3a2a', village: '#5a8a3a',
+  lake: '#2a6a9a', river: '#3a7aaa',
+};
+
+const BIOME_NAMES: Record<string, string> = {
+  forest: 'Floresta', plains: 'Planície', mountains: 'Montanha',
+  swamp: 'Pântano', desert: 'Deserto', tundra: 'Tundra',
+  cave: 'Caverna', ruins: 'Ruínas', village: 'Vila',
+  lake: 'Lago', river: 'Rio',
+};
+
+const LEGEND_ENTRIES = [
+  { color: '#88ddff', label: 'Jogador' },
+  { color: '#ff4444', label: 'Inimigo' },
+  { color: '#44ff88', label: 'NPC' },
+  { color: '#ffdd44', label: 'Vila' },
+  { color: '#aa66ff', label: 'Caverna' },
+];
+
+const BIOME_LEGEND = [
+  { color: '#1a5a1a', name: 'Floresta' },
+  { color: '#3a7a2a', name: 'Planície' },
+  { color: '#5a5a5a', name: 'Montanha' },
+  { color: '#8a7a3a', name: 'Deserto' },
+  { color: '#2a6a9a', name: 'Lago' },
+];
+
 function Minmap({ game }: { game: Game }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showLegend, setShowLegend] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -360,17 +391,6 @@ function Minmap({ game }: { game: Game }) {
     ctx.lineWidth = 1;
     ctx.strokeRect(0.5, 0.5, MINIMAP_SIZE - 1, MINIMAP_SIZE - 1);
 
-    // ── Map pixels per tile ──
-    const scale = MINIMAP_SIZE / (MINIMAP_RADIUS * 2);
-
-    // ── Biome colors for minimap ──
-    const miniBiomeColors: Record<string, string> = {
-      forest: '#1a5a1a', plains: '#3a7a2a', mountains: '#5a5a5a',
-      swamp: '#2a4a1a', desert: '#8a7a3a', tundra: '#6a8a8a',
-      cave: '#1a1a1a', ruins: '#4a3a2a', village: '#5a8a3a',
-      lake: '#2a6a9a', river: '#3a7aaa',
-    };
-
     // Center pixel offset
     const cx = MINIMAP_SIZE / 2;
     const cy = MINIMAP_SIZE / 2;
@@ -378,8 +398,6 @@ function Minmap({ game }: { game: Game }) {
     // ── Draw terrain tiles ──
     const startTx = playerTx - MINIMAP_RADIUS;
     const startTy = playerTy - MINIMAP_RADIUS;
-    const endTx = playerTx + MINIMAP_RADIUS;
-    const endTy = playerTy + MINIMAP_RADIUS;
 
     // Use ImageData for faster pixel rendering
     const imageData = ctx.createImageData(MINIMAP_SIZE, MINIMAP_SIZE);
@@ -393,14 +411,12 @@ function Minmap({ game }: { game: Game }) {
 
         if (worldTx >= 0 && worldTx < worldW && worldTy >= 0 && worldTy < worldH) {
           const biome = biomeMap[worldTy][worldTx];
-          const color = miniBiomeColors[biome] || '#2a2a2a';
-          // Parse hex
+          const color = MINI_BIOME_COLORS[biome] || '#2a2a2a';
           const hex = color.replace('#', '');
           r = parseInt(hex.substring(0, 2), 16);
           g = parseInt(hex.substring(2, 4), 16);
           b = parseInt(hex.substring(4, 6), 16);
         } else {
-          // Out of bounds = black
           r = 0; g = 0; b = 0;
         }
 
@@ -426,7 +442,7 @@ function Minmap({ game }: { game: Game }) {
       ctx.fill();
     }
 
-    // ── Enemies (red dots, only within visible minimap) ──
+    // ── Enemies (red dots) ──
     for (const enemy of enemies) {
       const ex = cx + (Math.floor(enemy.x / TILE_SIZE) - playerTx);
       const ey = cy + (Math.floor(enemy.y / TILE_SIZE) - playerTy);
@@ -503,11 +519,50 @@ function Minmap({ game }: { game: Game }) {
   }, [game, game.state.player.x, game.state.player.y, game.camera.x, game.camera.y]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="rounded-md shadow-lg shadow-black/60"
-      style={{ width: MINIMAP_SIZE + 4, height: MINIMAP_SIZE + 4, imageRendering: 'pixelated' }}
-    />
+    <div className="relative flex gap-2">
+      {/* Map canvas */}
+      <canvas
+        ref={canvasRef}
+        className="rounded-md shadow-lg shadow-black/60 cursor-pointer"
+        style={{ width: MINIMAP_SIZE + 4, height: MINIMAP_SIZE + 4, imageRendering: 'pixelated' }}
+        onClick={() => setShowLegend(!showLegend)}
+      />
+
+      {/* Legend panel - toggled by clicking map */}
+      {showLegend && (
+        <div className="bg-black/85 backdrop-blur-sm rounded-md border border-white/10 p-2 shadow-lg shadow-black/60 w-36">
+          {/* Section: Markers */}
+          <div className="text-[9px] font-bold text-white/70 border-b border-white/10 pb-1 mb-1.5">📍 Marcadores</div>
+          <div className="space-y-1 mb-2">
+            {LEGEND_ENTRIES.map((entry, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                <span className="text-[8px] text-white/60">{entry.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Section: Biomes */}
+          <div className="text-[9px] font-bold text-white/70 border-b border-white/10 pb-1 mb-1.5">🌿 Biomas</div>
+          <div className="space-y-1">
+            {BIOME_LEGEND.map((bio, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2 rounded-sm" style={{ backgroundColor: bio.color }} />
+                <span className="text-[8px] text-white/50">{bio.name}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Viewport hint */}
+          <div className="mt-1.5 pt-1.5 border-t border-white/10">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-2 border border-white/40 rounded-sm" />
+              <span className="text-[7px] text-white/30">Viewport</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
