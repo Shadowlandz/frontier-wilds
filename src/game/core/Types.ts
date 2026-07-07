@@ -381,6 +381,50 @@ export interface PlacedStructure {
   height: number;
   health: number;
   maxHealth: number;
+  /** If this structure is a house/safe-zone anchor */
+  isSafeZone?: boolean;
+}
+
+/** Safe zone defined by a house placement */
+export interface SafeZone {
+  /** Center position (world coords) */
+  centerX: number;
+  centerY: number;
+  /** Radius in tiles */
+  radius: number;
+  /** House structure id that created this zone */
+  structureId: string;
+}
+
+/** Storage chest inventory — extra container beyond player inventory */
+export interface StorageChest {
+  id: string;
+  structureId: string;
+  name: string;
+  slots: InventorySlot[];
+  maxSlots: number;
+}
+
+/** Building recipe definition — like CraftingRecipe but for placeable buildings */
+export interface BuildingDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  itemId: string;
+  requiredLevel: number;
+  width: number;
+  height: number;
+  health: number;
+  /** If true, this building creates a safe zone */
+  createsSafeZone?: boolean;
+  /** Safe zone radius in tiles (only if createsSafeZone) */
+  safeZoneRadius?: number;
+  /** If true, this is a storage container */
+  isStorage?: boolean;
+  /** Number of storage slots (only if isStorage) */
+  storageSlots?: number;
+  ingredients: { itemId: string; count: number }[];
 }
 
 export interface FarmPlot {
@@ -391,6 +435,10 @@ export interface FarmPlot {
   growthProgress: number;
   watered: boolean;
   plantedAt: number;
+  /** Name of the crop for display */
+  cropName?: string;
+  /** Whether this plot is inside a safe zone (grows faster) */
+  inSafeZone?: boolean;
 }
 
 export interface WorldEntity {
@@ -409,6 +457,9 @@ export interface GameState {
   quests: ActiveQuest[];
   skills: { [skillId: string]: number };
   structures: PlacedStructure[];
+  safeZones: SafeZone[];
+  storageChests: StorageChest[];
+  activeStorageChestId: string | null;
   farmPlots: FarmPlot[];
   discoveredAreas: string[];
   gameTime: GameTime;
@@ -612,7 +663,7 @@ export interface AffixDefinition {
   type: AffixType;
   name: string;
   stat: keyof PlayerAttributes | 'damage' | 'defense';
-  slotTypes: ('weapon' | 'armor' | 'tool' | 'ring' | 'amulet')[];
+  slotTypes: ('weapon' | 'armor' | 'tool' | 'ring' | 'amulet' | 'boots' | 'chest' | 'helmet' | 'gloves' | 'pickaxe' | 'axe' | 'hoe' | 'fishingRod' | 'sword' | 'bow' | 'spear' | 'hammer')[];
   minTier: number;
   maxTier: number;
   baseValue: number; // value per tier

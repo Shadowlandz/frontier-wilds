@@ -260,6 +260,65 @@ export const RECIPES: CraftingRecipe[] = [
     ingredients: [{ itemId: 'wood', count: 2 }, { itemId: 'coal', count: 1 }],
     requiredLevel: 1, craftTime: 1000,
   },
+  {
+    id: 'craft_house', name: 'Casa 🏡', category: ItemCategory.Furniture,
+    result: 'house', resultCount: 1,
+    ingredients: [
+      { itemId: 'wood', count: 50 },
+      { itemId: 'stone', count: 30 },
+      { itemId: 'fiber', count: 20 },
+      { itemId: 'iron_ingot', count: 5 },
+      { itemId: 'leather', count: 10 },
+    ],
+    requiredLevel: 5, craftTime: 10000,
+  },
+  {
+    id: 'craft_storage_chest', name: 'Baú Reforçado', category: ItemCategory.Furniture,
+    result: 'storage_chest', resultCount: 1,
+    ingredients: [
+      { itemId: 'wood', count: 20 },
+      { itemId: 'iron_ingot', count: 3 },
+    ],
+    requiredLevel: 3, craftTime: 5000,
+  },
+  {
+    id: 'craft_wooden_wall', name: 'Cerca de Madeira', category: ItemCategory.Furniture,
+    result: 'wooden_wall', resultCount: 4,
+    ingredients: [{ itemId: 'wood', count: 8 }, { itemId: 'fiber', count: 2 }],
+    requiredLevel: 2, craftTime: 2000,
+  },
+  {
+    id: 'craft_gate', name: 'Portão', category: ItemCategory.Furniture,
+    result: 'gate', resultCount: 1,
+    ingredients: [{ itemId: 'wood', count: 12 }, { itemId: 'iron_ingot', count: 2 }],
+    requiredLevel: 3, craftTime: 3000,
+  },
+  {
+    id: 'craft_workbench_advanced', name: 'Bancada Avançada', category: ItemCategory.Furniture,
+    result: 'workbench_advanced', resultCount: 1,
+    ingredients: [
+      { itemId: 'wood', count: 25 },
+      { itemId: 'stone', count: 15 },
+      { itemId: 'iron_ingot', count: 5 },
+    ],
+    requiredLevel: 5, craftTime: 5000,
+  },
+  {
+    id: 'craft_campfire', name: 'Fogueira', category: ItemCategory.Furniture,
+    result: 'campfire', resultCount: 1,
+    ingredients: [{ itemId: 'wood', count: 10 }, { itemId: 'stone', count: 5 }],
+    requiredLevel: 2, craftTime: 2000,
+  },
+  {
+    id: 'craft_bed', name: 'Cama', category: ItemCategory.Furniture,
+    result: 'bed', resultCount: 1,
+    ingredients: [
+      { itemId: 'wood', count: 20 },
+      { itemId: 'fiber', count: 15 },
+      { itemId: 'leather', count: 5 },
+    ],
+    requiredLevel: 4, craftTime: 6000,
+  },
 
   // ── Furnace Smelting ──────────────────────────────────────────
   {

@@ -396,6 +396,41 @@ export const ITEMS: Record<string, ItemDefinition> = {
     category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 50, weight: 0.5, value: 3,
     icon: '🕯️', placeable: true,
   },
+  house: {
+    id: 'house', name: 'Casa', description: 'Uma casa aconchegante. Cria uma área segura contra inimigos.',
+    category: ItemCategory.Furniture, rarity: Rarity.Uncommon, stackSize: 1, weight: 20, value: 200,
+    icon: '🏡', placeable: true,
+  },
+  storage_chest: {
+    id: 'storage_chest', name: 'Baú Reforçado', description: 'Baú grande para armazenar itens extras. 30 slots.',
+    category: ItemCategory.Furniture, rarity: Rarity.Uncommon, stackSize: 5, weight: 10, value: 50,
+    icon: '🗄️', placeable: true,
+  },
+  wooden_wall: {
+    id: 'wooden_wall', name: 'Cerca de Madeira', description: 'Cerca resistente para delimitar sua base.',
+    category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 50, weight: 2, value: 5,
+    icon: '🧱', placeable: true,
+  },
+  gate: {
+    id: 'gate', name: 'Portão', description: 'Portão de madeira para entrada da base.',
+    category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 10, weight: 5, value: 15,
+    icon: '🚪', placeable: true,
+  },
+  workbench_advanced: {
+    id: 'workbench_advanced', name: 'Bancada Avançada', description: 'Bancada de trabalho melhorada com mais receitas.',
+    category: ItemCategory.Furniture, rarity: Rarity.Uncommon, stackSize: 1, weight: 8, value: 80,
+    icon: '🪵', placeable: true,
+  },
+  campfire: {
+    id: 'campfire', name: 'Fogueira', description: 'Fogueira para cozinhar e se aquecer à noite.',
+    category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 10, weight: 3, value: 10,
+    icon: '🔥', placeable: true,
+  },
+  bed: {
+    id: 'bed', name: 'Cama', description: 'Cama confortável. Descanse para recuperar stamina rapidamente.',
+    category: ItemCategory.Furniture, rarity: Rarity.Uncommon, stackSize: 1, weight: 10, value: 60,
+    icon: '🛏️', placeable: true,
+  },
 
   // ── Quest Items ───────────────────────────────────────────────
   ancient_key: {

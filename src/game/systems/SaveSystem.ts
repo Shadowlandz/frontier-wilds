@@ -31,6 +31,9 @@ interface SerializedGameState {
   quests: GameState['quests'];
   skills: GameState['skills'];
   structures: GameState['structures'];
+  safeZones: GameState['safeZones'];
+  storageChests: GameState['storageChests'];
+  activeStorageChestId: string | null;
   farmPlots: GameState['farmPlots'];
   discoveredAreas: string[];
   gameTime: GameState['gameTime'];
@@ -93,6 +96,9 @@ function serializeState(state: GameState): SerializedGameState {
     })),
     skills: { ...state.skills },
     structures: state.structures.map(s => ({ ...s })),
+    safeZones: state.safeZones.map(z => ({ ...z })),
+    storageChests: state.storageChests.map(c => ({ id: c.id, structureId: c.structureId, name: c.name, slots: c.slots.map(s => ({ ...s })), maxSlots: c.maxSlots })),
+    activeStorageChestId: state.activeStorageChestId,
     farmPlots: state.farmPlots.map(p => ({ ...p })),
     discoveredAreas: [...state.discoveredAreas],
     gameTime: { ...state.gameTime },
@@ -126,10 +132,15 @@ function deserializeState(data: SerializedGameState): Partial<GameState> {
       currentTool: data.player.currentTool,
       stamina: data.player.stamina,
       maxStamina: data.player.maxStamina,
+      exhaustionTimer: 0,
+      isExhausted: false,
     },
     quests: data.quests,
     skills: data.skills,
     structures: data.structures,
+    safeZones: data.safeZones,
+    storageChests: data.storageChests,
+    activeStorageChestId: data.activeStorageChestId,
     farmPlots: data.farmPlots,
     discoveredAreas: data.discoveredAreas,
     gameTime: data.gameTime,

@@ -9,7 +9,7 @@ import {
   Weather, Season, Biome, EnemyEntity, NpcEntity, DroppedItem,
   DamageNumber, Particle, GameUIState, Notification, ItemCategory,
   Rarity, ItemDefinition, WORLD_WIDTH, WORLD_HEIGHT, PlayerAttributes,
-  EnemyType,
+  EnemyType, SafeZone, StorageChest, PlacedStructure,
   generateItemAffixes, computeItemPowerScore, getAffixedItemName, getAffixSlotTypes,
 } from './core/Types';
 import { Input } from './core/Input';
@@ -216,6 +216,9 @@ export class Game {
       quests: [],
       skills: {},
       structures: [],
+      safeZones: [],
+      storageChests: [],
+      activeStorageChestId: null,
       farmPlots: [],
       discoveredAreas: [],
       gameTime: {
@@ -590,7 +593,10 @@ export class Game {
       }
     }
 
-    // 3. Eat/drink current hotbar item
+    // 3. Try to open nearby storage chest
+    if (this.toggleStorageChest()) return;
+
+    // 4. Eat/drink current hotbar item
     this.useHotbarItem();
   }
 
@@ -1108,25 +1114,43 @@ export class Game {
         const newX = enemy.x + dir.x * speed * dt;
         const newY = enemy.y + dir.y * speed * dt;
 
-        // Simple tile collision check
-        const tileX = Math.floor((newX + enemy.width / 2) / TILE_SIZE);
-        const tileY = Math.floor((newY + enemy.height / 2) / TILE_SIZE);
-        if (tileX >= 0 && tileX < worldTileW && tileY >= 0 && tileY < worldTileH) {
-          const tile = tileMap[tileY][tileX];
-          if (tile !== TileType.Water && tile !== TileType.DeepWater && tile !== TileType.Wall && tile !== TileType.CaveWall && tile !== TileType.Lava) {
-            enemy.x = newX;
-            enemy.y = newY;
+        // 🛡️ Safe zone check: enemies cannot enter safe zones
+        const isTargetInSafeZone = this.isInSafeZone(playerPos.x, playerPos.y);
+        const wouldEnterSafeZone = this.isInSafeZone(newX, newY);
+
+        // If player is in safe zone, enemies stop at the edge
+        if (wouldEnterSafeZone || (isTargetInSafeZone && distToPlayer < enemy.definition.aggroRange * 0.6)) {
+          // Don't move into safe zone — hover at edge
+          // Instead, try moving perpendicular to the player
+          const perpX = enemy.x + dir.y * speed * 0.3 * dt;
+          const perpY = enemy.y - dir.x * speed * 0.3 * dt;
+          if (!this.isInSafeZone(perpX, perpY)) {
+            enemy.x = perpX;
+            enemy.y = perpY;
+          }
+        } else {
+          // Simple tile collision check
+          const tileX = Math.floor((newX + enemy.width / 2) / TILE_SIZE);
+          const tileY = Math.floor((newY + enemy.height / 2) / TILE_SIZE);
+          if (tileX >= 0 && tileX < worldTileW && tileY >= 0 && tileY < worldTileH) {
+            const tile = tileMap[tileY][tileX];
+            if (tile !== TileType.Water && tile !== TileType.DeepWater && tile !== TileType.Wall && tile !== TileType.CaveWall && tile !== TileType.Lava) {
+              enemy.x = newX;
+              enemy.y = newY;
+            }
           }
         }
 
         enemy.direction = dir;
 
-        // Attack player
-        if (distToPlayer < enemy.definition.attackRange) {
-          enemy.attackCooldown -= dt;
-          if (enemy.attackCooldown <= 0) {
-            this.enemyAttackPlayer(enemy);
-            enemy.attackCooldown = enemy.definition.attackSpeed / 1000;
+        // Attack player (only if not in safe zone)
+        if (!this.isInSafeZone(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y + PLAYER_SIZE / 2)) {
+          if (distToPlayer < enemy.definition.attackRange) {
+            enemy.attackCooldown -= dt;
+            if (enemy.attackCooldown <= 0) {
+              this.enemyAttackPlayer(enemy);
+              enemy.attackCooldown = enemy.definition.attackSpeed / 1000;
+            }
           }
         }
       } else {
@@ -2151,6 +2175,70 @@ export class Game {
   }
 
   // ── Building System ────────────────────────────────────────────
+
+  /** Check if a position is inside any safe zone */
+  isInSafeZone(x: number, y: number): boolean {
+    for (const zone of this.state.safeZones) {
+      const dx = x - zone.centerX;
+      const dy = y - zone.centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < zone.radius * TILE_SIZE) return true;
+    }
+    return false;
+  }
+
+  /** Get the nearest safe zone center (for building restrictions) */
+  getNearestSafeZoneDist(x: number, y: number): { dist: number; zone: SafeZone | null } {
+    let nearest = Infinity;
+    let nearestZone: SafeZone | null = null;
+    for (const zone of this.state.safeZones) {
+      const dx = x - zone.centerX;
+      const dy = y - zone.centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < nearest) {
+        nearest = dist;
+        nearestZone = zone;
+      }
+    }
+    return { dist: nearest, zone: nearestZone };
+  }
+
+  /** Check if a tile position is valid for building (walkable, no overlap) */
+  canPlaceStructureAt(tileX: number, tileY: number, itemId: string): string | null {
+    const item = getItem(itemId);
+    if (!item) return 'Item inválido';
+
+    // Check tile is walkable
+    if (tileY < 0 || tileY >= this.tileMap.length || tileX < 0 || tileX >= this.tileMap[0].length) {
+      return 'Fora do mundo!';
+    }
+    const tile = this.tileMap[tileY]?.[tileX];
+    if (tile === TileType.Water || tile === TileType.DeepWater || tile === TileType.Wall || tile === TileType.CaveWall) {
+      return 'Não pode construir aqui!';
+    }
+
+    // Check for existing structure at this position
+    const existing = this.state.structures.find(s =>
+      Math.floor(s.x / TILE_SIZE) === tileX && Math.floor(s.y / TILE_SIZE) === tileY
+    );
+    if (existing) {
+      return 'Já existe uma construção aqui!';
+    }
+
+    // House must be placed within safe zone radius of another house,
+    // OR if first house, anywhere valid
+    if (itemId === 'house' && this.state.safeZones.length > 0) {
+      // Houses can be placed anywhere valid, but subsequent houses must
+      // be at least 10 tiles away from existing safe zones
+      const { dist } = this.getNearestSafeZoneDist(tileX * TILE_SIZE, tileY * TILE_SIZE);
+      if (dist < 10 * TILE_SIZE) {
+        return 'Muito perto de outra casa!';
+      }
+    }
+
+    return null; // Valid placement
+  }
+
   placeStructure(itemId: string): boolean {
     const item = getItem(itemId);
     if (!item || !item.placeable) return false;
@@ -2160,26 +2248,16 @@ export class Game {
     const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
     const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
 
-    // Check tile is walkable
-    const tile = this.tileMap[py]?.[px];
-    if (tile === TileType.Water || tile === TileType.DeepWater || tile === TileType.Wall || tile === TileType.CaveWall) {
+    const error = this.canPlaceStructureAt(px, py, itemId);
+    if (error) {
       this.addToInventory(itemId, 1);
-      this.addNotification('Não pode construir aqui!', 'warning');
+      this.addNotification(error, 'warning');
       return false;
     }
 
-    // Check for existing structure
-    const existing = this.state.structures.find(s =>
-      s.x === px * TILE_SIZE && s.y === py * TILE_SIZE
-    );
-    if (existing) {
-      this.addToInventory(itemId, 1);
-      this.addNotification('Já existe uma construção aqui!', 'warning');
-      return false;
-    }
-
-    this.state.structures.push({
-      id: `struct_${Date.now()}`,
+    const structId = `struct_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newStruct: PlacedStructure = {
+      id: structId,
       itemId,
       x: px * TILE_SIZE,
       y: py * TILE_SIZE,
@@ -2187,11 +2265,125 @@ export class Game {
       height: TILE_SIZE,
       health: 100,
       maxHealth: 100,
-    });
+    };
 
+    // ── House: creates a safe zone ──
+    if (itemId === 'house') {
+      newStruct.isSafeZone = true;
+      const safeZone: SafeZone = {
+        centerX: px * TILE_SIZE + TILE_SIZE / 2,
+        centerY: py * TILE_SIZE + TILE_SIZE / 2,
+        radius: 15, // 15 tiles radius = ~480px safe zone
+        structureId: structId,
+      };
+      this.state.safeZones.push(safeZone);
+      this.addNotification('🏡 Casa construída! Área segura criada! Inimigos não entram aqui.', 'success');
+    }
+
+    // ── Storage Chest: creates a storage container ──
+    if (itemId === 'storage_chest') {
+      const chest: StorageChest = {
+        id: `chest_${structId}`,
+        structureId: structId,
+        name: 'Baú Reforçado',
+        slots: Array(30).fill(null).map(() => ({ item: null, count: 0 })),
+        maxSlots: 30,
+      };
+      this.state.storageChests.push(chest);
+      this.addNotification('🗄️ Baú criado! Aperte E para abrir.', 'success');
+    }
+
+    this.state.structures.push(newStruct);
     this.gainXp(3);
     this.addNotification(`${item.name} construído!`, 'success');
     return true;
+  }
+
+  /** Try to open/close a nearby storage chest */
+  toggleStorageChest(): boolean {
+    const px = this.state.player.x + PLAYER_SIZE / 2;
+    const py = this.state.player.y + PLAYER_SIZE / 2;
+
+    // If a chest is already open, close it
+    if (this.ui.activePanel === 'inventory' && this.state.activeStorageChestId) {
+      this.state.activeStorageChestId = null;
+      this.ui.activePanel = 'none';
+      return true;
+    }
+
+    // Find nearest chest structure
+    for (const chest of this.state.storageChests) {
+      const struct = this.state.structures.find(s => s.id === chest.structureId);
+      if (!struct) continue;
+      const dist = distance({ x: px, y: py }, { x: struct.x + TILE_SIZE / 2, y: struct.y + TILE_SIZE / 2 });
+      if (dist < INTERACT_RANGE) {
+        this.state.activeStorageChestId = chest.id;
+        this.ui.activePanel = 'inventory';
+        this.addNotification('📦 Baú aberto! Arraste itens para guardar.', 'info');
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Move items between player inventory and storage chest */
+  moveToStorage(inventoryIndex: number, chestId: string, count: number): boolean {
+    const chest = this.state.storageChests.find(c => c.id === chestId);
+    if (!chest) return false;
+
+    const invSlot = this.state.player.inventory[inventoryIndex];
+    if (!invSlot?.item) return false;
+
+    const moveCount = Math.min(count, invSlot.count);
+
+    // Find stack first
+    for (const chestSlot of chest.slots) {
+      if (chestSlot.item?.id === invSlot.item.id && chestSlot.count < (chestSlot.item.stackSize || 99)) {
+        const canAdd = Math.min(moveCount, (chestSlot.item.stackSize || 99) - chestSlot.count);
+        chestSlot.count += canAdd;
+        invSlot.count -= canAdd;
+        if (invSlot.count <= 0) {
+          invSlot.item = null;
+        }
+        if (canAdd >= moveCount) return true;
+        return this.moveToStorage(inventoryIndex, chestId, moveCount - canAdd);
+      }
+    }
+
+    // Find empty slot
+    for (const chestSlot of chest.slots) {
+      if (!chestSlot.item) {
+        chestSlot.item = invSlot.item;
+        chestSlot.count = moveCount;
+        invSlot.count -= moveCount;
+        if (invSlot.count <= 0) {
+          invSlot.item = null;
+        }
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Move items from storage chest to player inventory */
+  takeFromStorage(chestSlotIndex: number, chestId: string, count: number): boolean {
+    const chest = this.state.storageChests.find(c => c.id === chestId);
+    if (!chest) return false;
+
+    const slot = chest.slots[chestSlotIndex];
+    if (!slot?.item) return false;
+
+    const takeCount = Math.min(count, slot.count);
+    if (this.addToInventory(slot.item.id, takeCount)) {
+      slot.count -= takeCount;
+      if (slot.count <= 0) {
+        slot.item = null;
+      }
+      return true;
+    }
+    this.addNotification('Inventário cheio!', 'warning');
+    return false;
   }
 
   // ── Save/Load ─────────────────────────────────────────────────
@@ -2484,6 +2676,12 @@ export class Game {
     for (const enemy of drawEnemies) {
       if (!camera.isVisible(enemy.x, enemy.y, enemy.width, enemy.height)) continue;
       this.drawEnemy(enemy);
+    }
+
+    // 🛡️ Draw safe zone boundaries (visible circles on ground)
+    for (const zone of this.state.safeZones) {
+      if (!camera.isVisible(zone.centerX - zone.radius * TILE_SIZE, zone.centerY - zone.radius * TILE_SIZE, zone.radius * TILE_SIZE * 2, zone.radius * TILE_SIZE * 2)) continue;
+      this.drawSafeZone(zone);
     }
 
     // Draw farm plots
@@ -4106,6 +4304,49 @@ export class Game {
         ctx.fillStyle = '#666';
         ctx.fillRect(pos.x + 4, pos.y + 4, struct.width - 8, struct.height - 8);
         break;
+    }
+  }
+
+  /** Draw the safe zone boundary visual effect */
+  private drawSafeZone(zone: SafeZone): void {
+    const { ctx, camera } = this;
+    const pos = camera.worldToScreen(zone.centerX, zone.centerY);
+    const radius = zone.radius * TILE_SIZE * camera.zoom;
+
+    // Outer glow ring (pulsing)
+    const pulse = 0.85 + 0.15 * Math.sin(this.state.gameTime.totalTicks * 0.02);
+    const gradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, radius);
+    gradient.addColorStop(0, `rgba(100, 200, 255, ${0.05 * pulse})`);
+    gradient.addColorStop(0.5, `rgba(100, 200, 255, ${0.1 * pulse})`);
+    gradient.addColorStop(1, `rgba(100, 200, 255, 0)`);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Boundary ring
+    ctx.strokeStyle = `rgba(100, 200, 255, ${0.4 * pulse})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Corner markers at cardinal directions
+    const markers = [
+      { angle: 0, dx: 1, dy: 0 },
+      { angle: Math.PI / 2, dx: 0, dy: 1 },
+      { angle: Math.PI, dx: -1, dy: 0 },
+      { angle: Math.PI * 1.5, dx: 0, dy: -1 },
+    ];
+    ctx.fillStyle = `rgba(100, 200, 255, ${0.6 * pulse})`;
+    for (const m of markers) {
+      const mx = pos.x + Math.cos(m.angle) * radius;
+      const my = pos.y + Math.sin(m.angle) * radius;
+      ctx.beginPath();
+      ctx.arc(mx, my, 3, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 

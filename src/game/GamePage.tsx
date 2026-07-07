@@ -124,6 +124,11 @@ export default function GamePage() {
             <SavePanel game={game!} />
           )}
 
+          {/* Storage Chest Panel (opens when chest is nearby & inventory is open) */}
+          {uiState.activePanel === 'inventory' && game.state.activeStorageChestId && (
+            <StoragePanel game={game!} />
+          )}
+
           {/* Farming/Building Quick Bar */}
           <FarmingBar game={game!} />
 
@@ -2185,6 +2190,99 @@ function SavePanel({ game }: { game: Game }) {
 }
 
 // ── Farming Bar ──────────────────────────────────────────────────
+// ── Storage Panel ────────────────────────────────────────────────
+function StoragePanel({ game }: { game: Game }) {
+  const [, forceUpdate] = useState(0);
+  const refresh = () => forceUpdate(n => n + 1);
+  const chestId = game.state.activeStorageChestId;
+  const chestIdSafe = chestId || '';
+  const chest = chestIdSafe ? game.state.storageChests.find(c => c.id === chestIdSafe) : null;
+  if (!chest || !chestIdSafe) return null;
+
+  return (
+    <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 pointer-events-auto">
+      <div className="bg-gray-900/95 backdrop-blur-md rounded-2xl border border-amber-800/40 p-3 w-64 shadow-2xl shadow-black/60">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-white font-bold text-sm">🗄️ {chest.name}</h3>
+          <button
+            onClick={() => {
+              game.state.activeStorageChestId = null;
+              game.ui.activePanel = 'none';
+              refresh();
+            }}
+            className="text-white/40 hover:text-white text-sm"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="text-white/40 text-[10px] mb-2">
+          {chest.slots.filter(s => s.item).length}/{chest.maxSlots} slots usados
+        </div>
+        <div className="grid grid-cols-5 gap-1">
+          {chest.slots.map((slot, i) => (
+            <div
+              key={i}
+              onDoubleClick={() => {
+                if (slot.item) {                    game.takeFromStorage(i, chestIdSafe!, slot.count);
+                  refresh();
+                }
+              }}
+              className="w-10 h-10 rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-pointer hover:border-white/30 group"
+            >
+              {slot.item && (
+                <>
+                  <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>
+                    {slot.item.icon}
+                  </span>
+                  {slot.count > 1 && (
+                    <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>
+                  )}
+                  <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/20 rounded transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <span className="text-[8px] text-blue-300 font-bold">⇧</span>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="text-white/20 text-[9px] mt-2 text-center">Clique duplo para pegar do baú</div>
+        {/* Inventory items to move to chest */}
+        <div className="border-t border-white/10 mt-2 pt-2">
+          <div className="text-white/40 text-[10px] mb-1">Seu inventário:</div>
+          <div className="grid grid-cols-5 gap-1">
+            {game.state.player.inventory.slice(0, 15).map((slot, i) => (
+              <div
+                key={i}
+                onDoubleClick={() => {
+                  if (slot.item) {
+                    game.moveToStorage(i, chestIdSafe!, slot.count);
+                    refresh();
+                  }
+                }}
+                className="w-10 h-10 rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-pointer hover:border-green-400/50 group"
+              >
+                {slot.item && (
+                  <>
+                    <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>
+                      {slot.item.icon}
+                    </span>
+                    {slot.count > 1 && (
+                      <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>
+                    )}
+                    <div className="absolute inset-0 bg-green-500/0 group-hover:bg-green-500/20 rounded transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <span className="text-[8px] text-green-300 font-bold">⇩</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FarmingBar({ game }: { game: Game }) {
   const state = game.state;
 
