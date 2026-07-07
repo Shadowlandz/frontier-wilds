@@ -190,8 +190,8 @@ export class Game {
         facing: { x: 0, y: 1 },
         stats: {
           level: 1, xp: 0, xpToNext: 100,
-          hp: 100, hunger: 100, energy: 100,
-          maxHp: 100, maxHunger: 100, maxEnergy: 100,
+          hp: 100, hunger: 100,
+          maxHp: 100, maxHunger: 100,
           strength: 5, defense: 2, speed: PLAYER_SPEED,
           mining: 1, woodcutting: 1, farming: 1, fishing: 1,
           luck: 0, gold: 50, skillPoints: 0,
@@ -208,6 +208,8 @@ export class Game {
         currentTool: 0,
         stamina: 100,
         maxStamina: 100,
+        exhaustionTimer: 0,
+        isExhausted: false,
       },
       world: { seed, chunks: new Map(), resources: [], enemies: [], npcs: [], droppedItems: [] },
       quests: [],
@@ -669,12 +671,14 @@ export class Game {
       return;
     }
 
-    // Stamina cost
-    if (player.stats.energy < 3) {
-      this.addNotification('Sem energia para coletar!', 'warning');
+    // Stamina cost for gathering
+    if (this.state.player.stamina < 5) {
+      this.addNotification('Stamina insuficiente para coletar!', 'warning');
       return;
     }
-    player.stats.energy -= 3;
+    this.state.player.stamina -= 5;
+    // Additional hunger from gathering
+    this.state.player.stats.hunger = Math.max(0, this.state.player.stats.hunger - 0.012);
 
     // Calculate power
     let power = 1;
@@ -804,16 +808,19 @@ export class Game {
 
   private tryAttack(): void {
     const { player } = this.state;
-    if (player.attackTimer > 0 || player.stamina < 10) return;
+    const hungerState = this.getHungerState(player.stats.hunger, player.stats.maxHunger);
+    const stamMult = this.getStaminaCostMult();
+    const attackCost = Math.floor(8 * stamMult);
+    if (player.attackTimer > 0 || player.stamina < attackCost) return;
 
     const tool = this.getCurrentItem();
-    const damage = (tool?.damage ?? 3) + player.stats.strength;
+    const damage = Math.floor((tool?.damage ?? 3) * hungerState.damageMult) + player.stats.strength;
     const range = tool?.range ?? ATTACK_RANGE;
-    const speed = tool?.speed ?? 1;
+    const speed = (tool?.speed ?? 1) * hungerState.attackSpeedMult;
 
     player.isAttacking = true;
     player.attackTimer = 0.4 / speed;
-    player.stamina -= 10;
+    player.stamina -= attackCost;
 
     const px = player.x + PLAYER_SIZE / 2;
     const py = player.y + PLAYER_SIZE / 2;
@@ -981,9 +988,9 @@ export class Game {
             );
             break;
           case 'energy':
-            this.state.player.stats.energy = Math.min(
-              this.state.player.stats.maxEnergy,
-              this.state.player.stats.energy + effect.value
+            this.state.player.stamina = Math.min(
+              this.state.player.maxStamina,
+              this.state.player.stamina + effect.value
             );
             break;
           case 'xp':
@@ -1196,34 +1203,124 @@ export class Game {
   }
 
   // ── Survival & Time ─────────────────────────────────────────────
+
+  /** Hunger states with their effects */
+  private getHungerState(hunger: number, maxHunger: number): {
+    name: string; emoji: string;
+    staminaRegenMult: number;
+    speedMult: number;
+    damageMult: number;
+    attackSpeedMult: number;
+    canRun: boolean;
+  } {
+    const pct = hunger / maxHunger;
+    if (pct > 0.8) {
+      return { name: 'Saciado', emoji: '😀', staminaRegenMult: 1.05, speedMult: 1, damageMult: 1, attackSpeedMult: 1, canRun: true };
+    } else if (pct > 0.6) {
+      return { name: 'Normal', emoji: '🙂', staminaRegenMult: 1, speedMult: 1, damageMult: 1, attackSpeedMult: 1, canRun: true };
+    } else if (pct > 0.4) {
+      return { name: 'Leve Fome', emoji: '😐', staminaRegenMult: 0.9, speedMult: 1, damageMult: 1, attackSpeedMult: 1, canRun: true };
+    } else if (pct > 0.2) {
+      return { name: 'Com Fome', emoji: '😟', staminaRegenMult: 0.65, speedMult: 0.9, damageMult: 1, attackSpeedMult: 0.9, canRun: true };
+    } else if (pct > 0.1) {
+      return { name: 'Exausto', emoji: '😫', staminaRegenMult: 0.4, speedMult: 0.85, damageMult: 0.9, attackSpeedMult: 0.8, canRun: true };
+    } else {
+      return { name: 'Faminto', emoji: '☠️', staminaRegenMult: 0, speedMult: 0.7, damageMult: 0.7, attackSpeedMult: 0.6, canRun: false };
+    }
+  }
+
+  /** Get equipment stamina cost multiplier */
+  private getStaminaCostMult(): number {
+    let mult = 1;
+    const { equipment } = this.state.player;
+    // Heavy armor increases stamina cost
+    if (equipment.chest?.item?.id === 'iron_chest') mult += 0.15;
+    if (equipment.helmet?.item?.id === 'iron_helmet') mult += 0.1;
+    // Light boots reduce running cost (handled in movement)
+    if (equipment.boots?.item?.id === 'leather_boots') mult -= 0.05;
+    // Constitution skill reduces consumption
+    const constitutionLevel = this.state.skills['constitution'] || 0;
+    mult -= constitutionLevel * 0.02;
+    // Athletics reduces movement costs
+    return Math.max(0.5, mult);
+  }
+
+  /** Get hunger consumption multiplier based on skills and weather */
+  private getHungerRateMult(): number {
+    let mult = 1;
+    const survivalLevel = this.state.skills['survival'] || 0;
+    mult -= survivalLevel * 0.03;
+    // Weather effects
+    if (this.state.gameTime.weather === 'snow' || this.state.gameTime.weather === 'fog') {
+      mult *= 1.3; // Cold increases hunger
+    }
+    if (this.state.gameTime.weather === 'heavyRain') {
+      mult *= 1.15;
+    }
+    return Math.max(0.3, mult);
+  }
+
   private updateSurvival(dt: number): void {
-    const { stats } = this.state.player;
+    const { stats, hotbar } = this.state.player;
 
-    // Hunger decreases over time
-    const ironStomachLevel = this.state.skills['iron_stomach'] || 0;
-    const hungerRate = 0.8 - ironStomachLevel * 0.15;
-    stats.hunger -= hungerRate * dt;
+    // Base hunger consumption: 0.015 per second
+    const hungerMult = this.getHungerRateMult();
+    const baseDrain = 0.015 * hungerMult * dt;
 
+    // Additional hunger from movement
+    const move = this.input.getMovementVector();
+    const isMoving = move.x !== 0 || move.y !== 0;
+    const isRunning = isMoving && (this.input.isKeyDown('shift') || this.input.isKeyDown('control'));
+
+    let actionDrain = 0;
+    if (isRunning) actionDrain += 0.020 * dt;
+    else if (isMoving) actionDrain += 0.004 * dt;
+
+    // Near enemies or attacking adds drain
+    if (this.state.player.isAttacking) actionDrain += 0.010 * dt;
+
+    stats.hunger = Math.max(0, stats.hunger - baseDrain - actionDrain);
+
+    // At 0% hunger: lose 1 HP every 4 seconds (no rapid death)
     if (stats.hunger <= 0) {
       stats.hunger = 0;
-      stats.hp -= 2 * dt;
+      stats.hp -= 0.25 * dt; // 1 HP per 4 seconds
       if (stats.hp <= 0) this.playerDeath();
     }
   }
 
   private updateRegeneration(dt: number): void {
-    const { stats } = this.state.player;
+    const { stats, stamina, maxStamina } = this.state.player;
     const quickHealLevel = this.state.skills['quick_heal'] || 0;
 
-    // Regen HP when well-fed
-    if (stats.hunger > stats.maxHunger * 0.5) {
+    // HP regen only when well-fed AND rested
+    const hungerPct = stats.hunger / stats.maxHunger;
+    const staminaPct = stamina / maxStamina;
+    if (hungerPct > 0.8 && staminaPct > 0.7) {
       const regenRate = 1 + quickHealLevel * 0.5;
       stats.hp = Math.min(stats.maxHp, stats.hp + regenRate * dt);
     }
 
-    // Energy regen
-    const secondWindLevel = this.state.skills['second_wind'] || 0;
-    stats.energy = Math.min(stats.maxEnergy, stats.energy + (5 + secondWindLevel * 2) * dt);
+    // Stamina regen: 12/s when standing still or walking (not attacking)
+    // Modified by hunger state
+    const { isAttacking } = this.state.player;
+    if (!isAttacking && !this.state.player.isExhausted) {
+      const hungerState = this.getHungerState(stats.hunger, stats.maxHunger);
+      const move = this.input.getMovementVector();
+      const isMoving = move.x !== 0 || move.y !== 0;
+      const isRunning = isMoving && (this.input.isKeyDown('shift') || this.input.isKeyDown('control'));
+
+      // Full regen only when standing still or walking
+      if (!isRunning) {
+        const baseRegen = 12;
+        const vigorLevel = this.state.skills['vigor'] || 0;
+        const vigorBonus = 1 + vigorLevel * 0.03;
+        this.state.player.stamina = Math.min(
+          maxStamina,
+          stamina + baseRegen * hungerState.staminaRegenMult * vigorBonus * dt
+        );
+      }
+    }
   }
 
   private updateTime(dt: number): void {
@@ -1744,8 +1841,10 @@ export class Game {
     stats.xpToNext = Math.floor(100 * Math.pow(1.15, stats.level - 1));
     stats.maxHp += 10;
     stats.hp = stats.maxHp;
-    stats.maxEnergy += 5;
-    stats.energy = stats.maxEnergy;
+    // Vigor skill adds max stamina; base gain at level up
+    const vigorLevel = this.state.skills['vigor'] || 0;
+    this.state.player.maxStamina += 8 + vigorLevel * 2;
+    this.state.player.stamina = Math.min(this.state.player.stamina + 20, this.state.player.maxStamina);
     stats.strength += 1;
     stats.defense += 1;
     stats.skillPoints += 2;

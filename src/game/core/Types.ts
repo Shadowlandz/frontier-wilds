@@ -223,6 +223,7 @@ export interface ItemDefinition {
   placeable?: boolean;
   foodValue?: number;
   healAmount?: number;
+  foodQuality?: 'fresh' | 'normal' | 'old' | 'spoiled';
 }
 
 export interface ItemEffect {
@@ -234,7 +235,7 @@ export interface ItemEffect {
 export interface PlayerAttributes {
   maxHp: number;
   maxHunger: number;
-  maxEnergy: number;
+  maxStamina: number;
   strength: number;
   defense: number;
   speed: number;
@@ -251,10 +252,8 @@ export interface PlayerStats {
   xpToNext: number;
   hp: number;
   hunger: number;
-  energy: number;
   maxHp: number;
   maxHunger: number;
-  maxEnergy: number;
   strength: number;
   defense: number;
   speed: number;
@@ -430,6 +429,8 @@ export interface PlayerState {
   currentTool: number;
   stamina: number;
   maxStamina: number;
+  exhaustionTimer: number;
+  isExhausted: boolean;
 }
 
 export interface WorldState {
