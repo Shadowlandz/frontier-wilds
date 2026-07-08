@@ -27,6 +27,7 @@ import { NPCS } from './data/Npcs';
 import { getQuestById } from './data/Quests';
 import { SKILLS } from './data/Skills';
 import { saveGame, loadGame, loadAutoSave, autoSave } from './systems/SaveSystem';
+import { AudioEngine } from './core/AudioEngine';
 
 type GameUpdateCallback = (state: GameState, ui: GameUIState) => void;
 
@@ -96,9 +97,13 @@ export class Game {
     cave_entrance: { w: 32, h: 32, hp: 99999 },
   };
 
+  /** Procedural audio engine */
+  audio: AudioEngine;
+
   constructor() {
     this.input = new Input();
     this.camera = new Camera();
+    this.audio = new AudioEngine();
     this.ui = {
       activePanel: 'none',
       activeShopNpc: null,
@@ -245,6 +250,7 @@ export class Game {
     this.addToInventory('torch', 5);
 
     this.addNotification('Bem-vindo ao Farm Survival! Use WASD para mover.', 'info');
+    this.addNotification('🔊 Pressione M no menu de saves para mutar sons.', 'info');
     this.addNotification('Colete recursos, faça craft e sobreviva!', 'info');
 
     // Auto-accept tutorial quest
@@ -369,22 +375,34 @@ export class Game {
 
     // I for inventory
     if (input.isKeyPressed('i') || input.isKeyPressed('tab')) {
+      const opening_inv = this.ui.activePanel !== 'inventory';
       this.ui.activePanel = this.ui.activePanel === 'inventory' ? 'none' : 'inventory';
+      if (opening_inv && this.ui.activePanel === 'inventory') this.audio.playUIOpen();
+      else if (!opening_inv) this.audio.playUIClose();
     }
 
     // C for crafting
     if (input.isKeyPressed('c')) {
+      const opening_craft = this.ui.activePanel !== 'crafting';
       this.ui.activePanel = this.ui.activePanel === 'crafting' ? 'none' : 'crafting';
+      if (opening_craft && this.ui.activePanel === 'crafting') this.audio.playUIOpen();
+      else if (!opening_craft) this.audio.playUIClose();
     }
 
     // K for skills
     if (input.isKeyPressed('k')) {
+      const opening_skill = this.ui.activePanel !== 'skills';
       this.ui.activePanel = this.ui.activePanel === 'skills' ? 'none' : 'skills';
+      if (opening_skill && this.ui.activePanel === 'skills') this.audio.playUIOpen();
+      else if (!opening_skill) this.audio.playUIClose();
     }
 
     // J for quests
     if (input.isKeyPressed('j')) {
+      const opening_quest = this.ui.activePanel !== 'quests';
       this.ui.activePanel = this.ui.activePanel === 'quests' ? 'none' : 'quests';
+      if (opening_quest && this.ui.activePanel === 'quests') this.audio.playUIOpen();
+      else if (!opening_quest) this.audio.playUIClose();
     }
 
     // M for map
@@ -448,6 +466,17 @@ export class Game {
     const dy = move.y * speed * dt;
 
     if (dx !== 0 || dy !== 0) {
+      // Determine surface for footsteps
+      const footX = Math.floor((player.x + PLAYER_SIZE / 2) / TILE_SIZE);
+      const footY = Math.floor((player.y + PLAYER_SIZE / 2) / TILE_SIZE);
+      const worldTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : WORLD_WIDTH;
+      const worldTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : WORLD_HEIGHT;
+      const tileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.tileMap;
+            const footTile = (footY >= 0 && footY < worldTileH && footX >= 0 && footX < worldTileW)
+        ? tileMap[footY][footX]
+        : 0;
+      const isRunning = (this.input.isKeyDown('shift') || this.input.isKeyDown('control'));
+      this.audio.updateFootsteps(true, isRunning, this.getSurfaceName(footTile), dt);
       const newX = player.x + dx;
       const newY = player.y + dy;
 
@@ -463,9 +492,6 @@ export class Game {
       const tileX = Math.floor((newX + PLAYER_SIZE / 2) / TILE_SIZE);
       const tileY = Math.floor((newY + PLAYER_SIZE / 2) / TILE_SIZE);
 
-      const worldTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : WORLD_WIDTH;
-      const worldTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : WORLD_HEIGHT;
-      const tileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.tileMap;
 
       if (tileX >= 0 && tileX < worldTileW && tileY >= 0 && tileY < worldTileH) {
         const tile = tileMap[tileY]?.[tileX];
@@ -676,10 +702,12 @@ export class Game {
     const isOre = res.type.includes('rock') || res.type.includes('crystal');
 
     if (isVegetation && tool?.toolType !== 'axe' && tool?.toolType !== 'sword' && tool?.toolType !== 'scythe') {
+      this.audio.playError();
       this.addNotification('Use um machado para cortar!', 'warning');
       return;
     }
     if (isOre && tool?.toolType !== 'pickaxe' && tool?.toolType !== 'hammer') {
+      this.audio.playError();
       this.addNotification('Use uma picareta para minerar!', 'warning');
       return;
     }
@@ -715,6 +743,13 @@ export class Game {
     // Apply damage with shake
     res.hp -= power;
     res.shakeTimer = 0.15;
+
+    // Play gather sound
+    if (isOre) {
+      this.audio.playMineStone();
+    } else if (isVegetation) {
+      this.audio.playChopWood();
+    }
 
     // Particles based on resource type
     const particleColor = this.resourceColors[res.type] || '#8B4513';
@@ -763,7 +798,8 @@ export class Game {
     if (res.hp <= 0) {
       const gathered = this.addToInventory(res.itemId, count);
       if (!gathered) {
-        this.addNotification('Inventário cheio!', 'warning');
+        this.audio.playError();
+    this.addNotification('Inventário cheio!', 'warning');
         res.hp = 1; // Reset so they can try later
         return;
       }
@@ -831,6 +867,8 @@ export class Game {
     const range = tool?.range ?? ATTACK_RANGE;
     const speed = (tool?.speed ?? 1) * hungerState.attackSpeedMult;
 
+    // Play swing sound based on weapon type
+    this.audio.playSwing(tool?.toolType || 'sword');
     player.isAttacking = true;
     player.attackTimer = 0.4 / speed;
     player.stamina -= attackCost;
@@ -865,6 +903,7 @@ export class Game {
         speed: projectileSpeed,
       });
 
+      this.audio.playArrowShot();
       this.spawnParticles(px + player.facing.x * 20, py + player.facing.y * 20, '#8B4513', 2);
       return;
     }
@@ -896,6 +935,12 @@ export class Game {
           finalDamage = Math.floor(finalDamage * (1 + berserkerLevel * 0.15));
         }
 
+        // Play hit sound
+        if (crit) {
+          this.audio.playCriticalHit();
+        } else {
+          this.audio.playHit();
+        }
         const mitigated = Math.max(1, finalDamage - enemy.definition.defense);
         enemy.hp -= mitigated;
         enemy.state = 'hurt';
@@ -958,6 +1003,8 @@ export class Game {
     enemy.state = 'dead';
     enemy.deathTimer = 0.5;
 
+    // Death sound
+    this.audio.playEnemyDeath(enemy.definition.type);
     // XP reward
     this.gainXp(enemy.definition.xpReward);
 
@@ -1017,7 +1064,8 @@ export class Game {
       if (slot.count <= 0) {
         this.state.player.hotbar[this.state.player.currentTool] = { item: null, count: 0 };
       }
-      this.addNotification(`Usou ${item.name}`, 'item');
+      this.audio.playUseItem();
+    this.addNotification(`Usou ${item.name}`, 'item');
     }
   }
 
@@ -1195,6 +1243,7 @@ export class Game {
     player.stats.hp -= damage;
     player.invincibleTimer = 0.5;
 
+    this.audio.playPlayerHurt();
     this.damageNumbers.push({
       x: player.x + PLAYER_SIZE / 2,
       y: player.y - 10,
@@ -1224,6 +1273,7 @@ export class Game {
       this.exitCave();
     }
 
+    this.audio.playPlayerDeath();
     // Respawn at village center
     const cx = (WORLD_WIDTH * TILE_SIZE) / 2;
     const cy = (WORLD_HEIGHT * TILE_SIZE) / 2;
@@ -1553,7 +1603,8 @@ export class Game {
         slot.affixes = affixes;
         count -= slot.count;
         if (count <= 0) {
-          if (affixedName) this.addNotification(`✨ Pegou ${affixedName}`, 'item');
+          this.audio.playPickup();
+      if (affixedName) this.addNotification(`✨ Pegou ${affixedName}`, 'item');
           return true;
         }
       }
@@ -1621,6 +1672,7 @@ export class Game {
       const stationItemId = recipe.station === 'furnace' ? 'furnace' : recipe.station;
       if (!this.isNearbyStructure(stationItemId, 3)) {
         const stationName = recipe.station.charAt(0).toUpperCase() + recipe.station.slice(1);
+        this.audio.playCraftFail();
         this.addNotification("Precisa estar perto de uma " + stationName + "!", 'warning');
         return false;
       }
@@ -1637,6 +1689,7 @@ export class Game {
     // XP for crafting
     this.gainXp(5 + recipe.requiredLevel * 2);
 
+    this.audio.playCraft();
     this.addNotification(`Craftou ${recipe.name}!`, 'success');
     this.updateQuestProgress('craft', recipe.result);
 
@@ -1972,6 +2025,7 @@ export class Game {
       plantedAt: 0,
     });
 
+    this.audio.playTillSoil();
     this.addNotification('Solo preparado para plantio!', 'success');
     this.state.player.stats.farming += 0.1;
     return true;
@@ -1995,6 +2049,7 @@ export class Game {
     plot.watered = false;
     plot.plantedAt = this.state.gameTime.totalTicks;
 
+    this.audio.playPlantSeed();
     this.addNotification('Semente plantada!', 'success');
     return true;
   }
@@ -2041,6 +2096,7 @@ export class Game {
     this.gainXp(10 + Math.floor(this.state.player.stats.farming * 2));
     this.updateQuestProgress('farm', cropId);
 
+    this.audio.playHarvest();
     this.addNotification(`+${harvestCount} ${getItem(cropId)?.name || cropId} colhido!`, 'item');
 
     // Reset plot
@@ -2317,6 +2373,7 @@ export class Game {
 
     this.state.structures.push(newStruct);
     this.gainXp(3);
+    this.audio.playBuild();
     this.addNotification(`${item.name} construído!`, 'success');
     return true;
   }
@@ -2473,6 +2530,24 @@ export class Game {
         color,
         size: 2 + Math.random() * 3,
       });
+    }
+  }
+
+  /** Get surface name for footstep audio based on tile type */
+  private getSurfaceName(tile: number): string {
+    if (this.inCave) return 'stone';
+    switch (tile) {
+      case 0: return 'grass';      // Grass
+      case 1: return 'dirt';       // Dirt
+      case 2: return 'sand';       // Sand
+      case 3: case 4: return 'water';  // Water
+      case 5: return 'stone';      // Stone
+      case 6: return 'grass';      // Snow (footstep on grass for simplicity)
+      case 7: return 'water';      // SwampWater
+      case 8: return 'stone';      // Path
+      case 9: return 'stone';      // Wall
+      case 10: return 'wood';      // Floor
+      default: return 'grass';
     }
   }
 
