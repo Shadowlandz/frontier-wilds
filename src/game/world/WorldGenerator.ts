@@ -14,22 +14,22 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.Grass]: '#4a7c3f',
   [TileType.Dirt]: '#8d6e4a',
   [TileType.Sand]: '#e8d68e',
-  [TileType.Water]: '#4a90c2',
-  [TileType.DeepWater]: '#2c5f8a',
-  [TileType.Stone]: '#8a8a8a',
+  [TileType.Water]: '#3a90c8',
+  [TileType.DeepWater]: '#1a4f7a',
+  [TileType.Stone]: '#7a7a7a',
   [TileType.Snow]: '#e8ecf0',
-  [TileType.SwampWater]: '#5a7a3a',
+  [TileType.SwampWater]: '#4a7a2a',
   [TileType.Path]: '#b09a7a',
   [TileType.Wall]: '#5a5a5a',
   [TileType.Floor]: '#a08060',
-  [TileType.CaveFloor]: '#4a4a4a',
-  [TileType.CaveWall]: '#2a2a2a',
-  [TileType.Lava]: '#d44400',
+  [TileType.CaveFloor]: '#3a3a3a',
+  [TileType.CaveWall]: '#1a1a2a',
+  [TileType.Lava]: '#e44400',
 };
 
 // ── Biome Map Colors (for terrain variation) ──────────────────────
 const BIOME_GRASS_COLORS: Record<Biome, string> = {
-  [Biome.Forest]: '#3d6b34',
+  [Biome.Forest]: '#3a7a2a',
   [Biome.Plains]: '#5a9a4a',
   [Biome.Mountains]: '#6a7a6a',
   [Biome.Swamp]: '#4a6a2a',
@@ -38,8 +38,8 @@ const BIOME_GRASS_COLORS: Record<Biome, string> = {
   [Biome.Cave]: '#3a3a3a',
   [Biome.Ruins]: '#7a6a5a',
   [Biome.Village]: '#6a9a5a',
-  [Biome.Lake]: '#3a8ab0',
-  [Biome.River]: '#4a90c2',
+  [Biome.Lake]: '#2a7aa8',
+  [Biome.River]: '#3a88b8',
 };
 
 // ── Decorative Element Types ──────────────────────────────────────

@@ -3723,6 +3723,16 @@ export class Game {
     }
 
     ctx.globalAlpha = 1;
+
+
+    // ── Draw enemy emoji icon above the body ──
+    if (enemy.state !== 'dead') {
+      const iconY = by - h / 2 - 14 + bob;
+      ctx.font = '14px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(enemy.definition.icon, cx, iconY);
+      ctx.textAlign = 'left';
+    }
   }
 
   private drawPlayer(): void {

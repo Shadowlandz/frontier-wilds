@@ -10,7 +10,7 @@ export const SKILLS: Record<string, SkillDefinition> = {
     id: 'tough_skin', name: 'Pele Dura', description: 'Aumenta HP máximo.',
     tree: SkillTree.Survival, maxLevel: 5, cost: 1,
     effect: (l) => ({ maxHp: l * 10 }),
-    icon: '🛡️',
+    icon: '💪',
   },
   iron_stomach: {
     id: 'iron_stomach', name: 'Estômago de Ferro', description: 'Reduz perda de fome.',
@@ -66,7 +66,7 @@ export const SKILLS: Record<string, SkillDefinition> = {
     id: 'berserker', name: 'Berserker', description: 'Mais dano quando com pouca vida.',
     tree: SkillTree.Combat, maxLevel: 3, cost: 3,
     effect: () => ({}),
-    icon: '😡',
+    icon: '💢',
   },
 
   // ── Gathering Tree ────────────────────────────────────────────
