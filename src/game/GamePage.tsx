@@ -1460,6 +1460,8 @@ function InventoryPanel({ game }: { game: Game }) {
 // ── Crafting Panel ────────────────────────────────────────────────
 function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) {
   const [, forceUpdate] = useState(0);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const refresh = () => forceUpdate(n => n + 1);
   const state = game.state;
 
@@ -1509,6 +1511,14 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
               className={`flex items-center gap-2 p-2 rounded border ${
                 canCraft ? 'border-green-500/50 bg-green-900/20 hover:bg-green-800/30' : 'border-white/10 bg-white/5'
               }`}
+              onMouseEnter={(e) => {
+                if (resultItem) {
+                  setHoveredItem(recipe.result);
+                  setTooltipPos({ x: e.clientX, y: e.clientY });
+                }
+              }}
+              onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+              onMouseLeave={() => setHoveredItem(null)}
             >
               <span className="text-xl">{resultItem?.icon}</span>
               <div className="flex-1 min-w-0">
@@ -1524,9 +1534,26 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
                     );
                   })}
                 </div>
-                {recipe.requiredLevel > 1 && (
-                  <div className="text-yellow-400/60 text-[9px]">Nv.{recipe.requiredLevel}</div>
-                )}
+                <div className="flex flex-wrap gap-x-2 text-[9px] mt-0.5">
+                  {recipe.requiredLevel > 1 && (
+                    <span className="text-yellow-400/60">Nv.{recipe.requiredLevel}</span>
+                  )}
+                  {resultItem?.damage && (
+                    <span className="text-red-400/60">⚔️ {resultItem.damage}</span>
+                  )}
+                  {resultItem?.defense && (
+                    <span className="text-blue-400/60">🛡️ {resultItem.defense}</span>
+                  )}
+                  {resultItem?.healAmount && (
+                    <span className="text-green-400/60">❤️ +{resultItem.healAmount}</span>
+                  )}
+                  {resultItem?.foodValue && (
+                    <span className="text-orange-400/60">🍖 +{resultItem.foodValue}</span>
+                  )}
+                  {resultItem?.maxDurability && (
+                    <span className="text-white/40">🔧 {resultItem.maxDurability}</span>
+                  )}
+                </div>
                 {recipe.station && (
                   <div className="text-cyan-400/60 text-[9px]">
                     🏗️ Requer {(recipe.station === 'furnace' ? 'Fornalha' : recipe.station === 'workbench' ? 'Bancada de Trabalho' : recipe.station)}
@@ -1546,6 +1573,19 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
           );
         })}
       </div>
+
+      {/* Crafting Tooltip */}
+      {hoveredItem && (() => {
+        const item = getItem(hoveredItem);
+        if (!item) return null;
+        return (
+          <ItemTooltip
+            item={item}
+            position={tooltipPos}
+            playerStats={state.player.stats}
+          />
+        );
+      })()}
     </Panel>
   );
 }

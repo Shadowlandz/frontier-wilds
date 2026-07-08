@@ -4514,8 +4514,9 @@ export class Game {
 
   // ── Get valid equipment slot for an item ─────────────────────────
   getValidEquipSlot(item: ItemDefinition): string | null {
+    // Weapons: sword, bow → equipment 'weapon' slot
     if (item.toolType === 'sword' || item.toolType === 'bow') return 'weapon';
-    if (item.toolType) return 'tool';
+    // Tools (axe, pickaxe, etc.) → go to hotbar on double-click, not equipment
     if (item.armorSlot) return item.armorSlot;
     return null;
   }

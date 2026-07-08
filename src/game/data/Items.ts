@@ -15,13 +15,13 @@ export const ITEMS: Record<string, ItemDefinition> = {
   stone_axe: {
     id: 'stone_axe', name: 'Machado de Pedra', description: 'Um machado resistente de pedra.',
     category: ItemCategory.Tool, rarity: Rarity.Common, stackSize: 1, weight: 3, value: 25,
-    icon: '🪓', toolType: ToolType.Axe, damage: 8, durability: 200, maxDurability: 200,
+    icon: '⛏️', toolType: ToolType.Axe, damage: 8, durability: 200, maxDurability: 200,
     speed: 1.1, range: 34, miningPower: 1, choppingPower: 5,
   },
   iron_axe: {
     id: 'iron_axe', name: 'Machado de Ferro', description: 'Um machado forte de ferro.',
     category: ItemCategory.Tool, rarity: Rarity.Uncommon, stackSize: 1, weight: 3, value: 60,
-    icon: '🪓', toolType: ToolType.Axe, damage: 12, durability: 400, maxDurability: 400,
+    icon: '⛏️', toolType: ToolType.Axe, damage: 12, durability: 400, maxDurability: 400,
     speed: 1.2, range: 36, miningPower: 2, choppingPower: 8,
   },
   wood_pickaxe: {
@@ -45,13 +45,13 @@ export const ITEMS: Record<string, ItemDefinition> = {
   wood_sword: {
     id: 'wood_sword', name: 'Espada de Madeira', description: 'Uma espada básica.',
     category: ItemCategory.Weapon, rarity: Rarity.Common, stackSize: 1, weight: 2, value: 15,
-    icon: '⚔️', toolType: ToolType.Sword, damage: 8, durability: 80, maxDurability: 80,
+    icon: '🗡️', toolType: ToolType.Sword, damage: 8, durability: 80, maxDurability: 80,
     speed: 1.3, range: 36,
   },
   stone_sword: {
     id: 'stone_sword', name: 'Espada de Pedra', description: 'Uma espada resistente.',
     category: ItemCategory.Weapon, rarity: Rarity.Common, stackSize: 1, weight: 3, value: 35,
-    icon: '⚔️', toolType: ToolType.Sword, damage: 12, durability: 160, maxDurability: 160,
+    icon: '🗡️', toolType: ToolType.Sword, damage: 12, durability: 160, maxDurability: 160,
     speed: 1.2, range: 38,
   },
   iron_sword: {
@@ -181,7 +181,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   iron_ore: {
     id: 'iron_ore', name: 'Minério de Ferro', description: 'Minério para forjar equipamentos.',
     category: ItemCategory.Material, rarity: Rarity.Uncommon, stackSize: 99, weight: 3, value: 8,
-    icon: '🪨',
+    icon: '⛰️',
   },
   gold_ore: {
     id: 'gold_ore', name: 'Minério de Ouro', description: 'Minério valioso e raro.',
@@ -191,7 +191,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   coal: {
     id: 'coal', name: 'Carvão', description: 'Usado como combustível e em crafting.',
     category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 99, weight: 1, value: 3,
-    icon: '⬛',
+    icon: '🖤',
   },
   crystal: {
     id: 'crystal', name: 'Cristal', description: 'Cristal brilhante e mágico.',
@@ -206,7 +206,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   leather: {
     id: 'leather', name: 'Couro', description: 'Couro de animais para armaduras.',
     category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 50, weight: 1, value: 5,
-    icon: '🟫',
+    icon: '🟤',
   },
   bone: {
     id: 'bone', name: 'Osso', description: 'Ossos de criaturas para crafting.',
@@ -221,12 +221,12 @@ export const ITEMS: Record<string, ItemDefinition> = {
   gold_ingot: {
     id: 'gold_ingot', name: 'Barra de Ouro', description: 'Barra de ouro reluzente.',
     category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 99, weight: 4, value: 50,
-    icon: '🟡',
+    icon: '🥇',
   },
   clay: {
     id: 'clay', name: 'Argila', description: 'Argila moldável para cerâmicas.',
     category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 99, weight: 1, value: 3,
-    icon: '🟤',
+    icon: '🏺',
   },
   gem_ruby: {
     id: 'gem_ruby', name: 'Rubi', description: 'Uma gema vermelha preciosa.',
@@ -256,7 +256,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   dark_essence: {
     id: 'dark_essence', name: 'Essência Sombria', description: 'Essência de criaturas das trevas.',
     category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 30, weight: 0.5, value: 30,
-    icon: '🟣',
+    icon: '💜',
   },
 
   // ── Consumables ───────────────────────────────────────────────
@@ -320,27 +320,27 @@ export const ITEMS: Record<string, ItemDefinition> = {
   wheat_seed: {
     id: 'wheat_seed', name: 'Semente de Trigo', description: 'Plante para cultivar trigo.',
     category: ItemCategory.Seed, rarity: Rarity.Common, stackSize: 50, weight: 0.1, value: 2,
-    icon: '🌱',
+    icon: '🌾',
   },
   carrot_seed: {
     id: 'carrot_seed', name: 'Semente de Cenoura', description: 'Plante para cultivar cenouras.',
     category: ItemCategory.Seed, rarity: Rarity.Common, stackSize: 50, weight: 0.1, value: 3,
-    icon: '🌱',
+    icon: '🥕',
   },
   potato_seed: {
     id: 'potato_seed', name: 'Semente de Batata', description: 'Plante para cultivar batatas.',
     category: ItemCategory.Seed, rarity: Rarity.Common, stackSize: 50, weight: 0.1, value: 3,
-    icon: '🌱',
+    icon: '🥔',
   },
   berry_seed: {
     id: 'berry_seed', name: 'Semente de Framboesa', description: 'Plante para cultivar frutas.',
     category: ItemCategory.Seed, rarity: Rarity.Uncommon, stackSize: 50, weight: 0.1, value: 5,
-    icon: '🌱',
+    icon: '🫐',
   },
   pumpkin_seed: {
     id: 'pumpkin_seed', name: 'Semente de Abóbora', description: 'Plante para cultivar abóboras.',
     category: ItemCategory.Seed, rarity: Rarity.Uncommon, stackSize: 30, weight: 0.1, value: 8,
-    icon: '🌱',
+    icon: '🎃',
   },
 
   // ── Crops ─────────────────────────────────────────────────────
@@ -374,7 +374,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   workbench: {
     id: 'workbench', name: 'Bancada de Trabalho', description: 'Bancada para crafting avançado.',
     category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 5, weight: 5, value: 30,
-    icon: '🪑', placeable: true,
+    icon: '🔧', placeable: true,
   },
   furnace: {
     id: 'furnace', name: 'Fornalha', description: 'Forja minérios em barras.',
@@ -389,7 +389,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   fence: {
     id: 'fence', name: 'Cerca', description: 'Cerca para delimitar áreas.',
     category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 50, weight: 1, value: 3,
-    icon: '🏗️', placeable: true,
+    icon: '🚧', placeable: true,
   },
   torch_item: {
     id: 'torch_item', name: 'Tocha (Decoração)', description: 'Ilumina a área ao colocar.',
@@ -399,7 +399,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   house: {
     id: 'house', name: 'Casa', description: 'Uma casa aconchegante. Cria uma área segura contra inimigos.',
     category: ItemCategory.Furniture, rarity: Rarity.Uncommon, stackSize: 1, weight: 20, value: 200,
-    icon: '🏡', placeable: true,
+    icon: '🏠', placeable: true,
   },
   storage_chest: {
     id: 'storage_chest', name: 'Baú Reforçado', description: 'Baú grande para armazenar itens extras. 30 slots.',
@@ -419,7 +419,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   workbench_advanced: {
     id: 'workbench_advanced', name: 'Bancada Avançada', description: 'Bancada de trabalho melhorada com mais receitas.',
     category: ItemCategory.Furniture, rarity: Rarity.Uncommon, stackSize: 1, weight: 8, value: 80,
-    icon: '🪵', placeable: true,
+    icon: '⚙️', placeable: true,
   },
   campfire: {
     id: 'campfire', name: 'Fogueira', description: 'Fogueira para cozinhar e se aquecer à noite.',
@@ -458,7 +458,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   steel_axe: {
     id: 'steel_axe', name: 'Machado de Aço', description: 'Um machado de aço super resistente.',
     category: ItemCategory.Tool, rarity: Rarity.Uncommon, stackSize: 1, weight: 4, value: 120,
-    icon: '🪓', toolType: ToolType.Axe, damage: 16, durability: 700, maxDurability: 700,
+    icon: '⛏️', toolType: ToolType.Axe, damage: 16, durability: 700, maxDurability: 700,
     speed: 1.3, range: 36, miningPower: 3, choppingPower: 14,
   },
   long_bow: {
@@ -540,7 +540,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   troll_skin: {
     id: 'troll_skin', name: 'Pele de Troll', description: 'Pele grossa e resistente de troll.',
     category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 20, weight: 2, value: 40,
-    icon: '🟤',
+    icon: '🧌',
   },
 
   // ── Upgradeable Crafted Items ─────────────────────────────────
@@ -559,7 +559,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   mithril_axe: {
     id: 'mithril_axe', name: 'Machado de Mitril', description: 'Machado lendário de mitril.',
     category: ItemCategory.Tool, rarity: Rarity.Epic, stackSize: 1, weight: 3, value: 500,
-    icon: '🪓', toolType: ToolType.Axe, damage: 22, durability: 1200, maxDurability: 1200,
+    icon: '⛏️', toolType: ToolType.Axe, damage: 22, durability: 1200, maxDurability: 1200,
     speed: 1.4, range: 38, miningPower: 5, choppingPower: 22,
   },
 
