@@ -161,7 +161,8 @@ export class Game {
         x: e.x, y: e.y,
         width: def.size, height: def.size,
         definition: def,
-        hp: def.hp, maxHp: def.hp,
+        hp: Math.floor(def.hp * (1 + (this.state.player.stats.level - 1) * 0.02)),
+        maxHp: Math.floor(def.hp * (1 + (this.state.player.stats.level - 1) * 0.02)),
         state: 'idle' as const,
         direction: { x: 0, y: 0 },
         targetId: null,
@@ -1151,13 +1152,17 @@ export class Game {
       }
 
       // AI behavior
-      if (distToPlayer < enemy.definition.aggroRange) {
+      // Night bonus: enemies are more aggressive at night (50% larger aggro range)
+      const nightBonus = (this.state.gameTime.isNight && !this.inCave) ? 1.5 : 1.0;
+      if (distToPlayer < enemy.definition.aggroRange * nightBonus) {
         enemy.state = 'chase';
         enemy.targetId = 'player';
 
         // Move toward player
         const dir = normalize(sub(playerPos, { x: ex, y: ey }));
-        const speed = enemy.definition.speed;
+        // Level-based speed bonus: stronger enemies chase faster
+        const levelSpeedMult = 1 + Math.max(0, enemy.definition.level - 3) * 0.03;
+        const speed = enemy.definition.speed * levelSpeedMult;
 
         const newX = enemy.x + dir.x * speed * dt;
         const newY = enemy.y + dir.y * speed * dt;
@@ -1239,7 +1244,10 @@ export class Game {
     const { player } = this.state;
     if (player.invincibleTimer > 0) return;
 
-    const damage = Math.max(1, enemy.definition.damage - player.stats.defense);
+    // Enemy damage scales slightly with their level vs player level
+    const levelDiff = Math.max(0, enemy.definition.level - player.stats.level);
+    const levelBonus = 1 + levelDiff * 0.05;
+    const damage = Math.max(1, Math.floor((enemy.definition.damage - player.stats.defense * 0.5) * levelBonus));
     player.stats.hp -= damage;
     player.invincibleTimer = 0.5;
 

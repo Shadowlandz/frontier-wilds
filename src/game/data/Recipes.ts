@@ -173,7 +173,7 @@ export const RECIPES: CraftingRecipe[] = [
   {
     id: 'craft_ring_of_power', name: 'Anel do Poder', category: ItemCategory.Ring,
     result: 'ring_of_power', resultCount: 1,
-    ingredients: [{ itemId: 'gold_ingot', count: 5 }, { itemId: 'ruby', count: 1 }],
+    ingredients: [{ itemId: 'gold_ingot', count: 5 }, { itemId: 'gem_ruby', count: 1 }],
     requiredLevel: 8, craftTime: 5000, station: 'furnace',
   },
   {
@@ -366,6 +366,14 @@ export const RECIPES: CraftingRecipe[] = [
     requiredLevel: 8, craftTime: 4000, station: 'furnace',
   },
 
+  // ── Advanced Materials ──────────────────────────────────────
+  {
+    id: 'craft_enchanted_wood', name: 'Madeira Encantada', category: ItemCategory.Material,
+    result: 'enchanted_wood', resultCount: 1,
+    ingredients: [{ itemId: 'wood', count: 10 }, { itemId: 'magic_dust', count: 2 }, { itemId: 'crystal', count: 1 }],
+    requiredLevel: 6, craftTime: 4000, station: 'workbench',
+  },
+
   // ── Cave Ore Smelting ─────────────────────────────────────────
   {
     id: 'smelt_mithril', name: 'Barra de Mitril', category: ItemCategory.Material,
@@ -384,6 +392,13 @@ export const RECIPES: CraftingRecipe[] = [
     result: 'forge_core', resultCount: 1,
     ingredients: [{ itemId: 'crystal', count: 3 }, { itemId: 'mithril_ore', count: 2 }, { itemId: 'lava_crystal', count: 1 }],
     requiredLevel: 10, craftTime: 6000, station: 'furnace',
+  },
+
+  {
+    id: 'craft_magic_dust', name: 'Pó Mágico', category: ItemCategory.Material,
+    result: 'magic_dust', resultCount: 2,
+    ingredients: [{ itemId: 'crystal', count: 1 }, { itemId: 'slime_gel', count: 3 }],
+    requiredLevel: 5, craftTime: 2000, station: 'workbench',
   },
 
   // ── Mithril Equipment ─────────────────────────────────────────

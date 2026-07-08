@@ -22,8 +22,8 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
     biomes: [Biome.Forest, Biome.Mountains],
     loot: [
       { itemId: 'leather', chance: 0.6, minCount: 1, maxCount: 2 },
-      { itemId: 'bone', chance: 0.4, minCount: 1, maxCount: 2 },
-      { itemId: 'raw_meat', chance: 0.7, minCount: 1, maxCount: 2 },
+      { itemId: 'bone', chance: 0.5, minCount: 1, maxCount: 2 },
+      { itemId: 'raw_meat', chance: 0.8, minCount: 1, maxCount: 2 },
     ],
   },
   [EnemyType.Boar]: {
@@ -56,6 +56,7 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
       { itemId: 'bone', chance: 0.7, minCount: 1, maxCount: 3 },
       { itemId: 'dark_essence', chance: 0.1, minCount: 1, maxCount: 1 },
       { itemId: 'iron_ore', chance: 0.15, minCount: 1, maxCount: 2 },
+      { itemId: 'enchanted_wood', chance: 0.08, minCount: 1, maxCount: 1 },
     ],
   },
   [EnemyType.Bat]: {
@@ -77,6 +78,7 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
       { itemId: 'stone', chance: 0.8, minCount: 3, maxCount: 6 },
       { itemId: 'iron_ore', chance: 0.4, minCount: 1, maxCount: 3 },
       { itemId: 'crystal', chance: 0.15, minCount: 1, maxCount: 1 },
+      { itemId: 'gem_emerald', chance: 0.1, minCount: 1, maxCount: 1 },
     ],
   },
   [EnemyType.DarkKnight]: {
@@ -87,7 +89,8 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
     loot: [
       { itemId: 'iron_ingot', chance: 0.5, minCount: 1, maxCount: 2 },
       { itemId: 'dark_essence', chance: 0.3, minCount: 1, maxCount: 2 },
-      { itemId: 'shadow_fragment', chance: 0.1, minCount: 1, maxCount: 1 },
+      { itemId: 'shadow_fragment', chance: 0.25, minCount: 1, maxCount: 1 },
+      { itemId: 'gem_sapphire', chance: 0.08, minCount: 1, maxCount: 1 },
     ],
   },
   [EnemyType.Dragon]: {
@@ -99,7 +102,8 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
       { itemId: 'dragon_scale', chance: 1, minCount: 1, maxCount: 3 },
       { itemId: 'gold_ore', chance: 0.8, minCount: 3, maxCount: 6 },
       { itemId: 'crystal', chance: 0.5, minCount: 2, maxCount: 4 },
-      { itemId: 'gem_ruby', chance: 0.3, minCount: 1, maxCount: 2 },
+      { itemId: 'gem_ruby', chance: 0.5, minCount: 1, maxCount: 3 },
+      { itemId: 'magic_dust', chance: 0.6, minCount: 3, maxCount: 6 },
     ],
   },
   // Mini Bosses
@@ -112,6 +116,7 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
       { itemId: 'slime_gel', chance: 1, minCount: 5, maxCount: 10 },
       { itemId: 'potion_hp', chance: 0.5, minCount: 1, maxCount: 2 },
       { itemId: 'ring_of_speed', chance: 0.1, minCount: 1, maxCount: 1 },
+      { itemId: 'magic_dust', chance: 0.4, minCount: 1, maxCount: 3 },
       { itemId: 'gold_coin', chance: 1, minCount: 10, maxCount: 25 },
     ],
   },
@@ -124,7 +129,8 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
       { itemId: 'shadow_fragment', chance: 1, minCount: 3, maxCount: 5 },
       { itemId: 'dark_essence', chance: 1, minCount: 3, maxCount: 6 },
       { itemId: 'crystal', chance: 0.6, minCount: 2, maxCount: 4 },
-      { itemId: 'gem_sapphire', chance: 0.2, minCount: 1, maxCount: 1 },
+      { itemId: 'forge_core', chance: 0.4, minCount: 1, maxCount: 2 },
+      { itemId: 'gem_sapphire', chance: 0.3, minCount: 1, maxCount: 2 },
       { itemId: 'gold_coin', chance: 1, minCount: 25, maxCount: 50 },
     ],
   },
@@ -141,6 +147,7 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
       { itemId: 'troll_skin', chance: 0.8, minCount: 1, maxCount: 2 },
       { itemId: 'bone', chance: 0.7, minCount: 2, maxCount: 4 },
       { itemId: 'mithril_ore', chance: 0.2, minCount: 1, maxCount: 2 },
+      { itemId: 'upgrade_stone', chance: 0.3, minCount: 1, maxCount: 2 },
       { itemId: 'gold_coin', chance: 0.5, minCount: 5, maxCount: 15 },
     ],
   },
@@ -161,8 +168,9 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
     biomes: [Biome.Cave],
     loot: [
       { itemId: 'crystal', chance: 0.9, minCount: 3, maxCount: 6 },
+      { itemId: 'magic_dust', chance: 0.5, minCount: 2, maxCount: 4 },
       { itemId: 'forge_core', chance: 0.3, minCount: 1, maxCount: 2 },
-      { itemId: 'lava_crystal', chance: 0.1, minCount: 1, maxCount: 1 },
+      { itemId: 'lava_crystal', chance: 0.15, minCount: 1, maxCount: 1 },
       { itemId: 'mithril_ore', chance: 0.4, minCount: 1, maxCount: 3 },
     ],
   },
@@ -174,7 +182,8 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
     loot: [
       { itemId: 'spider_silk', chance: 0.5, minCount: 1, maxCount: 2 },
       { itemId: 'lava_crystal', chance: 0.3, minCount: 1, maxCount: 2 },
-      { itemId: 'ruby_ore', chance: 0.2, minCount: 1, maxCount: 1 },
+      { itemId: 'ruby_ore', chance: 0.3, minCount: 1, maxCount: 2 },
+      { itemId: 'dark_essence', chance: 0.4, minCount: 1, maxCount: 2 },
     ],
   },
 };

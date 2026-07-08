@@ -589,26 +589,62 @@ export class WorldGenerator {
     const w = WORLD_WIDTH;
     const h = WORLD_HEIGHT;
     const rng = new SeededRandom(this.seed + 7777);
+    const villageCx = Math.floor(w / 2);
+    const villageCy = Math.floor(h / 2);
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        if (rng.next() > 0.0035) continue; // Slightly increased spawn rate
-
         const biome = biomeMap[y][x];
+        // Distance from village center (tiles)
+        const distFromVillage = Math.sqrt((x - villageCx) ** 2 + (y - villageCy) ** 2);
+        
+        // Biome-specific spawn rates (higher = more enemies)
+        let spawnRate = 0.003;
+        switch (biome) {
+          case Biome.Forest: spawnRate = 0.005; break;
+          case Biome.Plains: spawnRate = 0.0035; break;
+          case Biome.Mountains: spawnRate = 0.004; break;
+          case Biome.Swamp: spawnRate = 0.0045; break;
+          case Biome.Desert: spawnRate = 0.003; break;
+          case Biome.Ruins: spawnRate = 0.005; break;
+          case Biome.Cave: spawnRate = 0.006; break;
+          case Biome.Village: case Biome.Lake: spawnRate = 0.0005; break;
+          default: spawnRate = 0.003;
+        }
+        
+        // No enemies in the village itself
+        if (spawnRate === 0) continue;
+        
+        // Scale by distance from village: more enemies farther out
+        // At distance < 15 tiles: 50% reduction (safe near village)
+        // At distance 15-40: normal rate
+        // At distance > 40: up to 2x rate
+        let distanceMultiplier = 1.0;
+        if (distFromVillage < 15) distanceMultiplier = 0.5;
+        else if (distFromVillage > 40) distanceMultiplier = 1.5 + Math.min(0.5, (distFromVillage - 40) / 80);
+        else if (distFromVillage > 25) distanceMultiplier = 1.2;
+        
+        const finalRate = spawnRate * distanceMultiplier;
+        if (rng.next() > finalRate) continue;
+
         let enemyType: EnemyType | null = null;
 
         switch (biome) {
           case Biome.Forest:
-            enemyType = rng.chance(0.4) ? EnemyType.Wolf :
-              rng.chance(0.5) ? EnemyType.Spider : EnemyType.Slime;
+            enemyType = (rng.chance(0.35) ? EnemyType.Wolf :
+              rng.chance(0.5) ? EnemyType.Spider : EnemyType.Slime);
             break;
           case Biome.Plains:
-            enemyType = rng.chance(0.5) ? EnemyType.Slime :
+            enemyType = rng.chance(0.45) ? EnemyType.Slime :
               rng.chance(0.5) ? EnemyType.Boar : EnemyType.Wolf;
             break;
           case Biome.Mountains:
-            enemyType = rng.chance(0.6) ? EnemyType.Golem :
-              EnemyType.Wolf;
+            if (distFromVillage > 50 && rng.chance(0.05)) {
+              enemyType = EnemyType.Dragon;
+            } else {
+              enemyType = rng.chance(0.5) ? EnemyType.Golem :
+                rng.chance(0.6) ? EnemyType.Wolf : EnemyType.Boar;
+            }
             break;
           case Biome.Swamp:
             enemyType = rng.chance(0.5) ? EnemyType.Spider :
@@ -620,7 +656,12 @@ export class WorldGenerator {
               rng.chance(0.5) ? EnemyType.Spider : EnemyType.DarkKnight;
             break;
           case Biome.Ruins:
-            enemyType = rng.chance(0.6) ? EnemyType.DarkKnight : EnemyType.Skeleton;
+            if (distFromVillage > 35 && rng.chance(0.15)) {
+              enemyType = EnemyType.ShadowLord;
+            } else {
+              enemyType = rng.chance(0.5) ? EnemyType.DarkKnight :
+                rng.chance(0.5) ? EnemyType.Skeleton : EnemyType.Golem;
+            }
             break;
         }
 
