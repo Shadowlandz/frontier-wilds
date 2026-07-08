@@ -15,13 +15,13 @@ export const ITEMS: Record<string, ItemDefinition> = {
   stone_axe: {
     id: 'stone_axe', name: 'Machado de Pedra', description: 'Um machado resistente de pedra.',
     category: ItemCategory.Tool, rarity: Rarity.Common, stackSize: 1, weight: 3, value: 25,
-    icon: '⛏️', toolType: ToolType.Axe, damage: 8, durability: 200, maxDurability: 200,
+    icon: '🪓', toolType: ToolType.Axe, damage: 8, durability: 200, maxDurability: 200,
     speed: 1.1, range: 34, miningPower: 1, choppingPower: 5,
   },
   iron_axe: {
     id: 'iron_axe', name: 'Machado de Ferro', description: 'Um machado forte de ferro.',
     category: ItemCategory.Tool, rarity: Rarity.Uncommon, stackSize: 1, weight: 3, value: 60,
-    icon: '⛏️', toolType: ToolType.Axe, damage: 12, durability: 400, maxDurability: 400,
+    icon: '🪓', toolType: ToolType.Axe, damage: 12, durability: 400, maxDurability: 400,
     speed: 1.2, range: 36, miningPower: 2, choppingPower: 8,
   },
   wood_pickaxe: {
@@ -69,7 +69,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   crystal_sword: {
     id: 'crystal_sword', name: 'Espada de Cristal', description: 'Uma espada mágica brilhante.',
     category: ItemCategory.Weapon, rarity: Rarity.Epic, stackSize: 1, weight: 3, value: 500,
-    icon: '⚔️', toolType: ToolType.Sword, damage: 35, durability: 200, maxDurability: 200,
+    icon: '🔮', toolType: ToolType.Sword, damage: 35, durability: 200, maxDurability: 200,
     speed: 1.5, range: 44,
   },
   wood_bow: {
@@ -105,7 +105,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   hoe: {
     id: 'hoe', name: 'Enxada', description: 'Prepara o solo para plantio.',
     category: ItemCategory.Tool, rarity: Rarity.Common, stackSize: 1, weight: 2, value: 15,
-    icon: '🌱', toolType: ToolType.Hoe, damage: 2, durability: 100, maxDurability: 100,
+    icon: '🌿', toolType: ToolType.Hoe, damage: 2, durability: 100, maxDurability: 100,
     speed: 1, range: 32,
   },
 
@@ -181,12 +181,12 @@ export const ITEMS: Record<string, ItemDefinition> = {
   iron_ore: {
     id: 'iron_ore', name: 'Minério de Ferro', description: 'Minério para forjar equipamentos.',
     category: ItemCategory.Material, rarity: Rarity.Uncommon, stackSize: 99, weight: 3, value: 8,
-    icon: '⛰️',
+    icon: '⚫',
   },
   gold_ore: {
     id: 'gold_ore', name: 'Minério de Ouro', description: 'Minério valioso e raro.',
     category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 99, weight: 4, value: 25,
-    icon: '🥇',
+    icon: '🪙',
   },
   coal: {
     id: 'coal', name: 'Carvão', description: 'Usado como combustível e em crafting.',
@@ -206,7 +206,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   leather: {
     id: 'leather', name: 'Couro', description: 'Couro de animais para armaduras.',
     category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 50, weight: 1, value: 5,
-    icon: '🟤',
+    icon: '🧥',
   },
   bone: {
     id: 'bone', name: 'Osso', description: 'Ossos de criaturas para crafting.',
@@ -221,7 +221,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   gold_ingot: {
     id: 'gold_ingot', name: 'Barra de Ouro', description: 'Barra de ouro reluzente.',
     category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 99, weight: 4, value: 50,
-    icon: '🥇',
+    icon: '🏅',
   },
   clay: {
     id: 'clay', name: 'Argila', description: 'Argila moldável para cerâmicas.',
@@ -231,22 +231,22 @@ export const ITEMS: Record<string, ItemDefinition> = {
   gem_ruby: {
     id: 'gem_ruby', name: 'Rubi', description: 'Uma gema vermelha preciosa.',
     category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 0.5, value: 100,
-    icon: '❤️',
+    icon: '🔴',
   },
   gem_sapphire: {
     id: 'gem_sapphire', name: 'Safira', description: 'Uma gema azul preciosa.',
     category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 0.5, value: 100,
-    icon: '💙',
+    icon: '🔵',
   },
   gem_emerald: {
     id: 'gem_emerald', name: 'Esmeralda', description: 'Uma gema verde preciosa.',
     category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 0.5, value: 100,
-    icon: '💚',
+    icon: '🟢',
   },
   slime_gel: {
     id: 'slime_gel', name: 'Gosma', description: 'Gosma pegajosa de slimes.',
     category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 99, weight: 0.5, value: 2,
-    icon: '🟢',
+    icon: '🫧',
   },
   spider_silk: {
     id: 'spider_silk', name: 'Seda de Aranha', description: 'Fio forte e resistente.',
@@ -374,12 +374,12 @@ export const ITEMS: Record<string, ItemDefinition> = {
   workbench: {
     id: 'workbench', name: 'Bancada de Trabalho', description: 'Bancada para crafting avançado.',
     category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 5, weight: 5, value: 30,
-    icon: '🔧', placeable: true,
+    icon: '🛠️', placeable: true,
   },
   furnace: {
     id: 'furnace', name: 'Fornalha', description: 'Forja minérios em barras.',
     category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 5, weight: 10, value: 50,
-    icon: '🔥', placeable: true,
+    icon: '⚒️', placeable: true,
   },
   chest: {
     id: 'chest', name: 'Baú', description: 'Armazene seus itens.',
@@ -404,12 +404,12 @@ export const ITEMS: Record<string, ItemDefinition> = {
   storage_chest: {
     id: 'storage_chest', name: 'Baú Reforçado', description: 'Baú grande para armazenar itens extras. 30 slots.',
     category: ItemCategory.Furniture, rarity: Rarity.Uncommon, stackSize: 5, weight: 10, value: 50,
-    icon: '🗄️', placeable: true,
+    icon: '🧰', placeable: true,
   },
   wooden_wall: {
     id: 'wooden_wall', name: 'Cerca de Madeira', description: 'Cerca resistente para delimitar sua base.',
     category: ItemCategory.Furniture, rarity: Rarity.Common, stackSize: 50, weight: 2, value: 5,
-    icon: '🧱', placeable: true,
+    icon: '🪵', placeable: true,
   },
   gate: {
     id: 'gate', name: 'Portão', description: 'Portão de madeira para entrada da base.',
@@ -458,7 +458,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   steel_axe: {
     id: 'steel_axe', name: 'Machado de Aço', description: 'Um machado de aço super resistente.',
     category: ItemCategory.Tool, rarity: Rarity.Uncommon, stackSize: 1, weight: 4, value: 120,
-    icon: '⛏️', toolType: ToolType.Axe, damage: 16, durability: 700, maxDurability: 700,
+    icon: '🪓', toolType: ToolType.Axe, damage: 16, durability: 700, maxDurability: 700,
     speed: 1.3, range: 36, miningPower: 3, choppingPower: 14,
   },
   long_bow: {
@@ -498,7 +498,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   arrows: {
     id: 'arrows', name: 'Flechas', description: 'Munição para arcos.',
     category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 99, weight: 0.1, value: 1,
-    icon: '➡️',
+    icon: '🏹',
   },
   magic_dust: {
     id: 'magic_dust', name: 'Pó Mágico', description: 'Pó brilhante com propriedades mágicas.',
@@ -508,19 +508,19 @@ export const ITEMS: Record<string, ItemDefinition> = {
   enchanted_wood: {
     id: 'enchanted_wood', name: 'Madeira Encantada', description: 'Madeira com poderes mágicos.',
     category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 30, weight: 1, value: 35,
-    icon: '🪵',
+    icon: '🌟',
   },
   shadow_fragment: {
     id: 'shadow_fragment', name: 'Fragmento Sombrio', description: 'Fragmento de energia sombria.',
     category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 0.3, value: 50,
-    icon: '🖤',
+    icon: '🌑',
   },
 
   // ── Cave Resources ────────────────────────────────────────────
   mithril_ore: {
     id: 'mithril_ore', name: 'Minério de Mitril', description: 'Minério lendário das profundezas.',
     category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 50, weight: 3, value: 80,
-    icon: '🔮',
+    icon: '💠',
   },
   ruby_ore: {
     id: 'ruby_ore', name: 'Minério de Rubi', description: 'Rubi bruto das cavernas vulcânicas.',
@@ -559,7 +559,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   mithril_axe: {
     id: 'mithril_axe', name: 'Machado de Mitril', description: 'Machado lendário de mitril.',
     category: ItemCategory.Tool, rarity: Rarity.Epic, stackSize: 1, weight: 3, value: 500,
-    icon: '⛏️', toolType: ToolType.Axe, damage: 22, durability: 1200, maxDurability: 1200,
+    icon: '🪓', toolType: ToolType.Axe, damage: 22, durability: 1200, maxDurability: 1200,
     speed: 1.4, range: 38, miningPower: 5, choppingPower: 22,
   },
 
@@ -567,12 +567,12 @@ export const ITEMS: Record<string, ItemDefinition> = {
   upgrade_stone: {
     id: 'upgrade_stone', name: 'Pedra de Afiação', description: 'Melhora armas de metal.',
     category: ItemCategory.Material, rarity: Rarity.Uncommon, stackSize: 10, weight: 1, value: 30,
-    icon: '🪨',
+    icon: '⚡',
   },
   forge_core: {
     id: 'forge_core', name: 'Núcleo de Forja', description: 'Núcleo energético para melhorias avançadas.',
     category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 5, weight: 2, value: 100,
-    icon: '💎',
+    icon: '✨',
   },
 };
 

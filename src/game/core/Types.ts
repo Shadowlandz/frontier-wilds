@@ -313,6 +313,7 @@ export interface EnemyDefinition {
   attackSpeed: number;
   loot: { itemId: string; chance: number; minCount: number; maxCount: number }[];
   color: string;
+  icon: string;
   size: number;
   behavior: 'patrol' | 'chase' | 'ranged' | 'stationary';
   biomes: Biome[];
