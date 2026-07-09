@@ -5037,18 +5037,33 @@ export class Game {
     return `#${clamp(r + v, 0, 255).toString(16).padStart(2, '0')}${clamp(g + v, 0, 255).toString(16).padStart(2, '0')}${clamp(b + v, 0, 255).toString(16).padStart(2, '0')}`;
   }
 
+  /** Get luminosity percentage (0-100) by hour, following the sun cycle */
+  private getLuminosity(hour: number): number {
+    // 00:00–04:00: deep night (15–18%)
+    if (hour < 4) return 15 + (hour / 4) * 3;
+    // 04:00–05:00: pre-dawn transition (18% → 25%)
+    if (hour < 5) return 18 + (hour - 4) * 7;
+    // 05:00–08:00: gradual dawn (25% → 80%)
+    if (hour < 8) return 25 + (hour - 5) * (55 / 3);
+    // 08:00–10:00: morning brightening (80% → 100%)
+    if (hour < 10) return 80 + (hour - 8) * 10;
+    // 10:00–14:00: maximum luminosity (100%)
+    if (hour < 14) return 100;
+    // 14:00–15:00: afternoon slight dim (100% → 95%)
+    if (hour < 15) return 100 - (hour - 14) * 5;
+    // 15:00–19:00: gradual sunset (95% → 35%)
+    if (hour < 19) return 95 - (hour - 15) * 15;
+    // 19:00–20:00: evening transition (35% → 25%)
+    if (hour < 20) return 35 - (hour - 19) * 10;
+    // 20:00–23:00: early night (25% → 15%)
+    if (hour < 23) return 25 - (hour - 20) * (10 / 3);
+    // 23:00–00:00: late night stabilizing
+    return 15 + (hour - 23) * 3;
+  }
+
   private getNightAlpha(time: GameTime): number {
-    const progress = time.dayTicks / time.dayLength;
-    // Night: 0.0-0.166 = 00:00-04:00 (max darkness)
-    if (progress < 0.166) return 0.85;
-    // Dawn: 0.166-0.333 = 04:00-08:00 (fading)
-    if (progress < 0.333) return 0.85 * (1 - (progress - 0.166) / 0.167);
-    // Day: 0.333-0.75 = 08:00-18:00 (no overlay)
-    if (progress < 0.75) return 0;
-    // Dusk: 0.75-0.833 = 18:00-20:00 (growing)
-    if (progress < 0.833) return 0.85 * ((progress - 0.75) / 0.083);
-    // Night: 0.833-1.0 = 20:00-00:00 (max darkness)
-    return 0.85;
+    const luminosity = this.getLuminosity(time.hour);
+    return 1 - (luminosity / 100);
   }
 
   private weatherParticles: { x: number; y: number; speed: number; size: number; opacity: number; wind: number }[] = [];
