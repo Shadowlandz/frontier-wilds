@@ -2000,11 +2000,35 @@ export class Game {
       this.spawnParticles(cx, cy, '#ff6600', 10, 'spark', { spread: 160, speed: 120, sizeRange: [2, 5], lifeRange: [0.3, 0.7], color2: '#ffcc00' });
       this.spawnParticles(cx, cy, '#ff4400', 6, 'ember', { spread: 100, speed: 80, sizeRange: [2, 4], lifeRange: [0.4, 1.0] });
       this.spawnParticles(cx, cy - 10, 'rgba(100,80,70,0.5)', 5, 'smoke', { spread: 30, speed: 25, sizeRange: [5, 10], lifeRange: [0.5, 1.0] });
-    } else if (recipe.station === 'workshop') {
+      // Also spawn particles from the furnace structure itself
+      const furnaceStruct = this.state.structures.find(s => s.itemId === 'furnace' &&
+        Math.abs(s.x + s.width / 2 - cx) < 80 && Math.abs(s.y + s.height / 2 - cy) < 80);
+      if (furnaceStruct) {
+        const fx = furnaceStruct.x + furnaceStruct.width / 2;
+        const fy = furnaceStruct.y;
+        this.spawnParticles(fx, fy, '#ff8800', 6, 'spark', { spread: 80, speed: 100, sizeRange: [2, 4], lifeRange: [0.4, 0.8], color2: '#ffcc44' });
+        this.spawnParticles(fx, fy - 5, 'rgba(80,60,40,0.4)', 4, 'smoke', { spread: 40, speed: 30, sizeRange: [4, 8], lifeRange: [0.6, 1.2] });
+      }
+    } else if (recipe.station === 'workbench') {
       // 🔧 Workbench: wood chips, blue sparkles, sawdust
       this.spawnParticles(cx, cy, '#88ccff', 8, 'spark', { spread: 130, speed: 90, sizeRange: [1, 3], lifeRange: [0.3, 0.7], color2: '#aaddff' });
       this.spawnParticles(cx, cy, '#c49a6c', 6, 'sawdust', { spread: 80, speed: 60, sizeRange: [2, 4], lifeRange: [0.6, 1.2] });
       this.spawnParticles(cx, cy - 8, 'rgba(180,140,100,0.4)', 4, 'smoke', { spread: 50, speed: 20, sizeRange: [3, 6], lifeRange: [0.4, 0.9] });
+      // Also spawn particles from the workbench itself
+      const benchStruct = this.state.structures.find(s => 
+        (s.itemId === 'workbench' || s.itemId === 'workbench_advanced') &&
+        Math.abs(s.x + s.width / 2 - cx) < 80 && Math.abs(s.y + s.height / 2 - cy) < 80
+      );
+      if (benchStruct) {
+        const bx = benchStruct.x + benchStruct.width / 2;
+        const by = benchStruct.y;
+        // Sparks flying up from bench surface
+        this.spawnParticles(bx, by, '#ffdd44', 5, 'spark', { spread: 60, speed: 80, sizeRange: [1, 3], lifeRange: [0.3, 0.6], color2: '#ffaa00' });
+        // Sawdust flying sideways
+        this.spawnParticles(bx - 8, by, '#c49a6c', 4, 'sawdust', { spread: 40, speed: 50, sizeRange: [2, 4], lifeRange: [0.5, 1.0] });
+        // Blue craft sparkles
+        this.spawnParticles(bx + 6, by - 4, '#66bbff', 4, 'craft_sparkle', { spread: 50, speed: 40, sizeRange: [1, 3], lifeRange: [0.4, 0.8], color2: '#aaddff' });
+      }
     } else {
       // 🙌 Hand craft: green sparkles, gentle puff — natural/organic
       this.spawnParticles(cx, cy, '#66dd88', 6, 'spark', { spread: 100, speed: 60, sizeRange: [1, 3], lifeRange: [0.3, 0.6], color2: '#88ffaa' });
