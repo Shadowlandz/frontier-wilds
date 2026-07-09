@@ -56,6 +56,9 @@ export class Game {
   particles: Particle[] = [];
   ambientParticles: Particle[] = [];
   ambientParticleTimer = 0;
+  npcBlinkTimer = 2 + Math.random() * 3;
+  npcBlinkDuration = 0;
+  npcIsBlinking = false;
   projectiles: { x: number; y: number; vx: number; vy: number; damage: number; lifetime: number; speed: number }[] = [];
 
   // World data
@@ -2774,6 +2777,20 @@ export class Game {
     }
   }
 
+  private getWindPhase(): number {
+    return performance.now() / 4000;
+  }
+
+  private getWindStrength(): number {
+    return Math.sin(this.getWindPhase()) * 0.3 + 0.3;
+  }
+
+  private getWindAt(x: number, y: number): number {
+    const phase = this.getWindPhase();
+    const strength = this.getWindStrength();
+    return Math.sin(phase + x * 0.01 + y * 0.02) * strength;
+  }
+
   addNotification(message: string, type: Notification['type']): void {
     this.state.notifications.push({
       id: generateId(),
@@ -2782,6 +2799,22 @@ export class Game {
       timestamp: Date.now(),
       duration: 3000,
     });
+  }
+
+  private updateNpcBlink(): { isBlinking: boolean } {
+    this.npcBlinkTimer -= 0.016; // Approximate dt of 16ms
+    if (this.npcIsBlinking) {
+      this.npcBlinkDuration += 0.016;
+      if (this.npcBlinkDuration >= 0.12) { // Blink lasts ~120ms
+        this.npcIsBlinking = false;
+        this.npcBlinkDuration = 0;
+        this.npcBlinkTimer = 2 + Math.random() * 4; // Next blink in 2-6 seconds
+      }
+    } else if (this.npcBlinkTimer <= 0) {
+      this.npcIsBlinking = true;
+      this.npcBlinkDuration = 0;
+    }
+    return { isBlinking: this.npcIsBlinking };
   }
 
   // ── Rendering ───────────────────────────────────────────────────
@@ -3423,8 +3456,13 @@ export class Game {
     const { ctx, camera } = this;
     const pos = camera.worldToScreen(res.x, res.y);
 
-    // Gentle sway for vegetation
-    const sway = Math.sin(performance.now() / 3000 + res.x * 0.1) * 1.2;
+    // Wind-based sway for vegetation
+    const windPhase = this.getWindPhase();
+    const windStrength = this.getWindStrength();
+    const treeSway = Math.sin(windPhase + res.x * 0.08 + res.y * 0.05) * 2.0 + 
+                     Math.sin(performance.now() / 2000 + res.x * 0.1) * 0.8;
+    const bushSway = Math.sin(windPhase + res.x * 0.12 + res.y * 0.07) * 3.0 +
+                     Math.sin(performance.now() / 1500 + res.x * 0.15) * 1.0;
 
     switch (res.type) {
       case 'tree': {
@@ -3435,7 +3473,7 @@ export class Game {
         ctx.fill();
         ctx.save();
         ctx.translate(pos.x + 12, pos.y + 30);
-        ctx.rotate(sway * 0.01);
+        ctx.rotate(treeSway * 0.015);
         // Trunk
         ctx.fillStyle = '#5a3a1a';
         ctx.fillRect(-4, -10, 8, 20);
@@ -3474,7 +3512,7 @@ export class Game {
         ctx.fill();
         ctx.save();
         ctx.translate(pos.x + 8, pos.y + 12);
-        ctx.rotate(sway * 0.02);
+        ctx.rotate(bushSway * 0.03);
         // Main bush body
         ctx.fillStyle = '#4a8a3a';
         ctx.beginPath();
@@ -3782,12 +3820,26 @@ export class Game {
     ctx.ellipse(cx, by - 2, 12, 4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Idle bob animation
+    // ── Idle animations ──
+    // Breathing: subtle body lift
+    const breathe = Math.sin(performance.now() / 1200 + npc.x * 2) * 0.6;
+    // Idle bob (walk/stand animation)
     const bob = Math.sin(performance.now() / 800 + npc.x) * 1.2;
+    // Combine: breathing adds subtle motion on top of bob
+    const animY = bob + breathe;
+
+    // ── Blink system ──
+    // Update blink timer (only one NPC's draw call triggers blink timing)
+    // We track global blink state so all NPCs blink at roughly the same time
+    const blinkState = this.updateNpcBlink();
+    const isBlinking = blinkState.isBlinking;
+
+    // Subtle head looking direction (slowly looks left/right)
+    const headLook = Math.sin(performance.now() / 5000 + npc.x * 0.5) * 1.5;
 
     // Body
     ctx.fillStyle = npc.definition.color;
-    ctx.fillRect(cx - 7, by - 14 + bob, 14, 11);
+    ctx.fillRect(cx - 7, by - 14 + animY, 14, 11);
 
     // Distinguishing features per NPC type
     switch (npc.definition.type) {
@@ -3837,30 +3889,44 @@ export class Game {
 
     // Arms
     ctx.fillStyle = '#ffcc99';
-    ctx.fillRect(cx - 9, by - 13 + bob, 3, 8);
-    ctx.fillRect(cx + 6, by - 13 + bob, 3, 8);
+    ctx.fillRect(cx - 9, by - 13 + animY, 3, 8);
+    ctx.fillRect(cx + 6, by - 13 + animY, 3, 8);
 
     // Legs
     ctx.fillStyle = '#3a3a5a';
     const legSwing = Math.sin(performance.now() / 400) * 1.5;
-    ctx.fillRect(cx - 5 + legSwing, by - 4 + bob, 4, 4);
-    ctx.fillRect(cx + 1 - legSwing, by - 4 + bob, 4, 4);
+    ctx.fillRect(cx - 5 + legSwing, by - 4 + animY, 4, 4);
+    ctx.fillRect(cx + 1 - legSwing, by - 4 + animY, 4, 4);
 
-    // Head
+    // Head (with subtle head movement)
     ctx.fillStyle = '#ffcc99';
     ctx.beginPath();
-    ctx.arc(cx, by - 18 + bob, 6, 0, Math.PI * 2);
+    ctx.arc(cx + headLook * 0.3, by - 18 + animY, 6, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eyes
-    ctx.fillStyle = '#000';
-    ctx.fillRect(cx - 2, by - 19 + bob, 1.5, 1.5);
-    ctx.fillRect(cx + 1, by - 19 + bob, 1.5, 1.5);
+    // Eyes (with blink)
+    if (isBlinking) {
+      // Eyes closed during blink
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx - 3 + headLook * 0.3, by - 18.5 + animY);
+      ctx.lineTo(cx - 0.5 + headLook * 0.3, by - 18.5 + animY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + 0.5 + headLook * 0.3, by - 18.5 + animY);
+      ctx.lineTo(cx + 3 + headLook * 0.3, by - 18.5 + animY);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(cx - 2.5 + headLook * 0.3, by - 19 + animY, 1.5, 1.5);
+      ctx.fillRect(cx + 1 + headLook * 0.3, by - 19 + animY, 1.5, 1.5);
+    }
 
     // Icon above head
     ctx.font = '12px serif';
     ctx.textAlign = 'center';
-    ctx.fillText(npc.definition.icon, cx, by - 28 + bob);
+    ctx.fillText(npc.definition.icon, cx, by - 28 + animY);
 
     // Name label
     ctx.font = '10px monospace';
@@ -3906,10 +3972,18 @@ export class Game {
       ctx.globalAlpha = 0.4 + Math.sin(performance.now() / 50) * 0.3;
     }
 
-    // Idle bob
-    const bob = (enemy.state !== 'dead' && enemy.state !== 'hurt')
+    // Idle animations: bob + breathing
+    const isAlive = enemy.state !== 'dead' && enemy.state !== 'hurt';
+    const bob = isAlive
       ? Math.sin(performance.now() / 600 + enemy.x) * 1.5
       : 0;
+    const breathe = isAlive
+      ? Math.sin(performance.now() / 1000 + enemy.x * 1.5 + enemy.y * 0.5) * 0.5
+      : 0;
+    const breatheScale = isAlive
+      ? 1 + Math.sin(performance.now() / 1000 + enemy.x * 1.5) * 0.03
+      : 1;
+    const animY = bob + breathe;
 
     // Aggro glow (when chasing)
     if (enemy.state === 'chase') {
@@ -3927,7 +4001,13 @@ export class Game {
         ctx.fillStyle = def.color;
         ctx.beginPath();
         const slimeBob = Math.sin(performance.now() / 400) * 2;
-        ctx.ellipse(cx, by + slimeBob, w / 2, h / 2.5 + slimeBob * 0.3, 0, 0, Math.PI * 2);
+        const slimePulse = isAlive
+          ? (Math.sin(performance.now() / 600) * 1.5 + 1.5)
+          : 0;
+        const slimeSquash = isAlive
+          ? Math.sin(performance.now() / 400) * 0.15 + 0.85
+          : 1;
+        ctx.ellipse(cx, by + slimeBob + slimePulse * 0.5, w / 2 * slimeSquash, (h / 2.5 + slimeBob * 0.3) / slimeSquash, 0, 0, Math.PI * 2);
         ctx.fill();
         // Highlight
         ctx.fillStyle = 'rgba(255,255,255,0.2)';
@@ -3950,15 +4030,16 @@ export class Game {
       }
       case 'wolf':
       case 'boar': {
-        // Body
+        // Body (with wind sway and breathing)
         ctx.fillStyle = def.color;
         ctx.beginPath();
-        ctx.ellipse(cx, by - 4 + bob, w / 2, h / 3 + 1, 0, 0, Math.PI * 2);
+        const windSway = Math.sin(this.getWindPhase() + enemy.x * 0.05) * 2 * breatheScale;
+        ctx.ellipse(cx, by - 4 + animY, w / 2 * breatheScale, h / 3 + 1, 0, 0, Math.PI * 2);
         ctx.fill();
         // Head
         ctx.beginPath();
         const headDir = enemy.direction.x > 0 ? 1 : -1;
-        ctx.arc(cx + headDir * (w / 2 - 2), by - 6 + bob, 6, 0, Math.PI * 2);
+        ctx.arc(cx + headDir * (w / 2 - 2), by - 6 + animY, 6, 0, Math.PI * 2);
         ctx.fill();
         if (enemy.state !== 'dead') {
           // Eyes
@@ -3990,8 +4071,8 @@ export class Game {
         ctx.lineWidth = 0.5;
         for (let i = 0; i < 3; i++) {
           ctx.beginPath();
-          ctx.moveTo(cx - 4, by - 11 + i * 2 + bob);
-          ctx.lineTo(cx + 4, by - 11 + i * 2 + bob);
+          ctx.moveTo(cx - 4, by - 11 + i * 2 + animY);
+          ctx.lineTo(cx + 4, by - 11 + i * 2 + animY);
           ctx.stroke();
         }
         // Head
@@ -4040,12 +4121,12 @@ export class Game {
         for (let i = 0; i < 4; i++) {
           const angle = (i - 1.5) * 0.4;
           ctx.beginPath();
-          ctx.moveTo(cx - 4, by - 5 + bob);
-          ctx.lineTo(cx - 10 - i * 2, by - 3 + i * 2 + bob);
+          ctx.moveTo(cx - 4, by - 5 + animY);
+          ctx.lineTo(cx - 10 - i * 2, by - 3 + i * 2 + animY);
           ctx.stroke();
           ctx.beginPath();
-          ctx.moveTo(cx + 4, by - 5 + bob);
-          ctx.lineTo(cx + 10 + i * 2, by - 3 + i * 2 + bob);
+          ctx.moveTo(cx + 4, by - 5 + animY);
+          ctx.lineTo(cx + 10 + i * 2, by - 3 + i * 2 + animY);
           ctx.stroke();
         }
         break;
@@ -4060,8 +4141,8 @@ export class Game {
         ctx.strokeStyle = '#5a6a6a';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.moveTo(cx - 4, by - 14 + bob);
-        ctx.lineTo(cx + 3, by - 8 + bob);
+        ctx.moveTo(cx - 4, by - 14 + animY);
+        ctx.lineTo(cx + 3, by - 8 + animY);
         ctx.stroke();
         if (enemy.state !== 'dead') {
           ctx.fillStyle = '#ffaa00';
@@ -4095,15 +4176,15 @@ export class Game {
         ctx.fillStyle = '#3a0a6a';
         const wingFlap = Math.sin(performance.now() / 100) * 0.3 + 0.7;
         ctx.beginPath();
-        ctx.moveTo(cx, by - 6 + bob);
-        ctx.lineTo(cx - 12, by - 10 + bob);
-        ctx.lineTo(cx - 10, by - 4 + bob);
+        ctx.moveTo(cx, by - 6 + animY);
+        ctx.lineTo(cx - 12, by - 10 + animY);
+        ctx.lineTo(cx - 10, by - 4 + animY);
         ctx.closePath();
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(cx, by - 6 + bob);
-        ctx.lineTo(cx + 12, by - 10 + bob);
-        ctx.lineTo(cx + 10, by - 4 + bob);
+        ctx.moveTo(cx, by - 6 + animY);
+        ctx.lineTo(cx + 12, by - 10 + animY);
+        ctx.lineTo(cx + 10, by - 4 + animY);
         ctx.closePath();
         ctx.fill();
         break;
@@ -4145,9 +4226,9 @@ export class Game {
         ctx.fill();
         // Tail
         ctx.beginPath();
-        ctx.moveTo(cx - 14, by - 10 + bob);
-        ctx.lineTo(cx - 24, by - 6 + bob);
-        ctx.lineTo(cx - 22, by - 12 + bob);
+        ctx.moveTo(cx - 14, by - 10 + animY);
+        ctx.lineTo(cx - 24, by - 6 + animY);
+        ctx.lineTo(cx - 22, by - 12 + animY);
         ctx.closePath();
         ctx.fill();
         // Head
@@ -4172,15 +4253,15 @@ export class Game {
         ctx.fillStyle = '#8b0000';
         const dfWing = Math.sin(performance.now() / 300) * 4;
         ctx.beginPath();
-        ctx.moveTo(cx - 2, by - 14 + bob);
-        ctx.lineTo(cx - 16, by - 28 + dfWing + bob);
-        ctx.lineTo(cx - 8, by - 18 + bob);
+        ctx.moveTo(cx - 2, by - 14 + animY);
+        ctx.lineTo(cx - 16, by - 28 + dfWing + animY);
+        ctx.lineTo(cx - 8, by - 18 + animY);
         ctx.closePath();
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(cx + 2, by - 14 + bob);
-        ctx.lineTo(cx + 16, by - 28 + dfWing + bob);
-        ctx.lineTo(cx + 8, by - 18 + bob);
+        ctx.moveTo(cx + 2, by - 14 + animY);
+        ctx.lineTo(cx + 16, by - 28 + dfWing + animY);
+        ctx.lineTo(cx + 8, by - 18 + animY);
         ctx.closePath();
         ctx.fill();
         // Legs
@@ -4220,9 +4301,9 @@ export class Game {
         // Shadowy figure
         ctx.fillStyle = def.color;
         ctx.beginPath();
-        ctx.moveTo(cx, by - 24 + bob);
-        ctx.lineTo(cx + 12, by - 4 + bob);
-        ctx.lineTo(cx - 12, by - 4 + bob);
+        ctx.moveTo(cx, by - 24 + animY);
+        ctx.lineTo(cx + 12, by - 4 + animY);
+        ctx.lineTo(cx - 12, by - 4 + animY);
         ctx.closePath();
         ctx.fill();
         // Dark aura
@@ -4245,10 +4326,10 @@ export class Game {
         // Cloak
         ctx.fillStyle = '#1a0a2a';
         ctx.beginPath();
-        ctx.moveTo(cx - 14, by - 4 + bob);
-        ctx.lineTo(cx - 18, by + 2 + bob);
-        ctx.lineTo(cx + 18, by + 2 + bob);
-        ctx.lineTo(cx + 14, by - 4 + bob);
+        ctx.moveTo(cx - 14, by - 4 + animY);
+        ctx.lineTo(cx - 18, by + 2 + animY);
+        ctx.lineTo(cx + 18, by + 2 + animY);
+        ctx.lineTo(cx + 14, by - 4 + animY);
         ctx.closePath();
         ctx.fill();
         break;
@@ -4294,7 +4375,7 @@ export class Game {
       ctx.font = 'bold 9px monospace';
       ctx.fillStyle = '#ffcc00';
       ctx.textAlign = 'center';
-      ctx.fillText(`Lv.${def.level}`, cx, by - 32 + bob);
+      ctx.fillText(`Lv.${def.level}`, cx, by - 32 + animY);
       ctx.textAlign = 'left';
     }
 
@@ -4805,6 +4886,11 @@ export class Game {
     const { ctx, camera } = this;
     const pos = camera.worldToScreen(plot.x * TILE_SIZE, plot.y * TILE_SIZE);
 
+    // Wind influence for crop sway
+    const windPhase = this.getWindPhase();
+    const plantSway = Math.sin(windPhase + plot.x * 0.2 + plot.y * 0.15) * 1.5 +
+                      Math.sin(performance.now() / 1800 + plot.x * 0.3) * 0.8;
+
     // Soil base
     ctx.fillStyle = plot.watered ? '#5a3a1a' : '#8d6e4a';
     ctx.fillRect(pos.x + 2, pos.y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
@@ -4819,7 +4905,7 @@ export class Game {
       ctx.stroke();
     }
 
-    // Plant growth
+    // Plant growth (with wind sway)
     if (plot.seedId && plot.growthStage > 0) {
       const stageColors = ['#4a7a2a', '#5a9a3a', '#6ab040', '#8ac050'];
       const stageSizes = [4, 6, 8, 10];
@@ -4827,24 +4913,44 @@ export class Game {
       const size = stageSizes[stage];
       const color = stageColors[stage];
 
+      ctx.save();
+      ctx.translate(pos.x + TILE_SIZE / 2 + plantSway * 0.3, pos.y + TILE_SIZE / 2);
+      ctx.rotate(plantSway * 0.03);
+
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(pos.x + TILE_SIZE / 2, pos.y + TILE_SIZE / 2, size, 0, Math.PI * 2);
+      ctx.arc(0, 0, size, 0, Math.PI * 2);
       ctx.fill();
 
-      // Ready indicator
+      // Stem
+      if (size > 4) {
+        ctx.strokeStyle = '#3a6a1a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -size + 3);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // Ready indicator (with pulse)
       if (plot.growthStage >= 3) {
+        const pulse = Math.sin(performance.now() / 400) * 0.3 + 0.7;
+        ctx.globalAlpha = pulse;
         ctx.fillStyle = '#ffdd00';
         ctx.font = '10px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('✓', pos.x + TILE_SIZE / 2, pos.y - 2);
+        ctx.fillText('✓', pos.x + TILE_SIZE / 2 + plantSway * 0.3, pos.y - 2);
+        ctx.globalAlpha = 1;
         ctx.textAlign = 'left';
       }
     }
 
-    // Watered indicator
+    // Watered indicator (with shimmer)
     if (plot.watered) {
-      ctx.fillStyle = 'rgba(100, 150, 255, 0.3)';
+      const shimmer = Math.sin(performance.now() / 1200 + plot.x + plot.y) * 0.15 + 0.25;
+      ctx.fillStyle = `rgba(100, 150, 255, ${shimmer})`;
       ctx.fillRect(pos.x + 2, pos.y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
     }
   }
