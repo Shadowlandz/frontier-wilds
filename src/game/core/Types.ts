@@ -602,21 +602,21 @@ export function getAmbientLightLevel(gameTime: GameTime, inCave: boolean): numbe
   return 0.15 + Math.sin((hour < 6 ? hour + 24 : hour) / 24 * Math.PI * 2) * 0.08;
 }
 
-/** Get the color overlay for current time of day */
+/** Get the color overlay for current time of day — subtle color temperature only */
 export function getDayNightColor(hour: number): string {
   if (hour >= 8 && hour <= 18) return 'rgba(0,0,0,0)'; // Day — no tint
   if (hour >= 4 && hour < 8) {
-    // Dawn transition: 04:00-08:00 — dark blue fades to transparent
+    // Dawn: warm orange tint fading out (04:00-08:00)
     const t = (hour - 4) / 4;
-    return `rgba(0,0,20,${0.55 * (1 - t)})`;
+    return `rgba(255, 120, 50, ${0.04 * (1 - t)})`;
   }
   if (hour > 18 && hour <= 22) {
-    // Dusk transition: 18:00-22:00 — transparent to dark blue
+    // Dusk: warm orange tint growing in (18:00-22:00)
     const t = (hour - 18) / 4;
-    return `rgba(0,0,20,${t * 0.55})`;
+    return `rgba(255, 100, 40, ${t * 0.05})`;
   }
-  // Deep night (22:00-04:00): strong dark overlay
-  return 'rgba(0,0,20,0.55)';
+  // Night (22:00-04:00): very subtle cool blue tint
+  return 'rgba(20, 30, 60, 0.06)';
 }
 
 /** Get warm interior lighting overlay */

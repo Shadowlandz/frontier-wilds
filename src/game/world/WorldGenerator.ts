@@ -792,30 +792,34 @@ export function getSeasonForDay(day: number): Season {
 export function getSkyColor(time: GameTime): string {
   const progress = getDayProgress(time);
 
-  // Dawn: 0.2 - 0.3
-  // Day: 0.3 - 0.7
-  // Dusk: 0.7 - 0.8
-  // Night: 0.8 - 1.0 and 0.0 - 0.2
-  if (progress < 0.2) return '#0a0a2a';
-  if (progress < 0.3) {
-    const t = (progress - 0.2) / 0.1;
+  // Dawn : 0.166-0.333 = 04:00-08:00
+  // Day  : 0.333-0.75  = 08:00-18:00
+  // Dusk : 0.75-0.833  = 18:00-20:00
+  // Night: 0.833-1.0   = 20:00-00:00 and 0.0-0.166 = 00:00-04:00
+  if (progress < 0.166) return '#0a0a2a';  // Deep night
+  if (progress < 0.25) {
+    // Dawn phase 1: dark sky → warm sunrise glow (04:00-06:00)
+    const t = (progress - 0.166) / 0.084;
     return lerpHex('#0a0a2a', '#ff8844', t);
   }
-  if (progress < 0.4) {
-    const t = (progress - 0.3) / 0.1;
+  if (progress < 0.333) {
+    // Dawn phase 2: warm sunrise → bright blue sky (06:00-08:00)
+    const t = (progress - 0.25) / 0.083;
     return lerpHex('#ff8844', '#87ceeb', t);
   }
-  if (progress < 0.6) return '#87ceeb';
-  if (progress < 0.7) return '#87ceeb';
-  if (progress < 0.8) {
-    const t = (progress - 0.7) / 0.1;
+  if (progress < 0.75) return '#87ceeb';  // Full daylight
+  if (progress < 0.833) {
+    // Dusk phase 1: blue sky → warm sunset (18:00-20:00)
+    const t = (progress - 0.75) / 0.083;
     return lerpHex('#87ceeb', '#ff6633', t);
   }
-  if (progress < 0.9) {
-    const t = (progress - 0.8) / 0.1;
+  // Dusk phase 2 + Night: warm sunset → dark night sky
+  if (progress < 0.916) {
+    // Dusk phase 2: sunset → twilight (20:00-22:00)
+    const t = (progress - 0.833) / 0.083;
     return lerpHex('#ff6633', '#1a0a3a', t);
   }
-  return '#0a0a2a';
+  return '#0a0a2a';  // Deep night (22:00-04:00)
 }
 
 function lerpHex(a: string, b: string, t: number): string {
