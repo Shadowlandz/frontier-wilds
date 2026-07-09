@@ -243,8 +243,65 @@ export default function Landing() {
              ================================================================ */}
         <div className="relative z-30 w-full h-full flex flex-col" style={{ animation: 'breathe 4s ease-in-out infinite' }}>
 
-          {/* ──── CENTER: Logo + Torch + Button ──── */}
-          <div className="flex-1 flex flex-col items-center justify-center px-3 pt-8 sm:pt-12">
+          {/* ──── MAIN ROW: Controls Panel + Center + Spacer ──── */}
+          <div className="flex-1 flex items-center justify-center px-2 sm:px-4 gap-3 sm:gap-6 pt-8 sm:pt-12">
+
+            {/* ──── LEFT PANEL: CONTROLS ──── */}
+            <div
+              className="w-[160px] sm:w-[190px] flex-shrink-0 self-center rounded border-2 border-amber-900/35 overflow-hidden"
+              style={{
+                background: 'linear-gradient(180deg, #3a2a18 0%, #2a1a0a 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 16px rgba(0,0,0,0.5)',
+              }}
+            >
+              <div className="h-[3px]" style={{ background: 'linear-gradient(90deg, rgba(180,140,60,0.4), rgba(180,140,60,0.15), rgba(180,140,60,0.4))' }} />
+              <div className="p-2 sm:p-2.5">
+                <h3 className="text-center text-amber-300 font-bold text-[8px] sm:text-[9px] mb-2 tracking-[0.15em]"
+                  style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+                  🎮 COMANDOS
+                </h3>
+                <div className="space-y-[4px]">
+                  {[
+                    { keys: ['W','A','S','D'], action: 'Movimentar' },
+                    { keys: ['Mouse'], action: 'Atacar/Coletar' },
+                    { keys: ['E'], action: 'Interagir' },
+                    { keys: ['Espaço'], action: 'Rolar/Esquivar' },
+                    { keys: ['Shift'], action: 'Correr' },
+                    { keys: ['I'], action: 'Inventário' },
+                    { keys: ['C'], action: 'Craft' },
+                    { keys: ['P'], action: 'Plantar' },
+                    { keys: ['M'], action: 'Mapa' },
+                    { keys: ['Esc'], action: 'Menu' },
+                  ].map((ctrl, i) => (
+                    <div key={i} className="flex items-center gap-1">
+                      <div className="flex gap-[2px]">
+                        {ctrl.keys.map((key, ki) => (
+                          <span
+                            key={ki}
+                            className="inline-block px-[4px] py-[2px] rounded text-[6px] sm:text-[7px] font-bold text-white/90 leading-none text-center"
+                            style={{
+                              background: 'linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%)',
+                              border: '1px solid #666',
+                              boxShadow: '0 2px 0 #222, inset 0 1px 0 rgba(255,255,255,0.12)',
+                              minWidth: key.length > 3 ? 'auto' : key === 'Esc' ? '28px' : '20px',
+                              fontSize: key === 'Espaço' ? '5px' : '6px',
+                              padding: key === 'Espaço' ? '2px 3px' : '2px 4px',
+                            }}
+                          >
+                            {key}
+                          </span>
+                        ))}
+                      </div>
+                      <span className="text-white/30 text-[5px]">—</span>
+                      <span className="text-white/60 text-[6px] sm:text-[7px] truncate flex-1">{ctrl.action}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ──── CENTER: Logo + Torch + Button ──── */}
+            <div className="flex-1 flex flex-col items-center justify-center max-w-[500px]">
 
             {/* ---- LOGO ---- */}
             <div className="text-center mb-3 sm:mb-4" style={{ animation: 'logo-glow 3s ease-in-out infinite' }}>
@@ -345,6 +402,10 @@ export default function Landing() {
                 <span className="text-sm sm:text-base group-hover:-rotate-12 transition-transform duration-200">⚔️</span>
               </span>
             </button>
+          </div>
+
+            {/* ──── RIGHT SPACER (for visual balance) ──── */}
+            <div className="w-[160px] sm:w-[190px] shrink-0 hidden xl:block" />
           </div>
 
           {/* ──── BOTTOM: Tips Bar ──── */}
