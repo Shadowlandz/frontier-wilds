@@ -249,11 +249,11 @@ export default function Landing() {
         <div className="relative z-30 w-full h-full flex flex-col" style={{ animation: 'breathe 4s ease-in-out infinite' }}>
 
           {/* ──── MAIN ROW: Controls Panel + Center + Spacer ──── */}
-          <div className="flex-1 flex items-center justify-center px-2 sm:px-4 gap-3 sm:gap-6 pt-8 sm:pt-12">
+          <div className="flex-1 flex items-center justify-center px-2 sm:px-4 gap-3 sm:gap-6">
 
             {/* ──── LEFT PANEL: CONTROLS ──── */}
             <div
-              className="w-[160px] sm:w-[190px] flex-shrink-0 self-center rounded border-2 border-amber-900/35 overflow-hidden"
+              className="hidden md:block w-[160px] sm:w-[190px] flex-shrink-0 self-center rounded border-2 border-amber-900/35 overflow-hidden"
               style={{
                 background: 'linear-gradient(180deg, #3a2a18 0%, #2a1a0a 100%)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 16px rgba(0,0,0,0.5)',
@@ -305,113 +305,125 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* ──── CENTER: Logo + Torch + Button ──── */}
-            <div className="flex-1 flex flex-col items-center justify-center max-w-[500px]">
+            {/* ──── CENTER: Logo → Button (centered) → Torch ──── */}
+            <div className="flex-1 flex flex-col items-center max-w-[500px]">
 
-            {/* ---- LOGO ---- */}
-            <div className="text-center mb-3 sm:mb-4" style={{ animation: 'logo-glow 3s ease-in-out infinite' }}>
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <div className="h-[2px] flex-1 max-w-[50px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(216,180,74,0.3))' }} />
-                <span className="text-[10px] opacity-50">⚔️</span>
-                <div className="h-[2px] flex-1 max-w-[50px]" style={{ background: 'linear-gradient(90deg, rgba(216,180,74,0.3), transparent)' }} />
+              {/* Top spacer — pushes content to center */}
+              <div className="flex-[1] min-h-0" />
+
+              {/* ---- LOGO ---- */}
+              <div className="shrink-0 text-center" style={{ animation: 'logo-glow 3s ease-in-out infinite' }}>
+                <div className="flex items-center justify-center gap-2 mb-2 sm:mb-3">
+                  <div className="h-[2px] flex-1 max-w-[40px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(216,180,74,0.3))' }} />
+                  <span className="text-[8px] sm:text-[10px] opacity-50">⚔️</span>
+                  <div className="h-[2px] flex-1 max-w-[40px]" style={{ background: 'linear-gradient(90deg, rgba(216,180,74,0.3), transparent)' }} />
+                </div>
+                <h1 className="text-[clamp(24px,5vw,64px)] font-black tracking-[0.15em] leading-none"
+                  style={{
+                    color: '#f5c842',
+                    textShadow: '2px 2px 0 #8a5a10, 4px 4px 0 #6a4a08, 6px 6px 0 rgba(0,0,0,0.4), 0 0 30px rgba(245,200,66,0.2)',
+                  }}>FARM</h1>
+                <div className="h-[2px] mx-auto mt-0 rounded-full" style={{ width: '70%', background: 'linear-gradient(90deg, transparent, rgba(216,180,74,0.25), transparent)' }} />
+                <h1 className="text-[clamp(24px,5vw,64px)] font-black tracking-[0.2em] leading-none -mt-1"
+                  style={{
+                    color: '#d4a830',
+                    textShadow: '2px 2px 0 #7a4a08, 4px 4px 0 #5a3a06, 6px 6px 0 rgba(0,0,0,0.5), 0 0 25px rgba(212,168,48,0.15)',
+                  }}>SURVIVAL</h1>
               </div>
-              <h1 className="text-[clamp(28px,6vw,72px)] font-black tracking-[0.15em] leading-none"
-                style={{
-                  color: '#f5c842',
-                  textShadow: '2px 2px 0 #8a5a10, 4px 4px 0 #6a4a08, 6px 6px 0 rgba(0,0,0,0.4), 0 0 30px rgba(245,200,66,0.2)',
-                }}>FARM</h1>
-              <div className="h-[3px] mx-auto mt-0 rounded-full" style={{ width: '80%', background: 'linear-gradient(90deg, transparent, rgba(216,180,74,0.25), transparent)' }} />
-              <h1 className="text-[clamp(28px,6vw,72px)] font-black tracking-[0.2em] leading-none -mt-1"
-                style={{
-                  color: '#d4a830',
-                  textShadow: '2px 2px 0 #7a4a08, 4px 4px 0 #5a3a06, 6px 6px 0 rgba(0,0,0,0.5), 0 0 25px rgba(212,168,48,0.15)',
-                }}>SURVIVAL</h1>
-            </div>
 
-            {/* ---- TAGLINE ---- */}
-            <div className="mb-5 sm:mb-6 px-4 py-1 rounded border border-amber-800/25"
-              style={{ background: 'linear-gradient(180deg, rgba(60,35,12,0.5), rgba(30,15,5,0.5))', boxShadow: 'inset 0 1px 0 rgba(255,200,100,0.05)' }}>
-              <p className="text-amber-300/50 text-[7px] sm:text-[9px] tracking-[0.2em] font-bold">
-                SOBREVIVA · EXPLORE · FORJE · EVOLUA
-              </p>
-            </div>
+              {/* Tagline — compact, close to logo */}
+              <div className="shrink-0 mt-2 sm:mt-3 px-3 sm:px-4 py-1 rounded border border-amber-800/25"
+                style={{ background: 'linear-gradient(180deg, rgba(60,35,12,0.5), rgba(30,15,5,0.5))', boxShadow: 'inset 0 1px 0 rgba(255,200,100,0.05)' }}>
+                <p className="text-amber-300/50 text-[6px] sm:text-[9px] tracking-[0.2em] font-bold">
+                  SOBREVIVA · EXPLORE · FORJE · EVOLUA
+                </p>
+              </div>
 
-            {/* ---- TORCH (centerpiece) ---- */}
-            <div className="relative flex flex-col items-center mb-4 sm:mb-6" style={{ zIndex: 10 }}>
-              {/* Torch glow */}
-              <div className="absolute rounded-full pointer-events-none"
+              {/* Mid spacer 1 — fine-tunes button to screen center */}
+              <div className="flex-[0.5] min-h-[12px]" />
+
+              {/* ---- JOGAR BUTTON (true vertical center of screen) ---- */}
+              <button
+                onClick={() => navigate('/game')}
+                className="group relative shrink-0 px-8 sm:px-12 py-2.5 sm:py-3 rounded text-[11px] sm:text-sm font-black text-white tracking-[0.1em] transition-all duration-150 active:translate-y-[3px]"
                 style={{
-                  width: 'clamp(60px,10vw,100px)',
-                  height: 'clamp(60px,10vw,100px)',
-                  bottom: '5px',
-                  background: 'radial-gradient(circle, rgba(255,120,0,0.12) 0%, transparent 70%)',
-                  animation: 'torch-glow 1s ease-in-out infinite',
-                }} />
+                  background: 'linear-gradient(180deg, #5aaa3a 0%, #3a8a22 50%, #2a6a12 100%)',
+                  border: '3px solid #4a8a2a',
+                  boxShadow: '0 5px 0 #1a4a08, 0 8px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.6)',
+                }}
+              >
+                <span className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                  style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%)' }} />
+                <span className="flex items-center gap-2 sm:gap-3 relative z-10">
+                  <span className="text-sm sm:text-base group-hover:rotate-12 transition-transform duration-200">⚔️</span>
+                  <span>▶ JOGAR</span>
+                  <span className="text-sm sm:text-base group-hover:-rotate-12 transition-transform duration-200">⚔️</span>
+                </span>
+              </button>
 
-              {/* Smoke */}
-              {[0, 1, 2].map(i => (
-                <div key={i} className="absolute rounded-full pointer-events-none"
+              {/* Mid spacer 2 */}
+              <div className="flex-[0.5] min-h-[12px]" />
+
+              {/* ---- TORCH (decorative, below center) ---- */}
+              <div className="relative shrink-0 flex flex-col items-center" style={{ zIndex: 10 }}>
+                {/* Torch glow */}
+                <div className="absolute rounded-full pointer-events-none"
                   style={{
-                    width: `${8 + i * 4}px`, height: `${8 + i * 4}px`,
-                    bottom: '50px', background: 'rgba(150,130,110,0.1)',
-                    animation: `smoke-rise ${2 + i * 0.4}s ease-out ${i * 0.35}s infinite`,
-                    left: `${(i - 1) * 6}px`,
+                    width: 'clamp(50px,8vw,80px)',
+                    height: 'clamp(50px,8vw,80px)',
+                    bottom: '5px',
+                    background: 'radial-gradient(circle, rgba(255,120,0,0.12) 0%, transparent 70%)',
+                    animation: 'torch-glow 1s ease-in-out infinite',
                   }} />
-              ))}
 
-              {/* Flame */}
-              <div className="text-[clamp(28px,5vw,44px)] mb-0 pointer-events-none leading-none"
-                style={{
-                  filter: 'drop-shadow(0 0 20px rgba(255,160,50,0.5))',
-                  animation: 'torch-flicker 0.8s ease-in-out infinite',
-                }}>🔥</div>
+                {/* Smoke */}
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="absolute rounded-full pointer-events-none"
+                    style={{
+                      width: `${6 + i * 3}px`, height: `${6 + i * 3}px`,
+                      bottom: '40px', background: 'rgba(150,130,110,0.1)',
+                      animation: `smoke-rise ${2 + i * 0.4}s ease-out ${i * 0.35}s infinite`,
+                      left: `${(i - 1) * 5}px`,
+                    }} />
+                ))}
 
-              {/* Sparks */}
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} className="absolute rounded-full pointer-events-none"
+                {/* Flame */}
+                <div className="text-[clamp(24px,4vw,36px)] mb-0 pointer-events-none leading-none"
                   style={{
-                    width: '3px', height: '3px',
-                    bottom: '28px', left: `${(i - 1.5) * 7}px`,
-                    background: '#ffaa33',
-                    boxShadow: '0 0 4px 1px rgba(255,170,50,0.4)',
-                    animation: `spark-rise ${0.7 + i * 0.15}s ease-out ${i * 0.2}s infinite`,
+                    filter: 'drop-shadow(0 0 16px rgba(255,160,50,0.4))',
+                    animation: 'torch-flicker 0.8s ease-in-out infinite',
+                  }}>🔥</div>
+
+                {/* Sparks */}
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="absolute rounded-full pointer-events-none"
+                    style={{
+                      width: '2px', height: '2px',
+                      bottom: '22px', left: `${(i - 1) * 6}px`,
+                      background: '#ffaa33',
+                      boxShadow: '0 0 3px 1px rgba(255,170,50,0.4)',
+                      animation: `spark-rise ${0.7 + i * 0.15}s ease-out ${i * 0.2}s infinite`,
+                    }} />
+                ))}
+
+                {/* Torch handle (wooden stick) */}
+                <div className="rounded-b-sm pointer-events-none"
+                  style={{
+                    width: '5px',
+                    height: 'clamp(22px,3vw,30px)',
+                    background: 'linear-gradient(180deg, #5a2a0a 0%, #3a1a05 100%)',
+                    boxShadow: '1px 0 0 rgba(0,0,0,0.2)',
                   }} />
-              ))}
+              </div>
 
-              {/* Torch handle (wooden stick) */}
-              <div className="rounded-b-sm pointer-events-none"
-                style={{
-                  width: '6px',
-                  height: 'clamp(28px,4vw,36px)',
-                  background: 'linear-gradient(180deg, #5a2a0a 0%, #3a1a05 100%)',
-                  boxShadow: '1px 0 0 rgba(0,0,0,0.2)',
-                }} />
+              {/* Bottom spacer */}
+              <div className="flex-[1] min-h-0" />
             </div>
-
-            {/* ---- JOGAR BUTTON ---- */}
-            <button
-              onClick={() => navigate('/game')}
-              className="group relative px-8 sm:px-12 py-2.5 sm:py-3 rounded text-[11px] sm:text-sm font-black text-white tracking-[0.1em] transition-all duration-150 active:translate-y-[3px]"
-              style={{
-                background: 'linear-gradient(180deg, #5aaa3a 0%, #3a8a22 50%, #2a6a12 100%)',
-                border: '3px solid #4a8a2a',
-                boxShadow: '0 5px 0 #1a4a08, 0 8px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
-                textShadow: '1px 1px 2px rgba(0,0,0,0.6)',
-              }}
-            >
-              <span className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-                style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%)' }} />
-              <span className="flex items-center gap-2 sm:gap-3 relative z-10">
-                <span className="text-sm sm:text-base group-hover:rotate-12 transition-transform duration-200">⚔️</span>
-                <span>▶ JOGAR</span>
-                <span className="text-sm sm:text-base group-hover:-rotate-12 transition-transform duration-200">⚔️</span>
-              </span>
-            </button>
-          </div>
 
             {/* ──── RIGHT PANEL: QUICK SETTINGS ──── */}
             <div
-              className="w-[160px] sm:w-[190px] flex-shrink-0 self-center rounded border-2 border-amber-900/35 overflow-hidden"
+              className="hidden lg:block w-[160px] sm:w-[190px] flex-shrink-0 self-center rounded border-2 border-amber-900/35 overflow-hidden"
               style={{
                 background: 'linear-gradient(180deg, #3a2a18 0%, #2a1a0a 100%)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 16px rgba(0,0,0,0.5)',
