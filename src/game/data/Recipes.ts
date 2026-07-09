@@ -199,7 +199,49 @@ export const RECIPES: CraftingRecipe[] = [
 
   // ── Consumables ───────────────────────────────────────────────
   {
-    id: 'craft_bread', name: 'Pão', category: ItemCategory.Consumable,
+    id: 'cook_vegetable_soup', name: 'Sopa de Legumes 🥣', category: ItemCategory.Consumable,
+    result: 'vegetable_soup', resultCount: 2,
+    ingredients: [{ itemId: 'carrot', count: 2 }, { itemId: 'potato', count: 2 }],
+    requiredLevel: 2, craftTime: 3000, station: 'furnace',
+  },
+  {
+    id: 'cook_berry_jam', name: 'Geleia de Frutas 🍯', category: ItemCategory.Consumable,
+    result: 'berry_jam', resultCount: 2,
+    ingredients: [{ itemId: 'berry', count: 4 }, { itemId: 'wheat', count: 1 }],
+    requiredLevel: 2, craftTime: 3000, station: 'furnace',
+  },
+  {
+    id: 'cook_pumpkin_pie', name: 'Torta de Abóbora 🥧', category: ItemCategory.Consumable,
+    result: 'pumpkin_pie', resultCount: 1,
+    ingredients: [{ itemId: 'pumpkin', count: 2 }, { itemId: 'wheat', count: 3 }, { itemId: 'berry', count: 2 }],
+    requiredLevel: 4, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'cook_grilled_fish', name: 'Peixe Grelhado 🐟', category: ItemCategory.Consumable,
+    result: 'grilled_fish', resultCount: 1,
+    ingredients: [{ itemId: 'fish', count: 1 }, { itemId: 'coal', count: 1 }],
+    requiredLevel: 1, craftTime: 2000, station: 'furnace',
+  },
+  {
+    id: 'cook_mixed_salad', name: 'Salada Mista 🥗', category: ItemCategory.Consumable,
+    result: 'mixed_salad', resultCount: 2,
+    ingredients: [{ itemId: 'carrot', count: 2 }, { itemId: 'berry', count: 2 }],
+    requiredLevel: 2, craftTime: 2000,
+  },
+  {
+    id: 'cook_hearty_meal', name: 'Refeição Reforçada 🍖', category: ItemCategory.Consumable,
+    result: 'hearty_meal', resultCount: 1,
+    ingredients: [{ itemId: 'cooked_meat', count: 1 }, { itemId: 'potato', count: 2 }, { itemId: 'carrot', count: 2 }],
+    requiredLevel: 5, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'cook_roasted_potato', name: 'Batata Assada 🥔', category: ItemCategory.Consumable,
+    result: 'roasted_potato', resultCount: 2,
+    ingredients: [{ itemId: 'potato', count: 2 }, { itemId: 'coal', count: 1 }],
+    requiredLevel: 1, craftTime: 2000, station: 'furnace',
+  },
+  {
+    id: 'craft_bread', name: 'Pão 🍞', category: ItemCategory.Consumable,
     result: 'bread', resultCount: 2,
     ingredients: [{ itemId: 'wheat', count: 3 }],
     requiredLevel: 1, craftTime: 2000, station: 'furnace',

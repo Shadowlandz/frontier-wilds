@@ -574,6 +574,42 @@ export const ITEMS: Record<string, ItemDefinition> = {
     category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 5, weight: 2, value: 100,
     icon: '✨',
   },
+  // ── Cooking / Prepared Foods ───────────────────────────────────
+  vegetable_soup: {
+    id: 'vegetable_soup', name: 'Sopa de Legumes', description: 'Sopa quente e nutritiva de cenoura e batata.',
+    category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 10, weight: 1, value: 15,
+    icon: '🥣', foodValue: 35, healAmount: 15, effects: [{ type: 'hunger', value: 35 }, { type: 'heal', value: 15 }, { type: 'energy', value: 10 }],
+  },
+  berry_jam: {
+    id: 'berry_jam', name: 'Geleia de Frutas', description: 'Geleia doce e energética de framboesas.',
+    category: ItemCategory.Consumable, rarity: Rarity.Uncommon, stackSize: 10, weight: 0.5, value: 18,
+    icon: '🍯', foodValue: 20, healAmount: 20, effects: [{ type: 'hunger', value: 20 }, { type: 'heal', value: 20 }, { type: 'energy', value: 25 }],
+  },
+  pumpkin_pie: {
+    id: 'pumpkin_pie', name: 'Torta de Abóbora', description: 'Torta doce e farta de abóbora com trigo.',
+    category: ItemCategory.Consumable, rarity: Rarity.Uncommon, stackSize: 5, weight: 1.5, value: 25,
+    icon: '🥧', foodValue: 50, healAmount: 25, effects: [{ type: 'hunger', value: 50 }, { type: 'heal', value: 25 }, { type: 'energy', value: 15 }],
+  },
+  grilled_fish: {
+    id: 'grilled_fish', name: 'Peixe Grelhado', description: 'Peixe grelhado no fogo, delicioso e nutritivo.',
+    category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 10, weight: 1, value: 12,
+    icon: '🐟', foodValue: 28, healAmount: 12, effects: [{ type: 'hunger', value: 28 }, { type: 'heal', value: 12 }],
+  },
+  mixed_salad: {
+    id: 'mixed_salad', name: 'Salada Mista', description: 'Salada fresca de cenoura e frutas silvestres.',
+    category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 10, weight: 0.5, value: 12,
+    icon: '🥗', foodValue: 18, healAmount: 18, effects: [{ type: 'hunger', value: 18 }, { type: 'heal', value: 18 }, { type: 'energy', value: 8 }],
+  },
+  hearty_meal: {
+    id: 'hearty_meal', name: 'Refeição Reforçada', description: 'Prato completo: carne, batata e cenoura. Restaura tudo!',
+    category: ItemCategory.Consumable, rarity: Rarity.Uncommon, stackSize: 5, weight: 2, value: 35,
+    icon: '🍖', foodValue: 60, healAmount: 35, effects: [{ type: 'hunger', value: 60 }, { type: 'heal', value: 35 }, { type: 'energy', value: 20 }],
+  },
+  roasted_potato: {
+    id: 'roasted_potato', name: 'Batata Assada', description: 'Batata quentinha assada no fogo.',
+    category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 20, weight: 0.5, value: 8,
+    icon: '🥔', foodValue: 22, healAmount: 8, effects: [{ type: 'hunger', value: 22 }, { type: 'heal', value: 8 }],
+  },
 };
 
 export function getItem(id: string): ItemDefinition | undefined {
