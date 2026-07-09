@@ -3508,21 +3508,49 @@ export class Game {
       ctx.fillStyle = 'rgba(0, 0, 10, 0.75)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Dynamic torch light around player — gradient circle
+      // Dynamic torch light around player - gradient circle
       const playerScreen = camera.worldToScreen(
         player.x + PLAYER_SIZE / 2,
         player.y + PLAYER_SIZE / 2
       );
-      const lightRadius = this.getCurrentItem()?.toolType === 'torch' ? 200 : 120;
+      const hasTorch = this.getCurrentItem()?.toolType === 'torch';
+      // Torch: large warm light + subtle flicker | Hands: small dim light
+      const flicker = hasTorch ? Math.sin(performance.now() / 120 + player.x * 0.1) * 15 : 0;
+      const lightRadius = hasTorch ? 250 + flicker : 120;
       const gradient = ctx.createRadialGradient(
-        playerScreen.x, playerScreen.y, 20,
+        playerScreen.x, playerScreen.y, hasTorch ? 10 : 20,
         playerScreen.x, playerScreen.y, lightRadius
       );
-      gradient.addColorStop(0, 'rgba(0, 0, 10, 0)');
-      gradient.addColorStop(1, 'rgba(0, 0, 10, 0.75)');
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (hasTorch) {
+        // Warm torch glow - stronger in center, fades to dark
+        gradient.addColorStop(0, 'rgba(255, 180, 60, 0.15)');
+        gradient.addColorStop(0.15, 'rgba(255, 180, 60, 0.05)');
+        gradient.addColorStop(0.5, 'rgba(255, 160, 40, 0.02)');
+        gradient.addColorStop(1, 'rgba(0, 0, 10, 0.75)');
+        // Warm glow overlay on the scene
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = 'destination-out';
+        // Punch hole for visibility with warm gradient
+        const holeGradient = ctx.createRadialGradient(
+          playerScreen.x, playerScreen.y, 15,
+          playerScreen.x, playerScreen.y, lightRadius - 30
+        );
+        holeGradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        holeGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.8)');
+        holeGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = holeGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        // No torch - small dim visibility circle
+        gradient.addColorStop(0, 'rgba(0, 0, 10, 0)');
+        gradient.addColorStop(1, 'rgba(0, 0, 10, 0.75)');
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
       ctx.globalCompositeOperation = 'source-over';
 
       // Subtle lava ambient glow

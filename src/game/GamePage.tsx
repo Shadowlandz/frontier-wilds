@@ -141,14 +141,14 @@ export default function GamePage() {
 
 // ── Helper: notification class ────────────────────────────────────
 function getNotificationClass(type: string): string {
-  switch (type) {
-    case 'success': return 'bg-green-800/80 text-green-200 border border-green-600/40';
-    case 'warning': return 'bg-yellow-800/80 text-yellow-200 border border-yellow-600/40';
-    case 'error': return 'bg-red-800/80 text-red-200 border border-red-600/40';
-    case 'item': return 'bg-purple-800/80 text-purple-200 border border-purple-600/40';
-    case 'quest': return 'bg-amber-800/80 text-amber-200 border border-amber-600/40';
-    default: return 'bg-blue-800/80 text-blue-200 border border-blue-600/40';
-  }
+  // All notifications: gray background + rounded borders + green text
+  // Type is used only for the left border accent color
+  const accents: Record<string, string> = {
+    success: 'border-l-green-500', warning: 'border-l-yellow-500',
+    error: 'border-l-red-500', item: 'border-l-purple-500', quest: 'border-l-amber-500',
+  };
+  const accent = accents[type] || 'border-l-blue-500';
+  return `bg-gray-800/85 text-green-300 border border-gray-600/30 ${accent} rounded-xl`;
 }
 
 // ── HUD Component ─────────────────────────────────────────────────
