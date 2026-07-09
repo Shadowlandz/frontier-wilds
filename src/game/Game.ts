@@ -10,7 +10,7 @@ import {
   DamageNumber, Particle, ParticleEffectType, GameUIState, Notification, ItemCategory,
   Rarity, ItemDefinition, WORLD_WIDTH, WORLD_HEIGHT, PlayerAttributes,
   EnemyType, SafeZone, StorageChest, PlacedStructure,
-  generateItemAffixes, computeItemPowerScore, getAffixedItemName, getAffixSlotTypes,
+  generateItemAffixes, computeItemPowerScore, getAffixedItemName, getAffixSlotTypes, ACHIEVEMENTS, AchievementProgress,
 } from './core/Types';
 import { getAmbientLightLevel, getDayNightColor, getInteriorLight } from './core/Types';
 import { Input } from './core/Input';
@@ -59,6 +59,25 @@ export class Game {
   npcBlinkTimer = 2 + Math.random() * 3;
   npcBlinkDuration = 0;
   npcIsBlinking = false;
+
+  // ── Achievement tracking ──
+  achievementStats = {
+    enemiesKilled: 0,
+    woodGathered: 0,
+    oreGathered: 0,
+    cropsHarvested: 0,
+    itemsCrafted: 0,
+    goldEarned: 0,
+    daysSurvived: 0,
+    biomesDiscovered: 0,
+    hasEnteredCave: false,
+    hasBuiltHouse: false,
+    hasDied: false,
+    fishCaught: 0,
+    structuresBuilt: 0,
+    totalXpGained: 0,
+  };
+  achievementQueue: string[] = []; // IDs of newly unlocked achievements to show as popups
   projectiles: { x: number; y: number; vx: number; vy: number; damage: number; lifetime: number; speed: number }[] = [];
 
   // World data
@@ -226,6 +245,7 @@ export class Game {
       },
       world: { seed, chunks: new Map(), resources: [], enemies: [], npcs: [], droppedItems: [] },
       quests: [],
+      achievements: ACHIEVEMENTS.map(a => ({ id: a.id, unlocked: false, unlockedAt: 0 })),
       skills: {},
       structures: [],
       safeZones: [],
@@ -332,6 +352,7 @@ export class Game {
     this.updateRegeneration(dt);
     this.updateNotifications(dt);
     this.updateFarming(dt);
+    this.checkAchievements();
     this.updateResourceRespawn(dt);
     if (this.inCave) this.updateCaveResourceRespawn(dt);
 
@@ -403,6 +424,14 @@ export class Game {
       this.ui.activePanel = this.ui.activePanel === 'skills' ? 'none' : 'skills';
       if (opening_skill && this.ui.activePanel === 'skills') this.audio.playUIOpen();
       else if (!opening_skill) this.audio.playUIClose();
+    }
+
+    // L for achievements
+    if (input.isKeyPressed('l')) {
+      const opening_ach = this.ui.activePanel !== 'achievements';
+      this.ui.activePanel = this.ui.activePanel === 'achievements' ? 'none' : 'achievements';
+      if (opening_ach && this.ui.activePanel === 'achievements') this.audio.playUIOpen();
+      else if (!opening_ach) this.audio.playUIClose();
     }
 
     // J for quests
@@ -677,6 +706,7 @@ export class Game {
     }));
 
     this.inCave = true;
+    this.achievementStats.hasEnteredCave = true;
     this.addNotification('Você entrou na caverna...', 'info');
     this.addNotification('Pressione [E] perto da entrada para sair.', 'info');
   }
@@ -824,6 +854,12 @@ export class Game {
 
       const itemName = getItem(res.itemId)?.name || res.itemId;
       this.addNotification(`+${count} ${itemName}`, 'item');
+      // Track for achievements
+      if (res.type === 'tree' || res.type === 'bush') {
+        this.achievementStats.woodGathered += count;
+      } else if (res.type.includes('rock') || res.type.includes('ore') || res.type === 'crystal_node') {
+        this.achievementStats.oreGathered += count;
+      }
       if (isVegetation) {
         this.spawnParticles(res.x + 10, res.y + 15, '#4a6a2a', 8, 'leaf', { spread: 120, speed: 80, sizeRange: [3, 6], lifeRange: [0.5, 1.0] });
         this.spawnParticles(res.x + 10, res.y + 10, '#6b4423', 5, 'wood_chip', { spread: 100, speed: 70, sizeRange: [2, 5] });
@@ -1048,6 +1084,8 @@ export class Game {
 
     // Death sound
     this.audio.playEnemyDeath(enemy.definition.type);
+    // Update achievement tracking
+    this.achievementStats.enemiesKilled++;
     // XP reward
     this.gainXp(enemy.definition.xpReward);
 
@@ -1067,6 +1105,7 @@ export class Game {
     // Gold drop
     const gold = Math.floor(Math.random() * enemy.definition.xpReward / 5) + 1;
     this.state.player.stats.gold += gold;
+    this.achievementStats.goldEarned += gold;
     this.addNotification(`+${gold} 🪙`, 'item');
   }
 
@@ -1329,6 +1368,7 @@ export class Game {
     }
 
     this.audio.playPlayerDeath();
+    this.achievementStats.hasDied = true;
     // Respawn at village center
     const cx = (WORLD_WIDTH * TILE_SIZE) / 2;
     const cy = (WORLD_HEIGHT * TILE_SIZE) / 2;
@@ -1885,6 +1925,8 @@ export class Game {
 
     // XP for crafting
     this.gainXp(5 + recipe.requiredLevel * 2);
+    // Track for achievements
+    this.achievementStats.itemsCrafted += recipe.resultCount;
 
     // Craft sparkle particles
     this.spawnParticles(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y, '#44ddff', 6, 'craft_sparkle', { spread: 100, speed: 70, sizeRange: [2, 4], lifeRange: [0.5, 1.0], color2: '#88eeff' });
@@ -2142,6 +2184,7 @@ export class Game {
   // ── Progression ─────────────────────────────────────────────────
   gainXp(amount: number): void {
     this.state.player.stats.xp += amount;
+    this.achievementStats.totalXpGained += amount;
     while (this.state.player.stats.xp >= this.state.player.stats.xpToNext) {
       this.levelUp();
     }
@@ -2301,6 +2344,8 @@ export class Game {
     }
     this.gainXp(10 + Math.floor(this.state.player.stats.farming * 2));
     this.updateQuestProgress('farm', cropId);
+    // Track for achievements
+    this.achievementStats.cropsHarvested += harvestCount;
 
     this.spawnParticles(px * TILE_SIZE + TILE_SIZE / 2, py * TILE_SIZE + TILE_SIZE / 2, '#ffcc44', 6, 'harvest', { spread: 100, speed: 80, sizeRange: [2, 5], lifeRange: [0.4, 0.8] });
     this.spawnParticles(px * TILE_SIZE + TILE_SIZE / 2, py * TILE_SIZE + TILE_SIZE / 2, '#4a8a3a', 5, 'leaf', { spread: 80, speed: 60, sizeRange: [3, 5], lifeRange: [0.5, 0.9] });
@@ -2437,6 +2482,8 @@ export class Game {
     this.addToInventory(fishId, count);
     this.gainXp(5 + fishingSkill);
     this.updateQuestProgress('fish', fishId);
+    // Track for achievements
+    this.achievementStats.fishCaught += count;
 
     const fishName = getItem(fishId)?.name || fishId;
     this.addNotification(`Pescou ${count}x ${fishName}!`, 'item');
@@ -2580,6 +2627,11 @@ export class Game {
     }
 
     this.state.structures.push(newStruct);
+    this.achievementStats.structuresBuilt++;
+    // Check for house achievement
+    if (itemId === 'house') {
+      this.achievementStats.hasBuiltHouse = true;
+    }
     this.gainXp(3);
     this.audio.playBuild();
     this.addNotification(`${item.name} construído!`, 'success');
@@ -2799,6 +2851,50 @@ export class Game {
       timestamp: Date.now(),
       duration: 3000,
     });
+  }
+
+  private checkAchievements(): void {
+    const { player, gameTime } = this.state;
+    const stats = this.achievementStats;
+
+    const checkState = {
+      playerLevel: player.stats.level,
+      stats: player.stats,
+      enemiesKilled: stats.enemiesKilled,
+      woodGathered: stats.woodGathered,
+      oreGathered: stats.oreGathered,
+      cropsHarvested: stats.cropsHarvested,
+      itemsCrafted: stats.itemsCrafted,
+      goldEarned: stats.goldEarned,
+      daysSurvived: gameTime.day,
+      biomesDiscovered: this.state.discoveredAreas.length,
+      hasEnteredCave: stats.hasEnteredCave,
+      hasBuiltHouse: stats.hasBuiltHouse,
+      hasDied: stats.hasDied,
+      fishCaught: stats.fishCaught,
+      structuresBuilt: stats.structuresBuilt,
+      totalXpGained: stats.totalXpGained,
+    };
+
+    for (const achievement of ACHIEVEMENTS) {
+      const progress = this.state.achievements.find(a => a.id === achievement.id);
+      if (!progress || progress.unlocked) continue;
+
+      if (achievement.condition(checkState)) {
+        progress.unlocked = true;
+        progress.unlockedAt = Date.now();
+        this.achievementQueue.push(achievement.id);
+        this.addNotification(`🏆 ${achievement.icon} ${achievement.name}: ${achievement.description}`, 'success');
+        this.spawnParticles(player.x + 12, player.y, '#ffd700', 8, 'level_up', { spread: 150, speed: 100, sizeRange: [3, 6], lifeRange: [1, 2] });
+        this.camera.shake(3, 0.2);
+        this.audio.playCraft(); // Reuse craft sound for achievement
+      }
+    }
+
+    // Process achievement queue for UI (keep up to 5 in queue)
+    if (this.achievementQueue.length > 5) {
+      this.achievementQueue = this.achievementQueue.slice(this.achievementQueue.length - 5);
+    }
   }
 
   private updateNpcBlink(): { isBlinking: boolean } {

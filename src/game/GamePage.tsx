@@ -4,7 +4,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { Game } from './Game';
-import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT } from './core/Types';
+import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT, ACHIEVEMENTS, AchievementProgress } from './core/Types';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { SKILLS, getSkillsByTree } from './data/Skills';
@@ -87,6 +87,11 @@ export default function GamePage() {
             <WorldMap game={game!} />
           )}
 
+          {/* Achievement popup - in main render where game is available */}
+          {game.achievementQueue && game.achievementQueue.length > 0 && (
+            <AchievementPopup achievementId={game.achievementQueue[game.achievementQueue.length - 1]} />
+          )}
+
           {/* Hotbar */}
           <Hotbar
             hotbar={player!.hotbar}
@@ -110,6 +115,9 @@ export default function GamePage() {
           )}
           {uiState.activePanel === 'quests' && (
             <QuestsPanel game={game!} />
+          )}
+          {uiState.activePanel === 'achievements' && (
+            <AchievementsPanel game={game!} />
           )}
           {uiState.activePanel === 'shop' && (
             <ShopPanel game={game!} uiState={uiState} />
@@ -2369,6 +2377,95 @@ function StoragePanel({ game }: { game: Game }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Achievement Popup ────────────────────────────────────────────────
+function AchievementPopup({ achievementId }: { achievementId: string }) {
+  const achievement = ACHIEVEMENTS.find(a => a.id === achievementId);
+  if (!achievement) return null;
+
+  const rarityColors: Record<string, string> = {
+    progression: '#ffd700', combat: '#ff4444', gathering: '#44aa44',
+    farming: '#66bb6a', crafting: '#44aadd', exploration: '#aa66ff', special: '#ff8800'
+  };
+
+  return (
+    <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-[achievementPop_0.5s_ease-out]">
+      <div className="bg-gradient-to-r from-yellow-900/90 via-amber-900/90 to-yellow-900/90 border-2 border-yellow-500/60 rounded-xl px-6 py-3 shadow-2xl shadow-yellow-500/20 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <div className="text-4xl animate-bounce">{achievement.icon}</div>
+          <div>
+            <div className="text-[10px] text-yellow-300/70 font-bold uppercase tracking-wider">🏆 Conquista Desbloqueada!</div>
+            <div className="text-white font-bold text-lg" style={{ color: rarityColors[achievement.category] || '#fff' }}>
+              {achievement.name}
+            </div>
+            <div className="text-white/60 text-xs">{achievement.description}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Achievements Panel (accessible from quests screen or hotkey) ──
+function AchievementsPanel({ game }: { game: Game }) {
+  const achievements = game.state.achievements;
+  const unlocked = achievements.filter(a => a.unlocked).length;
+  const total = achievements.length;
+
+  const categoryLabels: Record<string, string> = {
+    progression: '📈 Progresso', combat: '⚔️ Combate', gathering: '🪓 Coleta',
+    farming: '🌾 Fazenda', crafting: '🔨 Craft', exploration: '🧭 Exploração', special: '⭐ Especial'
+  };
+
+  const categoryIcons: Record<string, string> = {
+    progression: '#ffd700', combat: '#ff4444', gathering: '#44aa44',
+    farming: '#66bb6a', crafting: '#44aadd', exploration: '#aa66ff', special: '#ff8800'
+  };
+
+  return (
+    <Panel title="🏆 Conquistas" onClose={() => game.setActivePanel('none')}>
+      <div className="text-white/60 text-xs mb-2">
+        {unlocked}/{total} conquistas desbloqueadas ({total > 0 ? Math.round((unlocked / total) * 100) : 0}%)
+      </div>
+      <div className="h-2 bg-black/50 rounded-full mb-3">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${total > 0 ? (unlocked / total) * 100 : 0}%`,
+            background: 'linear-gradient(90deg, #ffd700, #ffec80)'
+          }}
+        />
+      </div>
+      <div className="space-y-1.5 max-h-80 overflow-y-auto">
+        {ACHIEVEMENTS.map(ach => {
+          const progress = achievements.find(a => a.id === ach.id);
+          const isUnlocked = progress?.unlocked ?? false;
+
+          return (
+            <div
+              key={ach.id}
+              className={`flex items-center gap-2 p-2 rounded border transition-all ${
+                isUnlocked
+                  ? 'border-yellow-500/30 bg-yellow-900/20'
+                  : 'border-white/10 bg-white/5 opacity-50'
+              }`}
+            >
+              <div className={`text-2xl ${isUnlocked ? '' : 'grayscale'}`}>{ach.icon}</div>
+              <div className="flex-1 min-w-0">
+                <div className={`flex items-center gap-1.5 ${isUnlocked ? 'text-white' : 'text-white/50'}`}>
+                  <span className="text-xs font-bold">{ach.name}</span>
+                  {isUnlocked && <span className="text-[9px]">✅</span>}
+                </div>
+                <div className="text-[9px] text-white/40">{ach.description}</div>
+                <div className="text-[8px] text-white/30 mt-0.5">{categoryLabels[ach.category] || ach.category}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }
 

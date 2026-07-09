@@ -466,6 +466,7 @@ export interface GameState {
   gameTime: GameTime;
   settings: GameSettings;
   notifications: Notification[];
+  achievements: AchievementProgress[];
 }
 
 export interface PlayerState {
@@ -622,7 +623,7 @@ export function getInteriorLight(): string {
 }
 
 // ── UI State ──────────────────────────────────────────────────────
-export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'forge' | 'save' | 'none';
+export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'forge' | 'save' | 'achievements' | 'none';
 
 export interface GameUIState {
   activePanel: PanelType;
@@ -894,3 +895,117 @@ export function getAffixedItemName(item: ItemDefinition, affixes: ItemAffix[]): 
 
   return name;
 }
+
+// ── Achievement System ────────────────────────────────────────────
+export type AchievementCategory = 'exploration' | 'combat' | 'gathering' | 'farming' | 'crafting' | 'progression' | 'special';
+
+export interface AchievementDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: AchievementCategory;
+  condition: (state: { playerLevel: number; stats: PlayerStats; enemiesKilled: number; woodGathered: number; oreGathered: number; cropsHarvested: number; itemsCrafted: number; goldEarned: number; daysSurvived: number; biomesDiscovered: number; hasEnteredCave: boolean; hasBuiltHouse: boolean; hasDied: boolean; fishCaught: number; structuresBuilt: number; totalXpGained: number }) => boolean;
+}
+
+export interface AchievementProgress {
+  id: string;
+  unlocked: boolean;
+  unlockedAt: number;
+}
+
+// ── Achievement Definitions ──
+export type AchievementCheckState = {
+  playerLevel: number;
+  stats: PlayerStats;
+  enemiesKilled: number;
+  woodGathered: number;
+  oreGathered: number;
+  cropsHarvested: number;
+  itemsCrafted: number;
+  goldEarned: number;
+  daysSurvived: number;
+  biomesDiscovered: number;
+  hasEnteredCave: boolean;
+  hasBuiltHouse: boolean;
+  hasDied: boolean;
+  fishCaught: number;
+  structuresBuilt: number;
+  totalXpGained: number;
+};
+
+export const ACHIEVEMENTS: AchievementDefinition[] = [
+  // ── Progression ──
+  { id: 'first_steps', name: 'Primeiros Passos', description: 'Atingir o nível 3', icon: '🌱', category: 'progression',
+    condition: (s) => s.playerLevel >= 3 },
+  { id: 'survivor', name: 'Sobrevivente', description: 'Atingir o nível 10', icon: '⭐', category: 'progression',
+    condition: (s) => s.playerLevel >= 10 },
+  { id: 'veteran', name: 'Veterano', description: 'Atingir o nível 25', icon: '⚡', category: 'progression',
+    condition: (s) => s.playerLevel >= 25 },
+  { id: 'legend', name: 'Lenda Viva', description: 'Atingir o nível 50', icon: '👑', category: 'progression',
+    condition: (s) => s.playerLevel >= 50 },
+  { id: 'rich', name: 'Rico', description: 'Acumular 1000 de ouro', icon: '💰', category: 'progression',
+    condition: (s) => s.goldEarned >= 1000 },
+  { id: 'millionaire', name: 'Milionário', description: 'Acumular 10000 de ouro', icon: '💎', category: 'progression',
+    condition: (s) => s.goldEarned >= 10000 },
+  { id: 'xp_master', name: 'Mestre da Experiência', description: 'Ganhar 5000 XP total', icon: '✨', category: 'progression',
+    condition: (s) => s.totalXpGained >= 5000 },
+  
+  // ── Combat ──
+  { id: 'hunter', name: 'Caçador', description: 'Derrotar 10 inimigos', icon: '🏹', category: 'combat',
+    condition: (s) => s.enemiesKilled >= 10 },
+  { id: 'slayer', name: 'Exterminador', description: 'Derrotar 50 inimigos', icon: '⚔️', category: 'combat',
+    condition: (s) => s.enemiesKilled >= 50 },
+  { id: 'berserker', name: 'Berserker', description: 'Derrotar 200 inimigos', icon: '💀', category: 'combat',
+    condition: (s) => s.enemiesKilled >= 200 },
+  { id: 'first_blood', name: 'Primeira Morte', description: 'Morrer pela primeira vez', icon: '😵', category: 'combat',
+    condition: (s) => s.hasDied },
+
+  // ── Gathering ──
+  { id: 'lumberjack', name: 'Lenhador', description: 'Coletar 100 madeiras', icon: '🪓', category: 'gathering',
+    condition: (s) => s.woodGathered >= 100 },
+  { id: 'wood_baron', name: 'Barão da Madeira', description: 'Coletar 1000 madeiras', icon: '🌲', category: 'gathering',
+    condition: (s) => s.woodGathered >= 1000 },
+  { id: 'miner', name: 'Minerador', description: 'Coletar 50 minérios', icon: '⛏️', category: 'gathering',
+    condition: (s) => s.oreGathered >= 50 },
+  { id: 'deep_miner', name: 'Minerador Profundo', description: 'Coletar 500 minérios', icon: '🪨', category: 'gathering',
+    condition: (s) => s.oreGathered >= 500 },
+  { id: 'fisher', name: 'Pescador', description: 'Pegar 20 peixes', icon: '🎣', category: 'gathering',
+    condition: (s) => s.fishCaught >= 20 },
+  { id: 'master_fisher', name: 'Mestre Pescador', description: 'Pegar 100 peixes', icon: '🐟', category: 'gathering',
+    condition: (s) => s.fishCaught >= 100 },
+  
+  // ── Farming ──
+  { id: 'farmer', name: 'Fazendeiro', description: 'Colher 30 plantações', icon: '🌾', category: 'farming',
+    condition: (s) => s.cropsHarvested >= 30 },
+  { id: 'master_farmer', name: 'Mestre Agricultor', description: 'Colher 200 plantações', icon: '🌿', category: 'farming',
+    condition: (s) => s.cropsHarvested >= 200 },
+
+  // ── Crafting ──
+  { id: 'crafter', name: 'Artesão', description: 'Craftar 20 itens', icon: '🔨', category: 'crafting',
+    condition: (s) => s.itemsCrafted >= 20 },
+  { id: 'master_crafter', name: 'Mestre Artesão', description: 'Craftar 100 itens', icon: '🔧', category: 'crafting',
+    condition: (s) => s.itemsCrafted >= 100 },
+  { id: 'builder', name: 'Construtor', description: 'Construir 5 estruturas', icon: '🏗️', category: 'crafting',
+    condition: (s) => s.structuresBuilt >= 5 },
+
+  // ── Exploration ──
+  { id: 'explorer', name: 'Explorador', description: 'Descobrir 5 áreas', icon: '🧭', category: 'exploration',
+    condition: (s) => s.biomesDiscovered >= 5 },
+  { id: 'adventurer', name: 'Aventureiro', description: 'Descobrir 15 áreas', icon: '🗺️', category: 'exploration',
+    condition: (s) => s.biomesDiscovered >= 15 },
+  { id: 'cave_diver', name: 'Explorador de Cavernas', description: 'Entrar na caverna', icon: '🕳️', category: 'exploration',
+    condition: (s) => s.hasEnteredCave },
+  { id: 'survivor_week', name: 'Uma Semana', description: 'Sobreviver por 7 dias', icon: '📅', category: 'exploration',
+    condition: (s) => s.daysSurvived >= 7 },
+  { id: 'survivor_month', name: 'Um Mês', description: 'Sobreviver por 30 dias', icon: '🗓️', category: 'exploration',
+    condition: (s) => s.daysSurvived >= 30 },
+
+  // ── Special ──
+  { id: 'home_sweet_home', name: 'Lar Doce Lar', description: 'Construir uma casa', icon: '🏠', category: 'special',
+    condition: (s) => s.hasBuiltHouse },
+  { id: 'first_craft', name: 'Primeiro Craft', description: 'Craftar seu primeiro item', icon: '🔨', category: 'special',
+    condition: (s) => s.itemsCrafted >= 1 },
+  { id: 'golden_fish', name: 'Pescador Sortudo', description: 'Pegar um peixe dourado', icon: '🐠', category: 'special',
+    condition: (s) => s.fishCaught >= 1 }, // Will be tracked separately in fishing
+];
