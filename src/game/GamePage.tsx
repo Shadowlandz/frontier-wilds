@@ -84,7 +84,7 @@ export default function GamePage() {
           )}
 
           {game.achievementQueue && game.achievementQueue.length > 0 && (
-            <AchievementPopup achievementId={game.achievementQueue[game.achievementQueue.length - 1]} />
+            <AchievementPopup game={game} achievementId={game.achievementQueue[game.achievementQueue.length - 1]} />
           )}
 
           <Hotbar
@@ -1487,8 +1487,22 @@ function StoragePanel({ game }: { game: Game }) {
 }
 
 // ── Achievement Popup ─────────────────────────────────────────────
-function AchievementPopup({ achievementId }: { achievementId: string }) {
+function AchievementPopup({ game, achievementId }: { game: Game; achievementId: string }) {
   const achievement = ACHIEVEMENTS.find(a => a.id === achievementId);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setVisible(false);
+      // After fade-out transition, dismiss from queue
+      setTimeout(() => {
+        game.dismissAchievement();
+      }, 300);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [achievementId, game]);
+
   if (!achievement) return null;
 
   const rarityColors: Record<string, string> = {
@@ -1497,7 +1511,7 @@ function AchievementPopup({ achievementId }: { achievementId: string }) {
   };
 
   return (
-    <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-[achievementPop_0.5s_ease-out]">
+    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
       <div className="bg-gradient-to-r from-yellow-900/90 via-amber-900/90 to-yellow-900/90 border-2 border-yellow-500/60 rounded-xl px-6 py-3 shadow-2xl shadow-yellow-500/20 backdrop-blur-md">
         <div className="flex items-center gap-4">
           <div className="text-4xl animate-bounce">{achievement.icon}</div>

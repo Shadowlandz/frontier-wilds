@@ -5840,6 +5840,13 @@ export class Game {
     this.ui.showMap = false;
   }
 
+  /** Remove the most recent achievement from the popup queue (auto-dismiss) */
+  dismissAchievement(): void {
+    if (this.achievementQueue.length > 0) {
+      this.achievementQueue.pop();
+    }
+  }
+
   equipItem(slotIndex: number, from: 'hotbar' | 'inventory'): boolean {
     const sourceSlots = from === 'hotbar' ? this.state.player.hotbar : this.state.player.inventory;
     const slot = sourceSlots[slotIndex];
