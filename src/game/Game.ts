@@ -1486,6 +1486,18 @@ export class Game {
       stats.hp = Math.min(stats.maxHp, stats.hp + regenRate * dt);
     }
 
+    // Safe Zone passive regen — slow heal regardless of hunger/stamina
+    if (this.isInSafeZone(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y + PLAYER_SIZE / 2)) {
+      const safeRegenBase = 3; // 3 HP/s inside safe zone
+      const safeRegenRate = safeRegenBase + quickHealLevel * 0.5;
+      stats.hp = Math.min(stats.maxHp, stats.hp + safeRegenRate * dt);
+      // Also restore stamina faster in safe zone
+      this.state.player.stamina = Math.min(
+        this.state.player.maxStamina,
+        this.state.player.stamina + 8 * dt
+      );
+    }
+
     // Stamina regen: 12/s when standing still or walking (not attacking)
     // Modified by hunger state
     const { isAttacking } = this.state.player;
