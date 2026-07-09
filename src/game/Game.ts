@@ -3515,8 +3515,8 @@ export class Game {
       );
       const hasTorch = this.getCurrentItem()?.toolType === 'torch';
       // Torch: large warm light + subtle flicker | Hands: small dim light
-      const flicker = hasTorch ? Math.sin(performance.now() / 120 + player.x * 0.1) * 15 : 0;
-      const lightRadius = hasTorch ? 250 + flicker : 120;
+      const flicker = hasTorch ? Math.sin(performance.now() / 120 + player.x * 0.1) * 20 : 0;
+      const lightRadius = hasTorch ? 320 + flicker : 80;
       const gradient = ctx.createRadialGradient(
         playerScreen.x, playerScreen.y, hasTorch ? 10 : 20,
         playerScreen.x, playerScreen.y, lightRadius
@@ -3567,22 +3567,35 @@ export class Game {
       ctx.fillStyle = `rgba(0, 0, 30, ${nightAlpha})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Torch light around player
+      // Torch light around player (stronger at night)
       if (this.getCurrentItem()?.toolType === 'torch') {
         const playerScreen = camera.worldToScreen(
           player.x + PLAYER_SIZE / 2,
           player.y + PLAYER_SIZE / 2
         );
+        const torchFlicker = Math.sin(performance.now() / 120) * 15;
         const gradient = ctx.createRadialGradient(
-          playerScreen.x, playerScreen.y, 30,
-          playerScreen.x, playerScreen.y, 180
+          playerScreen.x, playerScreen.y, 5,
+          playerScreen.x, playerScreen.y, 240 + torchFlicker
         );
         gradient.addColorStop(0, 'rgba(0, 0, 30, 0)');
+        gradient.addColorStop(0.4, 'rgba(0, 0, 30, 0)');
         gradient.addColorStop(1, `rgba(0, 0, 30, ${nightAlpha})`);
         ctx.globalCompositeOperation = 'destination-out';
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.globalCompositeOperation = 'source-over';
+
+        // Warm torch glow overlay
+        const warmGlow = ctx.createRadialGradient(
+          playerScreen.x, playerScreen.y, 0,
+          playerScreen.x, playerScreen.y, 200 + torchFlicker * 0.5
+        );
+        warmGlow.addColorStop(0, 'rgba(255, 180, 60, 0.1)');
+        warmGlow.addColorStop(0.5, 'rgba(255, 150, 30, 0.04)');
+        warmGlow.addColorStop(1, 'rgba(255, 100, 20, 0)');
+        ctx.fillStyle = warmGlow;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     }
 
@@ -4999,11 +5012,16 @@ export class Game {
 
   private getNightAlpha(time: GameTime): number {
     const progress = time.dayTicks / time.dayLength;
-    if (progress < 0.2) return 0.6;
-    if (progress < 0.3) return 0.6 * (1 - (progress - 0.2) / 0.1);
-    if (progress < 0.7) return 0;
-    if (progress < 0.8) return 0.6 * ((progress - 0.7) / 0.1);
-    return 0.6;
+    // Night: 0.0-0.166 = 00:00-04:00 (max darkness)
+    if (progress < 0.166) return 0.85;
+    // Dawn: 0.166-0.333 = 04:00-08:00 (fading)
+    if (progress < 0.333) return 0.85 * (1 - (progress - 0.166) / 0.167);
+    // Day: 0.333-0.75 = 08:00-18:00 (no overlay)
+    if (progress < 0.75) return 0;
+    // Dusk: 0.75-0.833 = 18:00-20:00 (growing)
+    if (progress < 0.833) return 0.85 * ((progress - 0.75) / 0.083);
+    // Night: 0.833-1.0 = 20:00-00:00 (max darkness)
+    return 0.85;
   }
 
   private weatherParticles: { x: number; y: number; speed: number; size: number; opacity: number; wind: number }[] = [];
