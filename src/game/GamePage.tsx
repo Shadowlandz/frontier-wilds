@@ -860,6 +860,7 @@ function InventoryPanel({ game }: { game: Game }) {
 function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) {
   const [, forceUpdate] = useState(0);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [hoveredIngredient, setHoveredIngredient] = useState<any>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [craftProgress, setCraftProgress] = useState(0);
@@ -968,7 +969,12 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
                   {recipe.ingredients.map(ing => {
                     const item = getItem(ing.itemId);
                     const have = game.countInInventory(ing.itemId);
-                    return <span key={ing.itemId} className={`mr-2 ${have >= ing.count ? 'text-green-400' : 'text-red-400'}`}>{item?.icon} <span className="text-white/60">{item?.name}</span> {have}/{ing.count}</span>;
+                    return <span key={ing.itemId}
+                      className={`mr-1 px-1 py-0.5 rounded cursor-pointer transition-colors ${have >= ing.count ? 'text-green-400 hover:bg-green-900/30' : 'text-red-400 hover:bg-red-900/30'}`}
+                      onMouseEnter={(e) => { if (item) { setHoveredIngredient(item); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
+                      onMouseMove={(e) => { if (item) { setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
+                      onMouseLeave={() => setHoveredIngredient(null)}
+                    >{item?.icon} <span className="text-white/60">{item?.name}</span> {have}/{ing.count}</span>;
                   })}
                 </div>
                 <div className="flex flex-wrap gap-x-2 text-[9px] mt-0.5">
@@ -1030,6 +1036,40 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
       })()}
 
       {hoveredItem && (() => { const item = getItem(hoveredItem); return item ? <ItemTooltip item={item} position={tooltipPos} playerStats={state.player.stats} /> : null; })()}
+
+      {/* Ingredient tooltip */}
+      {hoveredIngredient && (
+        <div className="fixed z-[100] pointer-events-none" style={{ left: tooltipPos.x + 16, top: tooltipPos.y - 8 }}>
+          <div className="bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 p-3 w-56 shadow-2xl shadow-black/50">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-lg">{hoveredIngredient.icon}</span>
+              <div>
+                <div className="text-xs font-bold text-white">{hoveredIngredient.name}</div>
+                <div className="text-[9px] text-white/50 uppercase tracking-wider">{hoveredIngredient.category} {hoveredIngredient.rarity}</div>
+              </div>
+            </div>
+            <div className="text-white/50 text-[10px] mb-2 border-b border-white/10 pb-2 leading-relaxed">
+              {hoveredIngredient.description}
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-white/40">📦</span>
+                <span className="text-white/60">Empilhável: {hoveredIngredient.stackSize}x</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-white/40">💰</span>
+                <span className="text-white/60">Valor: {hoveredIngredient.value} 🪙</span>
+              </div>
+              {hoveredIngredient.foodValue && (
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  <span className="text-orange-400/60">🍖</span>
+                  <span className="text-orange-300/60">Fome: +{hoveredIngredient.foodValue}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Panel>
   );
 }
