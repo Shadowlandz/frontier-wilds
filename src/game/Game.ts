@@ -269,6 +269,15 @@ export class Game {
       notifications: [],
     };
 
+    // Create village safe zone (NPC area — enemies won't enter)
+    const villageZone: SafeZone = {
+      centerX: cx,
+      centerY: cy,
+      radius: 18,
+      structureId: 'village_default',
+    };
+    this.state.safeZones.push(villageZone);
+
     // Give starting items
     this.addToInventory('wood_axe', 1);
     this.addToInventory('wood_pickaxe', 1);
@@ -3959,7 +3968,7 @@ export class Game {
         ctx.fillRect(pos.x + 22, pos.y + 12, 5, 2);
         // Glow pulse to indicate interactivity
         const glowPulse = Math.sin(performance.now() / 1000) * 0.15 + 0.3;
-        ctx.fillStyle = `rgba(100, 200, 255, ${glowPulse})`;
+        ctx.fillStyle = `rgba(80, 255, 80, ${glowPulse})`;
         ctx.beginPath();
         ctx.arc(pos.x + 16, pos.y + 16, 6, 0, Math.PI * 2);
         ctx.fill();
@@ -5353,16 +5362,16 @@ export class Game {
     // Outer glow ring (pulsing)
     const pulse = 0.85 + 0.15 * Math.sin(this.state.gameTime.totalTicks * 0.02);
     const gradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, radius);
-    gradient.addColorStop(0, `rgba(100, 200, 255, ${0.05 * pulse})`);
-    gradient.addColorStop(0.5, `rgba(100, 200, 255, ${0.1 * pulse})`);
-    gradient.addColorStop(1, `rgba(100, 200, 255, 0)`);
+    gradient.addColorStop(0, `rgba(80, 255, 80, ${0.05 * pulse})`);
+    gradient.addColorStop(0.5, `rgba(80, 255, 80, ${0.1 * pulse})`);
+    gradient.addColorStop(1, `rgba(80, 255, 80, 0)`);
     ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
     ctx.fill();
 
     // Boundary ring
-    ctx.strokeStyle = `rgba(100, 200, 255, ${0.4 * pulse})`;
+    ctx.strokeStyle = `rgba(80, 255, 80, ${0.4 * pulse})`;
     ctx.lineWidth = 2;
     ctx.setLineDash([8, 8]);
     ctx.beginPath();
@@ -5377,7 +5386,7 @@ export class Game {
       { angle: Math.PI, dx: -1, dy: 0 },
       { angle: Math.PI * 1.5, dx: 0, dy: -1 },
     ];
-    ctx.fillStyle = `rgba(100, 200, 255, ${0.6 * pulse})`;
+    ctx.fillStyle = `rgba(80, 255, 80, ${0.6 * pulse})`;
     for (const m of markers) {
       const mx = pos.x + Math.cos(m.angle) * radius;
       const my = pos.y + Math.sin(m.angle) * radius;
