@@ -7,6 +7,7 @@
 // Actions: single JOGAR button
 // ═══════════════════════════════════════════════════════════════════
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
 const ANIMS = `
@@ -37,6 +38,10 @@ const ANIMS = `
 
 export default function Landing() {
   const navigate = useNavigate();
+  const [sfxOn, setSfxOn] = useState(true);
+  const [musicOn, setMusicOn] = useState(true);
+  const [sfxVolume, setSfxVolume] = useState(70);
+  const [musicVolume, setMusicVolume] = useState(50);
 
   const tips = [
     'Explore cavernas para encontrar minerios raros e cristais.',
@@ -404,8 +409,113 @@ export default function Landing() {
             </button>
           </div>
 
-            {/* ──── RIGHT SPACER (for visual balance) ──── */}
-            <div className="w-[160px] sm:w-[190px] shrink-0 hidden xl:block" />
+            {/* ──── RIGHT PANEL: QUICK SETTINGS ──── */}
+            <div
+              className="w-[160px] sm:w-[190px] flex-shrink-0 self-center rounded border-2 border-amber-900/35 overflow-hidden"
+              style={{
+                background: 'linear-gradient(180deg, #3a2a18 0%, #2a1a0a 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 16px rgba(0,0,0,0.5)',
+              }}
+            >
+              <div className="h-[3px]" style={{ background: 'linear-gradient(90deg, rgba(180,140,60,0.4), rgba(180,140,60,0.15), rgba(180,140,60,0.4))' }} />
+              <div className="p-2 sm:p-2.5">
+                <h3 className="text-center text-amber-300 font-bold text-[8px] sm:text-[9px] mb-2 tracking-[0.15em]"
+                  style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
+                  ⚙️ CONFIG
+                </h3>
+
+                <div className="space-y-[6px]">
+                  {/* ── Sound FX toggle ── */}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-white/50 text-[7px]">🔊 SFX</span>
+                    <button
+                      onClick={() => setSfxOn(!sfxOn)}
+                      className="relative w-[34px] h-[18px] rounded-full transition-all duration-200"
+                      style={{
+                        background: sfxOn ? '#4d7c45' : '#3a3a3a',
+                        border: '2px solid #5a5a5a',
+                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)',
+                      }}
+                    >
+                      <div
+                        className="absolute top-[1px] w-[12px] h-[12px] rounded-full transition-all duration-200"
+                        style={{
+                          left: sfxOn ? '18px' : '2px',
+                          background: sfxOn ? '#aadd88' : '#888',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                        }}
+                      />
+                    </button>
+                  </div>
+
+                  {/* ── SFX Volume slider ── */}
+                  <div className="space-y-[2px]">
+                    <div className="flex justify-between text-white/40 text-[6px]">
+                      <span>Vol</span>
+                      <span>{sfxVolume}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0" max="100"
+                      value={sfxVolume}
+                      onChange={e => setSfxVolume(Number(e.target.value))}
+                      className="w-full h-[6px] rounded-full appearance-none cursor-pointer"
+                      style={{
+                        background: `linear-gradient(90deg, #4d7c45 ${sfxVolume}%, #3a3a3a ${sfxVolume}%)`,
+                        border: '1px solid #4a4a4a',
+                        accentColor: '#6da34d',
+                      }}
+                    />
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(180,140,60,0.2), transparent)' }} />
+
+                  {/* ── Music toggle ── */}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-white/50 text-[7px]">🎵 Música</span>
+                    <button
+                      onClick={() => setMusicOn(!musicOn)}
+                      className="relative w-[34px] h-[18px] rounded-full transition-all duration-200"
+                      style={{
+                        background: musicOn ? '#4d7c45' : '#3a3a3a',
+                        border: '2px solid #5a5a5a',
+                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)',
+                      }}
+                    >
+                      <div
+                        className="absolute top-[1px] w-[12px] h-[12px] rounded-full transition-all duration-200"
+                        style={{
+                          left: musicOn ? '18px' : '2px',
+                          background: musicOn ? '#aadd88' : '#888',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                        }}
+                      />
+                    </button>
+                  </div>
+
+                  {/* ── Music Volume slider ── */}
+                  <div className="space-y-[2px]">
+                    <div className="flex justify-between text-white/40 text-[6px]">
+                      <span>Vol</span>
+                      <span>{musicVolume}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0" max="100"
+                      value={musicVolume}
+                      onChange={e => setMusicVolume(Number(e.target.value))}
+                      className="w-full h-[6px] rounded-full appearance-none cursor-pointer"
+                      style={{
+                        background: `linear-gradient(90deg, #4d7c45 ${musicVolume}%, #3a3a3a ${musicVolume}%)`,
+                        border: '1px solid #4a4a4a',
+                        accentColor: '#6da34d',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* ──── BOTTOM: Tips Bar ──── */}
