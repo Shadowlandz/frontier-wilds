@@ -3354,6 +3354,24 @@ export class Game {
       this.drawStructure(struct);
     }
 
+    // Highlight workbench when player is nearby and crafting panel is open
+    if (this.ui.activePanel === 'crafting' && !this.inCave) {
+      const nearbyBench = this.state.structures.find(s => 
+        (s.itemId === 'workbench' || s.itemId === 'workbench_advanced') &&
+        Math.abs(s.x - this.state.player.x) < 80 &&
+        Math.abs(s.y - this.state.player.y) < 80
+      );
+      if (nearbyBench) {
+        const bp = camera.worldToScreen(nearbyBench.x, nearbyBench.y);
+        const bPulse = 0.5 + Math.sin(performance.now() / 500) * 0.3;
+        ctx.strokeStyle = `rgba(100, 220, 255, ${bPulse * 0.3})`;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 6]);
+        ctx.strokeRect(bp.x - 2, bp.y - 2, 36, 34);
+        ctx.setLineDash([]);
+      }
+    }
+
     // Draw player
     this.drawPlayer();
 
@@ -5363,42 +5381,119 @@ export class Game {
 
     switch (struct.itemId) {
       case 'workbench':
-        // Wooden table
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(pos.x + 4, pos.y + 12, 24, 16);
-        ctx.fillStyle = '#A0522D';
-        ctx.fillRect(pos.x + 6, pos.y + 14, 20, 12);
-        // Table surface detail
-        ctx.fillStyle = '#6a3410';
-        ctx.fillRect(pos.x + 8, pos.y + 18, 16, 1);
+        // ── Detailed Workbench ──
+        const wTime = performance.now() / 1000;
         
-        // Animated tools on top (subtle hammer swing)
-        const hammerSwing = Math.sin(performance.now() / 800 + pos.x) * 0.3;
+        // Shadow under the workbench
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(pos.x + 16, pos.y + 30, 18, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Table legs (4 legs)
+        ctx.fillStyle = '#6a3410';
+        ctx.fillRect(pos.x + 5, pos.y + 18, 3, 12);  // Front-left
+        ctx.fillRect(pos.x + 24, pos.y + 18, 3, 12); // Front-right
+        ctx.fillRect(pos.x + 5, pos.y + 18, 3, 8);   // Back-left (shorter, perspective)
+        ctx.fillRect(pos.x + 24, pos.y + 18, 3, 8);  // Back-right
+        
+        // Table top (main surface)
+        ctx.fillStyle = '#A0522D';
+        ctx.fillRect(pos.x + 3, pos.y + 12, 26, 8);
+        
+        // Table top highlight edge
+        ctx.fillStyle = '#B8653A';
+        ctx.fillRect(pos.x + 3, pos.y + 12, 26, 2);
+        
+        // Wood plank lines on surface
+        ctx.strokeStyle = '#7a3a15';
+        ctx.lineWidth = 0.5;
+        for (let plank = 0; plank < 4; plank++) {
+          const plankX = pos.x + 5 + plank * 6;
+          ctx.beginPath();
+          ctx.moveTo(plankX, pos.y + 14);
+          ctx.lineTo(plankX, pos.y + 19);
+          ctx.stroke();
+        }
+        
+        // Cross-brace detail
+        ctx.fillStyle = '#5a2a0a';
+        ctx.fillRect(pos.x + 6, pos.y + 20, 20, 2);
+        
+        // ── Animated Vise on the left side ──
+        const viseClamp = Math.sin(wTime * 1.2 + pos.x * 0.1) * 0.3 + 0.5;
+        ctx.fillStyle = '#555';
+        ctx.fillRect(pos.x + 2, pos.y + 10, 3, 10);  // Vise base
+        ctx.fillStyle = '#777';
+        ctx.fillRect(pos.x + 1, pos.y + 10 + viseClamp * 5, 2, 8);  // Sliding jaw
+        ctx.fillStyle = '#333';
+        ctx.fillRect(pos.x, pos.y + 14, 1, 4);  // Screw rod
+        
+        // ── Animated Hammer (right side, pendulum swing) ──
+        const hammerAngle = Math.sin(wTime * 1.5 + pos.x) * 0.4;
         ctx.save();
-        ctx.translate(pos.x + 12, pos.y + 10);
-        ctx.rotate(hammerSwing);
-        ctx.fillStyle = '#666';
-        ctx.fillRect(-1, -4, 2, 8);  // Handle
-        ctx.fillStyle = '#888';
-        ctx.fillRect(-3, -6, 6, 3);  // Head
+        ctx.translate(pos.x + 14, pos.y + 8);
+        ctx.rotate(hammerAngle);
+        // Handle
+        ctx.fillStyle = '#8B6914';
+        ctx.fillRect(-1, 0, 2, 7);
+        // Head
+        ctx.fillStyle = '#777';
+        ctx.fillRect(-4, -2, 8, 3);
+        ctx.fillStyle = '#999';
+        ctx.fillRect(-3, -1, 6, 1);  // Highlight
         ctx.restore();
         
-        // Saw (static)
-        ctx.fillStyle = '#777';
-        ctx.fillRect(pos.x + 20, pos.y + 8, 1, 6);
+        // ── Saw (reciprocating motion) ──
+        const sawSlide = Math.sin(wTime * 2.0 + pos.x * 0.5) * 1.5;
+        ctx.save();
+        ctx.translate(pos.x + 24 + sawSlide, pos.y + 7);
+        // Saw handle
+        ctx.fillStyle = '#8B6914';
+        ctx.fillRect(-2, 0, 5, 2);
+        // Saw blade
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(pos.x + 21, pos.y + 8, 3, Math.PI, 0);
-        ctx.fill();
+        for (let t = 0; t < 6; t++) {
+          const sx = t * 1.2;
+          const sy = 2 + Math.sin(t * 2) * 0.8;
+          if (t === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+        ctx.restore();
         
-        // Wood shavings / sparkles nearby
-        const wSparkle = Math.sin(performance.now() / 500 + pos.x * 0.3) * 0.3 + 0.7;
-        ctx.fillStyle = `rgba(180, 140, 80, ${wSparkle * 0.15})`;
+        // ── Chisel / Plane (center) ──
+        const chiselAngle = Math.sin(wTime * 1.0 + pos.x * 0.3) * 0.1;
+        ctx.save();
+        ctx.translate(pos.x + 18, pos.y + 9);
+        ctx.rotate(chiselAngle);
+        ctx.fillStyle = '#888';
+        ctx.fillRect(-1, -3, 2, 5);  // Metal rod
+        ctx.fillStyle = '#666';
+        ctx.fillRect(-2, -4, 4, 1);  // Flat head
+        ctx.restore();
+        
+        // ── Wood shavings / particles falling ──
+        const particleCount = 3;
+        for (let i = 0; i < particleCount; i++) {
+          const pPhase = wTime * 0.8 + i * 2.1 + pos.x * 0.2;
+          const px = pos.x + 8 + Math.sin(pPhase * 1.3) * 5 + i * 4;
+          const py = pos.y + 8 + (pPhase % 3) * 2;
+          const pAlpha = 0.3 - ((pPhase % 3) / 3) * 0.25;
+          const pSize = 1.5 + Math.sin(pPhase) * 0.5;
+          ctx.fillStyle = `rgba(200, 160, 100, ${pAlpha})`;
+          ctx.beginPath();
+          ctx.arc(px, py, pSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // ── Subtle warm glow around the workbench ──
+        const wGlowAlpha = 0.06 + Math.sin(wTime * 0.8) * 0.02;
+        ctx.fillStyle = `rgba(255, 200, 120, ${wGlowAlpha})`;
         ctx.beginPath();
-        ctx.arc(pos.x + 10, pos.y + 8, 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = `rgba(200, 160, 100, ${(1 - wSparkle) * 0.1})`;
-        ctx.beginPath();
-        ctx.arc(pos.x + 22, pos.y + 10, 2, 0, Math.PI * 2);
+        ctx.arc(pos.x + 16, pos.y + 16, 28, 0, Math.PI * 2);
         ctx.fill();
         break;
       case 'furnace':
@@ -5476,6 +5571,182 @@ export class Game {
         ctx.fillStyle = '#ffaa00';
         ctx.beginPath();
         ctx.arc(pos.x + 16, pos.y + 8, 3, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      case 'workbench_advanced':
+        // ── Advanced Workbench ──
+        const awTime = performance.now() / 1000;
+        
+        // Shadow underneath
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.beginPath();
+        ctx.ellipse(pos.x + 16, pos.y + 32, 22, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Iron-banded legs
+        ctx.fillStyle = '#5a2a0a';
+        ctx.fillRect(pos.x + 4, pos.y + 18, 4, 13);  // Front-left
+        ctx.fillRect(pos.x + 24, pos.y + 18, 4, 13); // Front-right
+        ctx.fillRect(pos.x + 4, pos.y + 18, 4, 9);   // Back-left
+        ctx.fillRect(pos.x + 24, pos.y + 18, 4, 9);  // Back-right
+        
+        // Iron bands on legs
+        ctx.fillStyle = '#666';
+        ctx.fillRect(pos.x + 4, pos.y + 22, 4, 2);
+        ctx.fillRect(pos.x + 24, pos.y + 22, 4, 2);
+        ctx.fillRect(pos.x + 4, pos.y + 27, 4, 2);
+        ctx.fillRect(pos.x + 24, pos.y + 27, 4, 2);
+        
+        // Main table surface (larger, thicker)
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(pos.x + 2, pos.y + 10, 28, 9);
+        // Surface trim (iron edge)
+        ctx.fillStyle = '#777';
+        ctx.fillRect(pos.x + 2, pos.y + 10, 28, 1.5);
+        ctx.fillRect(pos.x + 2, pos.y + 10, 1.5, 9);
+        ctx.fillRect(pos.x + 28.5, pos.y + 10, 1.5, 9);
+        
+        // Cross-braces
+        ctx.fillStyle = '#5a2a0a';
+        ctx.fillRect(pos.x + 8, pos.y + 20, 16, 2);
+        ctx.fillStyle = '#666';
+        ctx.fillRect(pos.x + 7, pos.y + 20, 1, 3);
+        ctx.fillRect(pos.x + 24, pos.y + 20, 1, 3);
+        
+        // Wood plank texture
+        ctx.strokeStyle = '#6a3410';
+        ctx.lineWidth = 0.5;
+        for (let p = 0; p < 6; p++) {
+          const px2 = pos.x + 4 + p * 4.5;
+          ctx.beginPath();
+          ctx.moveTo(px2, pos.y + 12);
+          ctx.lineTo(px2, pos.y + 18);
+          ctx.stroke();
+        }
+        
+        // ── Iron Gear decoration (spinning slowly) ──
+        const gearAngle = awTime * 0.5;
+        ctx.save();
+        ctx.translate(pos.x + 6, pos.y + 6);
+        ctx.rotate(gearAngle);
+        ctx.fillStyle = '#777';
+        // Gear teeth
+        for (let g = 0; g < 6; g++) {
+          const ga = (g / 6) * Math.PI * 2;
+          ctx.save();
+          ctx.rotate(ga);
+          ctx.fillRect(-1, 2, 2, 3);
+          ctx.restore();
+        }
+        // Gear center
+        ctx.fillStyle = '#999';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#555';
+        ctx.beginPath();
+        ctx.arc(0, 0, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        
+        // ── Second gear (smaller, opposite rotation) ──
+        ctx.save();
+        ctx.translate(pos.x + 26, pos.y + 6);
+        ctx.rotate(-gearAngle * 1.3);
+        ctx.fillStyle = '#888';
+        for (let g = 0; g < 5; g++) {
+          const ga = (g / 5) * Math.PI * 2;
+          ctx.save();
+          ctx.rotate(ga);
+          ctx.fillRect(-0.8, 1.5, 1.5, 2.5);
+          ctx.restore();
+        }
+        ctx.fillStyle = '#aaa';
+        ctx.beginPath();
+        ctx.arc(0, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#666';
+        ctx.beginPath();
+        ctx.arc(0, 0, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        
+        // ── Blueprint paper on the table ──
+        ctx.fillStyle = '#d4c8a0';
+        ctx.fillRect(pos.x + 20, pos.y + 14, 7, 5);
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(pos.x + 20, pos.y + 14, 7, 5);
+        // Blueprint lines
+        ctx.strokeStyle = '#335';
+        ctx.beginPath();
+        ctx.moveTo(pos.x + 21, pos.y + 15.5);
+        ctx.lineTo(pos.x + 26, pos.y + 15.5);
+        ctx.moveTo(pos.x + 22, pos.y + 16.5);
+        ctx.lineTo(pos.x + 25, pos.y + 16.5);
+        ctx.moveTo(pos.x + 21, pos.y + 17.5);
+        ctx.lineTo(pos.x + 24, pos.y + 17.5);
+        ctx.stroke();
+        
+        // ── Animated Crosscut saw (larger) ──
+        const awSawSlide = Math.sin(awTime * 1.8 + pos.x) * 2;
+        ctx.save();
+        ctx.translate(pos.x + 12 + awSawSlide, pos.y + 7);
+        ctx.fillStyle = '#8B6914';
+        ctx.fillRect(-2, 0, 6, 2);
+        ctx.strokeStyle = '#bbb';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        for (let t2 = 0; t2 < 8; t2++) {
+          const sx2 = t2 * 1.3;
+          const sy2 = 2 + Math.sin(t2 * 2.5) * 1;
+          if (t2 === 0) ctx.moveTo(sx2, sy2);
+          else ctx.lineTo(sx2, sy2);
+        }
+        ctx.stroke();
+        ctx.restore();
+        
+        // ── Hammer (faster swing, more pronounced) ──
+        const awHammerAngle = Math.sin(awTime * 2.0 + pos.x) * 0.5;
+        ctx.save();
+        ctx.translate(pos.x + 18, pos.y + 6);
+        ctx.rotate(awHammerAngle);
+        ctx.fillStyle = '#8B6914';
+        ctx.fillRect(-1, 0, 2, 8);
+        ctx.fillStyle = '#888';
+        ctx.fillRect(-4, -3, 8, 4);
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(-3, -2, 6, 2);
+        ctx.restore();
+        
+        // ── Wrench (static, leaning) ──
+        ctx.save();
+        ctx.translate(pos.x + 23, pos.y + 6);
+        ctx.rotate(0.2);
+        ctx.fillStyle = '#777';
+        ctx.fillRect(-0.5, 0, 1, 7);
+        ctx.fillRect(-2.5, -1, 5, 3);  // Wrench head
+        ctx.fillStyle = '#999';
+        ctx.fillRect(-0.5, -1, 1, 2);
+        ctx.restore();
+        
+        // ── Metal shavings / spark particles ──
+        for (let i = 0; i < 4; i++) {
+          const phase = awTime * 0.6 + i * 1.7 + pos.x * 0.3;
+          const sx = pos.x + 6 + Math.sin(phase * 1.5) * 8 + i * 3;
+          const sy = pos.y + 7 + (phase % 4) * 1.8;
+          const sAlpha = 0.35 - ((phase % 4) / 4) * 0.3;
+          ctx.fillStyle = `rgba(200, 180, 160, ${sAlpha})`;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 1.5 + Math.sin(phase) * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // ── Blue glow aura (tech/crafting aura) ──
+        const awGlow = 0.08 + Math.sin(awTime * 0.6) * 0.03;
+        ctx.fillStyle = `rgba(100, 180, 255, ${awGlow})`;
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 15, 32, 0, Math.PI * 2);
         ctx.fill();
         break;
       default:
