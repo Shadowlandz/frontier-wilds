@@ -173,7 +173,22 @@ function HUD({ stats, gameTime, selectedTool, hotbar, notifications, player }: {
           <span>🪙 {stats.gold}</span>
         </div>
         <div className="text-xs text-yellow-400">
-          Lv.{stats.level} | XP: {stats.xp}/{stats.xpToNext}
+          Lv.{stats.level}
+        </div>
+        <div className="w-52">
+          <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
+            <span>XP</span>
+            <span>{stats.xp}/{stats.xpToNext}</span>
+          </div>
+          <div className="h-1.5 bg-black/50 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${Math.min(100, (stats.xp / stats.xpToNext) * 100)}%`,
+                background: 'linear-gradient(90deg, #ffd700, #ffec80)'
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -184,7 +199,15 @@ function HUD({ stats, gameTime, selectedTool, hotbar, notifications, player }: {
             {formatTime(gameTime.hour, gameTime.minute)}
           </div>
           <div className="text-white/70 text-xs">
-            Dia {gameTime.day} {seasonIcon} {gameTime.weather !== 'clear' ? weatherIcon : ''}
+            Dia {gameTime.day} {seasonIcon} {weatherIcon}
+          </div>
+          <div className="text-white/40 text-[9px]">
+            {gameTime.weather === 'clear' ? 'Céu limpo' :
+             gameTime.weather === 'rain' ? 'Chuva 🌧️' :
+             gameTime.weather === 'heavyRain' ? 'Tempestade ⛈️' :
+             gameTime.weather === 'fog' ? 'Nevoeiro 🌫️' :
+             gameTime.weather === 'snow' ? 'Neve ❄️' :
+             gameTime.weather === 'storm' ? 'Tempestade violenta 🌪️' : 'Desconhecido'}
           </div>
           <div className="text-white/50 text-xs capitalize">
             {gameTime.season}
@@ -474,17 +497,20 @@ function Minmap({ game }: { game: Game }) {
       }
     }
 
-    // ── Cave entrance markers ──
+    // ── Resources (wood, ore, etc. - colored dots) ──
     for (const res of resources) {
-      if (res.type === 'cave_entrance') {
-        const rx = cx + (Math.floor(res.x / TILE_SIZE) - playerTx);
-        const ry = cy + (Math.floor(res.y / TILE_SIZE) - playerTy);
-        if (rx > 0 && rx < MINIMAP_SIZE && ry > 0 && ry < MINIMAP_SIZE) {
-          ctx.fillStyle = 'rgba(150, 100, 255, 0.8)';
-          ctx.beginPath();
-          ctx.arc(rx, ry, 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
+      const rx = cx + (Math.floor(res.x / TILE_SIZE) - playerTx);
+      const ry = cy + (Math.floor(res.y / TILE_SIZE) - playerTy);
+      if (rx > 0 && rx < MINIMAP_SIZE && ry > 0 && ry < MINIMAP_SIZE) {
+        let color = '#8B4513';
+        if (res.type === 'cave_entrance') color = 'rgba(150, 100, 255, 0.8)';
+        else if (res.type === 'tree' || res.type === 'bush') color = 'rgba(50, 180, 50, 0.5)';
+        else if (res.type.includes('rock') || res.type.includes('ore')) color = 'rgba(180, 160, 100, 0.6)';
+        else if (res.type === 'crystal_node') color = 'rgba(100, 200, 255, 0.7)';
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(rx, ry, res.type === 'cave_entrance' ? 2 : 0.8, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
@@ -526,8 +552,25 @@ function Minmap({ game }: { game: Game }) {
     ctx.stroke();
   }, [game, game.state.player.x, game.state.player.y, game.camera.x, game.camera.y]);
 
+  // Get current biome for label
+  const currentBiome = (() => {
+    const tx = Math.floor(game.state.player.x / TILE_SIZE);
+    const ty = Math.floor(game.state.player.y / TILE_SIZE);
+    if (ty >= 0 && ty < game.biomeMap.length && tx >= 0 && tx < game.biomeMap[0].length) {
+      return game.biomeMap[ty][tx];
+    }
+    return null;
+  })();
+
+  const biomeLabel = BIOME_NAMES[currentBiome || ''] || '';
+
   return (
-    <div className="relative flex gap-2">
+    <div className="flex flex-col gap-1">
+        <div className="bg-black/70 backdrop-blur-sm rounded-md px-2 py-1 text-center">
+          <div className="text-[9px] text-white/60">{biomeLabel}</div>
+          <div className="text-[8px] text-white/30">Lv.{game.state.player.stats.level}</div>
+        </div>
+      <div className="relative flex gap-2">
       {/* Map canvas */}
       <canvas
         ref={canvasRef}
@@ -570,6 +613,7 @@ function Minmap({ game }: { game: Game }) {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

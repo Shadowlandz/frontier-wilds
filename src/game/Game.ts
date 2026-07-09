@@ -3991,6 +3991,27 @@ export class Game {
       ctx.shadowBlur = 8;
     }
 
+    // ── Health bar ──
+    if (enemy.state !== 'dead' && enemy.hp < enemy.maxHp) {
+      const barWidth = enemy.width + 4;
+      const barHeight = 3;
+      const barX = pos.x + (enemy.width - barWidth) / 2;
+      const barY = pos.y - 4;
+      const hpPct = Math.max(0, enemy.hp / enemy.maxHp);
+      // Background
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+      // Health fill (green -> yellow -> red)
+      const hpColor = hpPct > 0.6 ? '#4caf50' : hpPct > 0.3 ? '#ff9800' : '#e53935';
+      ctx.fillStyle = hpColor;
+      ctx.fillRect(barX, barY, barWidth * hpPct, barHeight);
+      // Border
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(barX, barY, barWidth, barHeight);
+      ctx.lineWidth = 1;
+    }
+
     const def = enemy.definition;
     const w = enemy.width;
     const h = enemy.height;
