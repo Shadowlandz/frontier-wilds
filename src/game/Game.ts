@@ -12,6 +12,7 @@ import {
   EnemyType, SafeZone, StorageChest, PlacedStructure,
   generateItemAffixes, computeItemPowerScore, getAffixedItemName, getAffixSlotTypes,
 } from './core/Types';
+import { getAmbientLightLevel, getDayNightColor, getInteriorLight } from './core/Types';
 import { Input } from './core/Input';
 import { Camera } from './core/Camera';
 import {
@@ -2674,13 +2675,30 @@ export class Game {
           }
         }
 
-        // Water shimmer animation
+        // Water shimmer animation — flowing waves
         if (tile === TileType.Water || tile === TileType.DeepWater) {
-          const shimmer = Math.sin(performance.now() / 2000 + x * 2 + y * 3) * 0.03 + 0.97;
+          const wave1 = Math.sin(performance.now() / 1500 + x * 1.5 + y * 2.5) * 0.5 + 0.5;
+          const wave2 = Math.sin(performance.now() / 2200 + x * 2.5 + y * 1.8 + 1.5) * 0.4 + 0.4;
+          const shimmer = (wave1 * 0.4 + wave2 * 0.3) * 0.2 + 0.97;
           ctx.fillStyle = tile === TileType.Water
             ? `rgba(74, 144, 194, ${shimmer * 0.15})`
             : `rgba(44, 95, 138, ${shimmer * 0.2})`;
           ctx.fillRect(screenPos.x, screenPos.y, TILE_SIZE, TILE_SIZE);
+          // Foam on edges — white band where water meets land
+          if (tile === TileType.Water) {
+            const isEdge = y > 0 && x > 0 && y < curTileH - 1 && x < curTileW - 1 && (
+              curTileMap[y-1][x] !== 3 && curTileMap[y-1][x] !== 4 ||
+              curTileMap[y+1][x] !== 3 && curTileMap[y+1][x] !== 4 ||
+              curTileMap[y][x-1] !== 3 && curTileMap[y][x-1] !== 4 ||
+              curTileMap[y][x+1] !== 3 && curTileMap[y][x+1] !== 4
+            );
+            if (isEdge) {
+              const foamWave = Math.sin(performance.now() / 1000 + x * 3 + y * 4) * 0.2 + 0.3;
+              ctx.fillStyle = `rgba(200, 230, 255, ${foamWave * 0.15})`;
+              ctx.fillRect(screenPos.x, screenPos.y, TILE_SIZE, 2);
+              ctx.fillRect(screenPos.x, screenPos.y + TILE_SIZE - 2, TILE_SIZE, 2);
+            }
+          }
           // Sparkle
           if (fractalNoise(x, y, 99999, 1, 3) > 0.9) {
             ctx.fillStyle = `rgba(255,255,255,${Math.sin(performance.now() / 1000 + x + y) * 0.15 + 0.15})`;
@@ -2713,18 +2731,32 @@ export class Game {
         lily_pad: '#4a8a3a', dead_log: '#5a3a1a', small_rock: '#7a7a7a',
         fern: '#4aaa4a', cave_moss: '#3a6a3a', glowing_shroom: '#88ffaa',
       };
+      const windPhase = performance.now() / 4000;
+      const windStrength = Math.sin(windPhase) * 0.3 + 0.3;
       for (const dec of this.decorations) {
         if (!camera.isVisible(dec.x, dec.y, 8, 8)) continue;
         const dPos = camera.worldToScreen(dec.x, dec.y);
+        const swayOffset = Math.sin(windPhase + dec.x * 0.01 + dec.y * 0.02) * windStrength;
         ctx.fillStyle = decorationColors[dec.type] || '#888';
         if (dec.type === 'flower' || dec.type === 'mushroom') {
+          ctx.save();
+          ctx.translate(dPos.x + 2 + swayOffset, dPos.y + 2);
+          ctx.rotate(swayOffset * 0.1);
+          ctx.beginPath();
+          ctx.arc(0, 0, 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(-1, 1, 2, 3);
+          ctx.restore();
           ctx.beginPath();
           ctx.arc(dPos.x + 2, dPos.y + 2, 2, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillRect(dPos.x + 1, dPos.y + 3, 2, 3);
         } else if (dec.type === 'tall_grass' || dec.type === 'fern') {
-          ctx.fillRect(dPos.x, dPos.y, 1, 6);
-          ctx.fillRect(dPos.x + 2, dPos.y + 1, 1, 5);
+          ctx.save();
+          ctx.translate(dPos.x + swayOffset, dPos.y);
+          ctx.fillRect(0, 0, 1, 6);
+          ctx.fillRect(2 + swayOffset * 0.5, 1, 1, 5);
+          ctx.restore();
         } else if (dec.type === 'lily_pad') {
           ctx.beginPath();
           ctx.ellipse(dPos.x + 3, dPos.y + 1, 4, 2, 0, 0, Math.PI * 2);
@@ -2858,6 +2890,15 @@ export class Game {
     }
     ctx.globalAlpha = 1;
 
+    // ── Day/Night ambient overlay (surface only, before restore so it's in world space) ──
+    if (!this.inCave) {
+      const nightOverlay = getDayNightColor(this.state.gameTime.hour);
+      if (nightOverlay !== 'rgba(0,0,0,0)') {
+        ctx.fillStyle = nightOverlay;
+        ctx.fillRect(0, 0, canvas.width / camera.zoom + 100, canvas.height / camera.zoom + 100);
+      }
+    }
+
     ctx.restore();
 
     // ── Cave darkness overlay (always dark underground) ──
@@ -2866,7 +2907,7 @@ export class Game {
       ctx.fillStyle = 'rgba(0, 0, 10, 0.75)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Torch/light source around player
+      // Dynamic torch light around player — gradient circle
       const playerScreen = camera.worldToScreen(
         player.x + PLAYER_SIZE / 2,
         player.y + PLAYER_SIZE / 2
@@ -3015,7 +3056,10 @@ export class Game {
       }
       case 'rock': {
         // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.beginPath();
+        ctx.ellipse(pos.x + 12, pos.y + 18, 14, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.beginPath();
         ctx.ellipse(pos.x + 12, pos.y + 18, 12, 3, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -3284,9 +3328,9 @@ export class Game {
     const by = pos.y + 24;
 
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(cx, by - 2, 10, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, by - 2, 12, 4, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Idle bob animation
@@ -3403,9 +3447,9 @@ export class Game {
     }
 
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
-    ctx.ellipse(cx, by - 2, enemy.width / 2 - 2, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(pos.x + 16, pos.y + 32, 16, 4, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Hurt flash
@@ -4361,7 +4405,10 @@ export class Game {
     const pos = camera.worldToScreen(struct.x, struct.y);
 
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(pos.x + 16, pos.y + 32, 16, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.beginPath();
     ctx.ellipse(pos.x + 16, pos.y + 30, 14, 3, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -4404,6 +4451,12 @@ export class Game {
         ctx.fillRect(pos.x + 4, pos.y + 22, 24, 3);
         break;
       case 'torch_item':
+        // Torch flame glow
+        const tGlow = Math.sin(performance.now() / 400 + pos.x + pos.y) * 0.2 + 0.6;
+        ctx.fillStyle = `rgba(255, 200, 80, ${tGlow * 0.2})`;
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 8, 24, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = '#8B4513';
         ctx.fillRect(pos.x + 14, pos.y + 12, 4, 18);
         ctx.fillStyle = '#ff6600';

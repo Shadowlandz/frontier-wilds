@@ -574,6 +574,43 @@ export interface Particle {
   size: number;
 }
 
+/** Ambient light level (0=dark, 1=bright) */
+export function getAmbientLightLevel(gameTime: GameTime, inCave: boolean): number {
+  if (inCave) return 0.08; // Very dark underground
+  const { hour } = gameTime;
+  if (hour >= 8 && hour <= 18) return 1.0;
+  if (hour >= 6 && hour < 8) {
+    // Dawn transition
+    return 0.3 + (hour - 6) / 2 * 0.7;
+  }
+  if (hour > 18 && hour <= 20) {
+    // Dusk transition
+    return 0.3 + (20 - hour) / 2 * 0.7;
+  }
+  // Night (20-24, 0-6)
+  return 0.15 + Math.sin((hour < 6 ? hour + 24 : hour) / 24 * Math.PI * 2) * 0.08;
+}
+
+/** Get the color overlay for current time of day */
+export function getDayNightColor(hour: number): string {
+  if (hour >= 8 && hour <= 18) return 'rgba(0,0,0,0)'; // Day — no tint
+  if (hour >= 6 && hour < 8) {
+    const t = (hour - 6) / 2;
+    return `rgba(0,0,0,${0.15 * (1 - t)})`; // Dawn — fading darkness
+  }
+  if (hour > 18 && hour <= 20) {
+    const t = (hour - 18) / 2;
+    return `rgba(0,0,50,${t * 0.25})`; // Dusk — growing blue
+  }
+  // Night: deep blue darkness
+  return 'rgba(0,0,40,0.4)';
+}
+
+/** Get warm interior lighting overlay */
+export function getInteriorLight(): string {
+  return 'rgba(255,180,60,0.12)';
+}
+
 // ── UI State ──────────────────────────────────────────────────────
 export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'forge' | 'save' | 'none';
 
