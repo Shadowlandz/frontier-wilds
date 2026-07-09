@@ -1514,6 +1514,39 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
   const [, forceUpdate] = useState(0);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
+  const [craftProgress, setCraftProgress] = useState(0);
+  const [isCrafting, setIsCrafting] = useState(false);
+
+  // Craft with progress animation
+  const handleCraft = (recipeId: string) => {
+    const recipe = RECIPES.find(r => r.id === recipeId);
+    if (!recipe) return;
+    
+    setSelectedRecipeId(recipeId);
+    setIsCrafting(true);
+    setCraftProgress(0);
+    
+    // Animate progress
+    const duration = Math.max(300, recipe.requiredLevel * 50 + 200);
+    const interval = 30;
+    const steps = duration / interval;
+    let currentStep = 0;
+    
+    const timer = setInterval(() => {
+      currentStep++;
+      const progress = Math.min(1, currentStep / steps);
+      setCraftProgress(progress);
+      
+      if (progress >= 1) {
+        clearInterval(timer);
+        game.craftRecipe(recipeId);
+        setIsCrafting(false);
+        setCraftProgress(0);
+        refresh();
+      }
+    }, interval);
+  };
   const refresh = () => forceUpdate(n => n + 1);
   const state = game.state;
 
@@ -1613,8 +1646,8 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
                 )}
               </div>
               <button
-                disabled={!canCraft}
-                onClick={() => { game.craftRecipe(recipe.id); refresh(); }}
+                disabled={!canCraft || isCrafting}
+                onClick={() => { handleCraft(recipe.id); }}
                 className={`px-2 py-1 rounded text-xs font-bold ${
                   canCraft ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-white/10 text-white/30 cursor-not-allowed'
                 }`}
@@ -1625,6 +1658,49 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
           );
         })}
       </div>
+
+      {/* Animated forge preview card when crafting */}
+      {isCrafting && selectedRecipeId && (() => {
+        const recipe = RECIPES.find(r => r.id === selectedRecipeId);
+        const resultItem = recipe ? getItem(recipe.result) : null;
+        if (!recipe || !resultItem) return null;
+        
+        return (
+          <div className="mb-3 p-3 rounded-lg border-2 border-amber-500/30 bg-gradient-to-r from-amber-900/30 via-yellow-900/20 to-amber-900/30 animate-pulse">
+            <div className="flex items-center gap-3">
+              {/* Animated item icon */}
+              <div className="relative">
+                <span className="text-3xl animate-bounce" style={{ color: RARITY_COLORS[resultItem.rarity as Rarity] || '#fff' }}>
+                  {resultItem.icon}
+                </span>
+                {/* Sparkle aura */}
+                <div className="absolute -inset-2 rounded-full bg-yellow-400/10 animate-ping" />
+              </div>
+              <div className="flex-1">
+                <div className="text-white font-bold text-sm" style={{ color: RARITY_COLORS[resultItem.rarity as Rarity] || '#fff' }}>
+                  🔨 Forjando {resultItem.name}...
+                </div>
+                <div className="mt-2">
+                  <div className="h-2 bg-black/50 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-100"
+                      style={{
+                        width: `${craftProgress * 100}%`,
+                        background: 'linear-gradient(90deg, #ff6600, #ffcc00, #ff6600)',
+                        backgroundSize: '200% 100%',
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[9px] text-white/40 mt-0.5">
+                    <span>🔥 Aquecendo...</span>
+                    <span>{Math.round(craftProgress * 100)}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Crafting Tooltip */}
       {hoveredItem && (() => {
@@ -2559,6 +2635,34 @@ function FarmingBar({ game }: { game: Game }) {
 function ForgePanel({ game }: { game: Game }) {
   const [, forceUpdate] = useState(0);
   const refresh = () => forceUpdate(n => n + 1);
+  const [upgradeAnim, setUpgradeAnim] = useState<{ progress: number; itemId: string } | null>(null);
+
+  const handleUpgrade = (pool: 'inventory' | 'hotbar' | 'equipment', index: string | number) => {
+    const slot = pool === 'inventory' ? game.state.player.inventory[index as number]
+      : pool === 'hotbar' ? game.state.player.hotbar[index as number]
+      : game.state.player.equipment[index as keyof typeof game.state.player.equipment];
+    if (!slot?.item) return;
+    
+    setUpgradeAnim({ progress: 0, itemId: slot.item.id });
+    
+    const duration = 600;
+    const interval = 30;
+    const steps = duration / interval;
+    let currentStep = 0;
+    
+    const timer = setInterval(() => {
+      currentStep++;
+      const progress = Math.min(1, currentStep / steps);
+      setUpgradeAnim(prev => prev ? { ...prev, progress } : null);
+      
+      if (progress >= 1) {
+        clearInterval(timer);
+        game.upgradeItem(pool, index);
+        setUpgradeAnim(null);
+        refresh();
+      }
+    }, interval);
+  };
   const state = game.state;
 
   const forgeableSlots = game.getForgeableSlots();

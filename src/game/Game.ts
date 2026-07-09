@@ -1928,8 +1928,19 @@ export class Game {
     // Track for achievements
     this.achievementStats.itemsCrafted += recipe.resultCount;
 
-    // Craft sparkle particles
-    this.spawnParticles(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y, '#44ddff', 6, 'craft_sparkle', { spread: 100, speed: 70, sizeRange: [2, 4], lifeRange: [0.5, 1.0], color2: '#88eeff' });
+    // ── Forge / Craft Visual Effects ──
+    const cx = this.state.player.x + PLAYER_SIZE / 2;
+    const cy = this.state.player.y;
+    
+    // Forge-like spark burst
+    this.spawnParticles(cx, cy, '#ffaa22', 8, 'spark', { spread: 140, speed: 100, sizeRange: [2, 4], lifeRange: [0.3, 0.7] });
+    this.spawnParticles(cx, cy, '#ffdd44', 6, 'craft_sparkle', { spread: 100, speed: 70, sizeRange: [2, 5], lifeRange: [0.5, 1.2], color2: '#ffee88' });
+    // Smoke puff
+    this.spawnParticles(cx, cy - 10, 'rgba(150,140,130,0.6)', 4, 'smoke', { spread: 40, speed: 30, sizeRange: [4, 8], lifeRange: [0.6, 1.2] });
+    // Iron/ore particles if forge-like item
+    if (recipe.station === 'furnace') {
+      this.spawnParticles(cx, cy + 10, '#ff4400', 5, 'ember', { spread: 80, speed: 60, sizeRange: [2, 4], lifeRange: [0.4, 0.9] });
+    }
     this.audio.playCraft();
     this.addNotification(`Craftou ${recipe.name}!`, 'success');
     this.updateQuestProgress('craft', recipe.result);
@@ -5087,25 +5098,87 @@ export class Game {
 
     switch (struct.itemId) {
       case 'workbench':
+        // Wooden table
         ctx.fillStyle = '#8B4513';
         ctx.fillRect(pos.x + 4, pos.y + 12, 24, 16);
         ctx.fillStyle = '#A0522D';
         ctx.fillRect(pos.x + 6, pos.y + 14, 20, 12);
-        // Tools on top
+        // Table surface detail
+        ctx.fillStyle = '#6a3410';
+        ctx.fillRect(pos.x + 8, pos.y + 18, 16, 1);
+        
+        // Animated tools on top (subtle hammer swing)
+        const hammerSwing = Math.sin(performance.now() / 800 + pos.x) * 0.3;
+        ctx.save();
+        ctx.translate(pos.x + 12, pos.y + 10);
+        ctx.rotate(hammerSwing);
+        ctx.fillStyle = '#666';
+        ctx.fillRect(-1, -4, 2, 8);  // Handle
         ctx.fillStyle = '#888';
-        ctx.fillRect(pos.x + 10, pos.y + 8, 2, 6);
-        ctx.fillRect(pos.x + 18, pos.y + 8, 2, 6);
+        ctx.fillRect(-3, -6, 6, 3);  // Head
+        ctx.restore();
+        
+        // Saw (static)
+        ctx.fillStyle = '#777';
+        ctx.fillRect(pos.x + 20, pos.y + 8, 1, 6);
+        ctx.beginPath();
+        ctx.arc(pos.x + 21, pos.y + 8, 3, Math.PI, 0);
+        ctx.fill();
+        
+        // Wood shavings / sparkles nearby
+        const wSparkle = Math.sin(performance.now() / 500 + pos.x * 0.3) * 0.3 + 0.7;
+        ctx.fillStyle = `rgba(180, 140, 80, ${wSparkle * 0.15})`;
+        ctx.beginPath();
+        ctx.arc(pos.x + 10, pos.y + 8, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(200, 160, 100, ${(1 - wSparkle) * 0.1})`;
+        ctx.beginPath();
+        ctx.arc(pos.x + 22, pos.y + 10, 2, 0, Math.PI * 2);
+        ctx.fill();
         break;
       case 'furnace':
+        // Animated furnace body
         ctx.fillStyle = '#555';
         ctx.fillRect(pos.x + 6, pos.y + 8, 20, 20);
-        ctx.fillStyle = '#333';
+        ctx.fillStyle = '#444';
         ctx.fillRect(pos.x + 8, pos.y + 12, 16, 14);
-        // Fire
+        
+        // Animated fire with glow
+        const fGlow = Math.sin(performance.now() / 300 + pos.x) * 0.15 + 0.5;
+        const fHeight = Math.sin(performance.now() / 200 + pos.x * 0.5) * 2 + 4;
+        
+        // Fire glow aura
+        ctx.save();
+        ctx.shadowColor = 'rgba(255, 120, 20, 0.5)';
+        ctx.shadowBlur = 12 * (fGlow + 0.3);
+        ctx.fillStyle = '#ff4400';
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 18, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        
+        // Main fire
         ctx.fillStyle = '#ff6600';
-        ctx.fillRect(pos.x + 12, pos.y + 16, 8, 6);
+        ctx.fillRect(pos.x + 12, pos.y + 20 - fHeight, 8, 4 + fHeight);
         ctx.fillStyle = '#ffaa00';
-        ctx.fillRect(pos.x + 14, pos.y + 14, 4, 4);
+        ctx.fillRect(pos.x + 14, pos.y + 16 - fHeight * 0.5, 4, 4 + fHeight * 0.5);
+        // Hot core
+        ctx.fillStyle = '#ffdd44';
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 18 - fHeight * 0.3, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Ember particles rising
+        const emberCount = 2 + Math.floor(fGlow * 2);
+        for (let i = 0; i < emberCount; i++) {
+          const eX = pos.x + 12 + Math.sin(performance.now() / 150 + i * 2 + pos.x) * 4 + 4;
+          const eY = pos.y + 8 + Math.sin(performance.now() / 100 + i * 3 + pos.x * 0.7) * 2 + (i * 3);
+          const eSize = 1 + Math.sin(performance.now() / 50 + i) * 0.5;
+          ctx.fillStyle = `rgba(255, ${150 + Math.floor(Math.sin(performance.now() / 80 + i) * 50)}, 0, ${0.4 + Math.sin(performance.now() / 60 + i) * 0.2})`;
+          ctx.beginPath();
+          ctx.arc(eX, eY, eSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
         break;
       case 'chest':
         ctx.fillStyle = '#8B4513';
