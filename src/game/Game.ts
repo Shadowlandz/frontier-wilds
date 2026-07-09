@@ -4909,6 +4909,66 @@ export class Game {
       }
     }
 
+    // ── Torch Fire Effect ──
+    if (tool?.toolType === 'torch') {
+      const torchX = cx + player.facing.x * 12;
+      const torchY = bodyTop + 2 + player.facing.y * 12;
+      const time = performance.now() / 1000;
+
+      // Flickering flame size and position
+      const flameSize = 3 + Math.sin(time * 15) * 0.6;
+      const flickerX = Math.sin(time * 20) * 0.5;
+      const flickerY = Math.abs(Math.cos(time * 17)) * 1.5;
+
+      // Warm glow halo
+      const gradient = ctx.createRadialGradient(
+        torchX + flickerX, torchY - 3 - flickerY, 0,
+        torchX + flickerX, torchY - 3 - flickerY, flameSize * 4
+      );
+      gradient.addColorStop(0, 'rgba(255, 200, 50, 0.8)');
+      gradient.addColorStop(0.3, 'rgba(255, 150, 20, 0.5)');
+      gradient.addColorStop(0.6, 'rgba(255, 80, 10, 0.2)');
+      gradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(torchX + flickerX, torchY - 3 - flickerY, flameSize * 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Flame body
+      ctx.fillStyle = 'rgba(255, 180, 30, 0.85)';
+      ctx.beginPath();
+      ctx.arc(torchX + flickerX, torchY - 4 - flickerY, flameSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bright inner core
+      ctx.fillStyle = 'rgba(255, 255, 200, 0.9)';
+      ctx.beginPath();
+      ctx.arc(torchX + flickerX * 0.5, torchY - 4 - flickerY * 0.5, flameSize * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rising embers
+      for (let i = 0; i < 5; i++) {
+        const phase = time * 2.5 + i * 1.3;
+        const ex = torchX + Math.sin(phase) * (4 + Math.sin(time + i * 0.7) * 2);
+        const ey = torchY - 5 - Math.abs(Math.cos(phase * 0.6)) * 8 - i;
+        const alpha = Math.max(0.1, Math.sin(phase * 2.5 + i) * 0.5 + 0.3);
+        const size = 0.6 + Math.sin(phase * 1.8 + i * 0.5) * 0.3;
+        ctx.fillStyle = `rgba(255, ${160 + Math.floor(Math.sin(phase * 3 + i) * 30)}, 40, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(ex, ey, Math.max(0.3, size), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Ground glow
+      const groundGlow = ctx.createRadialGradient(torchX, by, 0, torchX, by, 10);
+      groundGlow.addColorStop(0, 'rgba(255, 180, 50, 0.12)');
+      groundGlow.addColorStop(1, 'rgba(255, 100, 20, 0)');
+      ctx.fillStyle = groundGlow;
+      ctx.beginPath();
+      ctx.arc(torchX, by, 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.globalAlpha = 1;
   }
 
