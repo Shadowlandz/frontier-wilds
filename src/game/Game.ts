@@ -639,6 +639,48 @@ export class Game {
       }
     }
 
+    // 1.5 Harvest ready crops with E (interact key)
+    if (!this.inCave) {
+      const tileX = Math.floor((px + player.facing.x * 16) / TILE_SIZE);
+      const tileY = Math.floor((py + player.facing.y * 16) / TILE_SIZE);
+      const harvestPlot = this.state.farmPlots.find(p => p.x === tileX && p.y === tileY && p.seedId && p.growthStage >= 3);
+      if (harvestPlot) {
+        const plotIndex = this.state.farmPlots.findIndex(p => p === harvestPlot);
+        if (plotIndex >= 0) {
+          // Inline harvest logic to avoid duplicating harvestPlot
+          const plot = this.state.farmPlots[plotIndex];
+          const seedToCrop: Record<string, string> = {
+            wheat_seed: 'wheat',
+            carrot_seed: 'carrot',
+            potato_seed: 'potato',
+            berry_seed: 'berry',
+            pumpkin_seed: 'pumpkin',
+          };
+          const cropId = seedToCrop[plot.seedId!];
+          if (cropId) {
+            const harvestCount = 2 + Math.floor(Math.random() * 3) + Math.floor(this.state.player.stats.farming / 5);
+            if (this.addToInventory(cropId, harvestCount)) {
+              this.gainXp(10 + Math.floor(this.state.player.stats.farming * 2));
+              this.updateQuestProgress('farm', cropId);
+              this.achievementStats.cropsHarvested += harvestCount;
+              this.spawnParticles(tileX * TILE_SIZE + TILE_SIZE / 2, tileY * TILE_SIZE + TILE_SIZE / 2, '#ffcc44', 6, 'harvest', { spread: 100, speed: 80, sizeRange: [2, 5], lifeRange: [0.4, 0.8] });
+              this.spawnParticles(tileX * TILE_SIZE + TILE_SIZE / 2, tileY * TILE_SIZE + TILE_SIZE / 2, '#4a8a3a', 5, 'leaf', { spread: 80, speed: 60, sizeRange: [3, 5], lifeRange: [0.5, 0.9] });
+              this.audio.playHarvest();
+              this.addNotification(`+${harvestCount} ${getItem(cropId)?.name || cropId} colhido!`, 'item');
+            } else {
+              this.addNotification('Inventário cheio!', 'warning');
+            }
+            // Reset plot regardless
+            plot.seedId = null;
+            plot.growthStage = 0;
+            plot.growthProgress = 0;
+            plot.watered = false;
+          }
+          return;
+        }
+      }
+    }
+
     // 1. Check NPCs (surface only)
     if (!this.inCave) {
       for (const npc of this.npcs) {
