@@ -2294,6 +2294,14 @@ export class Game {
     const px = Math.floor((this.state.player.x + PLAYER_SIZE / 2 + this.state.player.facing.x * TILE_SIZE) / TILE_SIZE);
     const py = Math.floor((this.state.player.y + PLAYER_SIZE / 2 + this.state.player.facing.y * TILE_SIZE) / TILE_SIZE);
 
+    // Check if inside a safe zone
+    const centerX = px * TILE_SIZE + TILE_SIZE / 2;
+    const centerY = py * TILE_SIZE + TILE_SIZE / 2;
+    if (!this.isInSafeZone(centerX, centerY)) {
+      this.addNotification('Solo seguro só pode ser preparado em área segura!', 'warning');
+      return false;
+    }
+
     // Check if already a farm plot
     const existing = this.state.farmPlots.find(p => p.x === px && p.y === py);
     if (existing) return false;
@@ -2324,6 +2332,14 @@ export class Game {
 
     const plot = this.state.farmPlots.find(p => p.x === px && p.y === py);
     if (!plot || plot.seedId) return false;
+
+    // Check if inside a safe zone
+    const centerX = px * TILE_SIZE + TILE_SIZE / 2;
+    const centerY = py * TILE_SIZE + TILE_SIZE / 2;
+    if (!this.isInSafeZone(centerX, centerY)) {
+      this.addNotification('Só pode plantar em área segura!', 'warning');
+      return false;
+    }
 
     if (!this.removeFromInventory(seedId, 1)) {
       this.addNotification('Sem sementes!', 'warning');
@@ -5179,12 +5195,31 @@ export class Game {
     const plantSway = Math.sin(windPhase + plot.x * 0.2 + plot.y * 0.15) * 1.5 +
                       Math.sin(performance.now() / 1800 + plot.x * 0.3) * 0.8;
 
-    // Soil base
-    ctx.fillStyle = plot.watered ? '#5a3a1a' : '#8d6e4a';
-    ctx.fillRect(pos.x + 2, pos.y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+    // ── Tilled soil (visible even without crops) ──
+    // Darker brown than regular grass — clearly shows prepared ground
+    if (plot.watered) {
+      // Watered soil: darker, richer
+      ctx.fillStyle = '#4a2a0a';
+      ctx.fillRect(pos.x + 1, pos.y + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+      // Moisture patch
+      ctx.fillStyle = '#3a1a00';
+      ctx.fillRect(pos.x + 4, pos.y + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+    } else {
+      // Dry tilled soil: light brown with furrow lines
+      ctx.fillStyle = '#7a5a3a';
+      ctx.fillRect(pos.x + 1, pos.y + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+      ctx.fillStyle = '#8d6e4a';
+      ctx.fillRect(pos.x + 2, pos.y + 8, TILE_SIZE - 4, 3);
+      ctx.fillRect(pos.x + 2, pos.y + 18, TILE_SIZE - 4, 3);
+    }
 
-    // Grid lines
-    ctx.strokeStyle = '#6d4e3a';
+    // Border (distinct edge vs regular grass)
+    ctx.strokeStyle = '#5a3a1a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pos.x + 1, pos.y + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+
+    // Furrow grid lines
+    ctx.strokeStyle = plot.watered ? '#3a1a00' : '#6d4e3a';
     ctx.lineWidth = 0.5;
     for (let i = 1; i < 4; i++) {
       ctx.beginPath();
@@ -5193,7 +5228,35 @@ export class Game {
       ctx.stroke();
     }
 
-    // Plant growth (with wind sway)
+    // ── Growth progress bar (always visible for seeded plots) ──
+    if (plot.seedId) {
+      const barWidth = TILE_SIZE - 4;
+      const barHeight = 3;
+      const barX = pos.x + 2;
+      const barY = pos.y - 6;
+
+      // Background
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+
+      // Fill: green → yellow based on total progress (0 → 1)
+      const totalProgress = Math.min(1, (plot.growthStage + plot.growthProgress) / 3);
+      const fillWidth = Math.max(1, barWidth * totalProgress);
+      const green = Math.floor(180 + 75 * (1 - totalProgress));
+      const red = Math.floor(60 + 100 * totalProgress);
+      ctx.fillStyle = `rgb(${red}, ${green}, 40)`;
+      ctx.fillRect(barX, barY, fillWidth, barHeight);
+
+      // Watered indicator (small blue dot next to bar)
+      if (plot.watered) {
+        ctx.fillStyle = '#44aaff';
+        ctx.beginPath();
+        ctx.arc(barX + barWidth + 3, barY + barHeight / 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ── Plant growth (with wind sway) ──
     if (plot.seedId && plot.growthStage > 0) {
       const stageColors = ['#4a7a2a', '#5a9a3a', '#6ab040', '#8ac050'];
       const stageSizes = [4, 6, 8, 10];
@@ -5235,7 +5298,7 @@ export class Game {
       }
     }
 
-    // Watered indicator (with shimmer)
+    // Watered shimmer overlay
     if (plot.watered) {
       const shimmer = Math.sin(performance.now() / 1200 + plot.x + plot.y) * 0.15 + 0.25;
       ctx.fillStyle = `rgba(100, 150, 255, ${shimmer})`;
