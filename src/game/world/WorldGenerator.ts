@@ -27,23 +27,50 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.Lava]: '#e44400',
 };
 
+/** Biome-specific secondary ground detail colors */
+export const BIOME_DETAIL_COLORS: Partial<Record<Biome, { color: string; type: string; chance: number }[]>> = {
+  [Biome.Forest]: [
+    { color: '#3a7a2a', type: 'leaf', chance: 0.04 },
+    { color: '#5a3a1a', type: 'twig', chance: 0.03 },
+  ],
+  [Biome.Plains]: [
+    { color: '#7aaa5a', type: 'grass_clump', chance: 0.05 },
+    { color: '#c4a862', type: 'dry_patch', chance: 0.02 },
+  ],
+  [Biome.Desert]: [
+    { color: '#d4b878', type: 'sand_dune', chance: 0.04 },
+    { color: '#b09858', type: 'crack', chance: 0.02 },
+  ],
+  [Biome.Swamp]: [
+    { color: '#3a5a1a', type: 'mud', chance: 0.04 },
+    { color: '#4a7a2a', type: 'algae', chance: 0.03 },
+  ],
+  [Biome.Tundra]: [
+    { color: '#c8d0d8', type: 'ice_crack', chance: 0.04 },
+    { color: '#a0b0b0', type: 'frost', chance: 0.03 },
+  ],
+  [Biome.Mountains]: [
+    { color: '#8a8a8a', type: 'gravel', chance: 0.04 },
+  ],
+};
+
 // ── Biome Map Colors (for terrain variation) ──────────────────────
 const BIOME_GRASS_COLORS: Record<Biome, string> = {
-  [Biome.Forest]: '#3a7a2a',
-  [Biome.Plains]: '#5a9a4a',
-  [Biome.Mountains]: '#6a7a6a',
-  [Biome.Swamp]: '#4a6a2a',
-  [Biome.Desert]: '#c4a862',
-  [Biome.Tundra]: '#a8b8b0',
-  [Biome.Cave]: '#3a3a3a',
-  [Biome.Ruins]: '#7a6a5a',
-  [Biome.Village]: '#6a9a5a',
-  [Biome.Lake]: '#2a7aa8',
-  [Biome.River]: '#3a88b8',
+  [Biome.Forest]: '#2d6a1e',       // Deep forest green
+  [Biome.Plains]: '#5a9a4a',       // Bright grassland
+  [Biome.Mountains]: '#6a7a6a',    // Stone-grey green
+  [Biome.Swamp]: '#3a5a1a',        // Dark murky green
+  [Biome.Desert]: '#c4a862',       // Sandy yellow
+  [Biome.Tundra]: '#b0b8b8',       // Pale icy grey
+  [Biome.Cave]: '#3a3a3a',         // Dark stone
+  [Biome.Ruins]: '#7a6a5a',        // Worn stone
+  [Biome.Village]: '#6a9a5a',      // Healthy farmland
+  [Biome.Lake]: '#2a7aa8',         // Blue water
+  [Biome.River]: '#3a88b8',        // River blue
 };
 
 // ── Decorative Element Types ──────────────────────────────────────
-export type DecorationType = 'flower' | 'mushroom' | 'tall_grass' | 'lily_pad' | 'dead_log' | 'small_rock' | 'fern' | 'cave_moss' | 'glowing_shroom';
+export type DecorationType = 'flower' | 'mushroom' | 'tall_grass' | 'lily_pad' | 'dead_log' | 'small_rock' | 'fern' | 'cave_moss' | 'glowing_shroom' | 'cactus' | 'dry_bush' | 'mossy_rock' | 'snowy_rock' | 'flower_patch' | 'pine_sapling' | 'berry_bush';
 
 export interface DecorationDef {
   x: number;
@@ -166,63 +193,101 @@ export class WorldGenerator {
         const biome = biomeMap[y][x];
         const n = rng.next();
 
-        // Forest: ferns, mushrooms, tall grass, flowers
+        // Forest: richer undergrowth
         if (biome === Biome.Forest) {
-          if (n < 0.03) {
+          if (n < 0.04) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'fern' });
-          } else if (n < 0.05) {
+          } else if (n < 0.06) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
-          } else if (n < 0.065) {
-            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mushroom' });
           } else if (n < 0.075) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mushroom' });
+          } else if (n < 0.09) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
-          } else if (n < 0.08) {
+          } else if (n < 0.1) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'dead_log' });
+          } else if (n < 0.105) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower_patch' });
+          } else if (n < 0.11) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mossy_rock' });
           }
         }
 
-        // Plains: flowers and tall grass
+        // Plains: flowers, tall grass, berry bushes
         if (biome === Biome.Plains) {
-          if (n < 0.04) {
+          if (n < 0.05) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
-          } else if (n < 0.055) {
+          } else if (n < 0.07) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
-          } else if (n < 0.062) {
+          } else if (n < 0.08) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'small_rock' });
+          } else if (n < 0.085) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'berry_bush' });
+          } else if (n < 0.09) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower_patch' });
+          }
+        }
+
+        // Desert: cacti, dry bushes, small rocks
+        if (biome === Biome.Desert) {
+          if (n < 0.03) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'cactus' });
+          } else if (n < 0.05) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'dry_bush' });
+          } else if (n < 0.06) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'small_rock' });
           }
         }
 
-        // Swamp: mushrooms, dead logs
+        // Swamp: mushrooms, dead logs, mossy rocks
         if (biome === Biome.Swamp) {
-          if (n < 0.04) {
+          if (n < 0.05) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mushroom' });
-          } else if (n < 0.06) {
+          } else if (n < 0.07) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'dead_log' });
+          } else if (n < 0.08) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mossy_rock' });
+          } else if (n < 0.085) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
           }
         }
 
         // Water: lily pads
         if (biome === Biome.Lake || biome === Biome.River) {
-          if (n < 0.04 && biome === Biome.Lake) {
+          if (n < 0.05 && biome === Biome.Lake) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'lily_pad' });
           }
         }
 
-        // Mountains: small rocks
+        // Mountains: rocks, mossy rocks, flowers
         if (biome === Biome.Mountains) {
-          if (n < 0.03) {
+          if (n < 0.04) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'small_rock' });
-          } else if (n < 0.04) {
+          } else if (n < 0.05) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
+          } else if (n < 0.06) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mossy_rock' });
           }
         }
 
-        // Village: flowers, tall grass
-        if (biome === Biome.Village) {
+        // Tundra: snowy rocks, sparse grass
+        if (biome === Biome.Tundra) {
           if (n < 0.03) {
-            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
-          } else if (n < 0.045) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'snowy_rock' });
+          } else if (n < 0.04) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
+          }
+        }
+
+        // Village: flowers, berry bushes, flower patches
+        if (biome === Biome.Village) {
+          if (n < 0.04) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
+          } else if (n < 0.06) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
+          } else if (n < 0.07) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower_patch' });
+          } else if (n < 0.075) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'berry_bush' });
           }
         }
       }

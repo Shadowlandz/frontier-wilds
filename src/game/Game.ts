@@ -19,7 +19,7 @@ import {
   clamp, distance, normalize, scaleVec, generateId,
   SeededRandom, fractalNoise, darkenColor,
 } from './core/Utils';
-import { WorldGenerator, TILE_COLORS, getSkyColor, getSeasonTint, getSeasonForDay, getCaveSkyColor } from './world/WorldGenerator';
+import { WorldGenerator, TILE_COLORS, BIOME_DETAIL_COLORS, getSkyColor, getSeasonTint, getSeasonForDay, getCaveSkyColor } from './world/WorldGenerator';
 import type { CaveData, DecorationDef } from './world/WorldGenerator';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
@@ -2714,6 +2714,32 @@ export class Game {
             ctx.fillRect(screenPos.x + (n * 20) % 24, screenPos.y + (n * 15) % 24, 3, 2);
           }
         }
+
+        // ── Biome-specific ground detail ──
+        if (!this.inCave && tile !== TileType.Water && tile !== TileType.DeepWater && tile !== TileType.SwampWater) {
+          const biome = this.biomeMap[y]?.[x];
+          if (biome) {
+            const details = BIOME_DETAIL_COLORS[biome];
+            if (details) {
+              for (const detail of details) {
+                const detailNoise = fractalNoise(x + 700, y + 700, this.state.world.seed + 9000 + details.indexOf(detail), 1, 5);
+                if (detailNoise > 1 - detail.chance * 8) {
+                  ctx.fillStyle = detail.color + '40';  // 25% opacity
+                  if (detail.type === 'leaf' || detail.type === 'sand_dune') {
+                    ctx.fillRect(screenPos.x + (detailNoise * 20) % 28, screenPos.y + (detailNoise * 15) % 28, 4, 2);
+                  } else if (detail.type === 'twig' || detail.type === 'crack') {
+                    ctx.fillRect(screenPos.x + (detailNoise * 20) % 28, screenPos.y + (detailNoise * 15) % 24, 3, 1);
+                  } else if (detail.type === 'ice_crack') {
+                    ctx.fillStyle = '#ffffff20';
+                    ctx.fillRect(screenPos.x + (detailNoise * 20) % 28, screenPos.y + (detailNoise * 15) % 28, 2, 3);
+                  } else {
+                    ctx.fillRect(screenPos.x + (detailNoise * 20) % 28, screenPos.y + (detailNoise * 15) % 26, 2, 2);
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
 
@@ -2730,6 +2756,9 @@ export class Game {
         flower: '#ff88cc', mushroom: '#cc8844', tall_grass: '#5a9a4a',
         lily_pad: '#4a8a3a', dead_log: '#5a3a1a', small_rock: '#7a7a7a',
         fern: '#4aaa4a', cave_moss: '#3a6a3a', glowing_shroom: '#88ffaa',
+        cactus: '#4a8a3a', dry_bush: '#8a7a4a', mossy_rock: '#6a7a5a',
+        snowy_rock: '#b0b8c0', flower_patch: '#ffaadd', pine_sapling: '#3a7a3a',
+        berry_bush: '#cc4466',
       };
       const windPhase = performance.now() / 4000;
       const windStrength = Math.sin(windPhase) * 0.3 + 0.3;
@@ -2764,6 +2793,50 @@ export class Game {
         } else if (dec.type === 'dead_log') {
           ctx.fillRect(dPos.x, dPos.y + 1, 6, 2);
           ctx.fillRect(dPos.x + 1, dPos.y, 4, 1);
+        } else if (dec.type === 'cactus') {
+          // Cactus body
+          ctx.fillRect(dPos.x + 1, dPos.y, 3, 7);
+          ctx.fillRect(dPos.x - 1, dPos.y + 2, 2, 2);
+          ctx.fillRect(dPos.x + 4, dPos.y + 3, 2, 2);
+        } else if (dec.type === 'dry_bush') {
+          ctx.fillRect(dPos.x, dPos.y, 3, 3);
+          ctx.fillRect(dPos.x - 1, dPos.y + 1, 1, 2);
+          ctx.fillRect(dPos.x + 3, dPos.y + 1, 1, 2);
+        } else if (dec.type === 'mossy_rock') {
+          ctx.fillStyle = '#6a7a5a';
+          ctx.fillRect(dPos.x, dPos.y, 4, 3);
+          ctx.fillStyle = '#4a6a3a';
+          ctx.fillRect(dPos.x, dPos.y, 2, 1);
+        } else if (dec.type === 'snowy_rock') {
+          ctx.fillStyle = '#8a9aa8';
+          ctx.fillRect(dPos.x, dPos.y + 1, 4, 3);
+          ctx.fillStyle = '#e0e8f0';
+          ctx.fillRect(dPos.x, dPos.y, 4, 2);
+        } else if (dec.type === 'flower_patch') {
+          ctx.fillStyle = '#ffaadd';
+          ctx.beginPath();
+          ctx.arc(dPos.x + 1, dPos.y + 1, 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ff88bb';
+          ctx.beginPath();
+          ctx.arc(dPos.x + 4, dPos.y + 2, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (dec.type === 'pine_sapling') {
+          ctx.fillStyle = '#5a3a1a';
+          ctx.fillRect(dPos.x + 1, dPos.y + 4, 2, 2);
+          ctx.fillStyle = '#3a7a3a';
+          ctx.beginPath();
+          ctx.moveTo(dPos.x + 2, dPos.y);
+          ctx.lineTo(dPos.x, dPos.y + 4);
+          ctx.lineTo(dPos.x + 4, dPos.y + 4);
+          ctx.closePath();
+          ctx.fill();
+        } else if (dec.type === 'berry_bush') {
+          ctx.fillStyle = '#5a7a3a';
+          ctx.fillRect(dPos.x, dPos.y + 1, 4, 3);
+          ctx.fillStyle = '#cc4466';
+          ctx.fillRect(dPos.x, dPos.y, 2, 2);
+          ctx.fillRect(dPos.x + 2, dPos.y + 2, 2, 2);
         } else {
           ctx.fillRect(dPos.x, dPos.y, 3, 3);
         }
