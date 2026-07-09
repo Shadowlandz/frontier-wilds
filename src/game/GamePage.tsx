@@ -968,7 +968,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
                   {recipe.ingredients.map(ing => {
                     const item = getItem(ing.itemId);
                     const have = game.countInInventory(ing.itemId);
-                    return <span key={ing.itemId} className={`mr-2 ${have >= ing.count ? 'text-green-400' : 'text-red-400'}`}>{item?.icon} {have}/{ing.count}</span>;
+                    return <span key={ing.itemId} className={`mr-2 ${have >= ing.count ? 'text-green-400' : 'text-red-400'}`}>{item?.icon} <span className="text-white/60">{item?.name}</span> {have}/{ing.count}</span>;
                   })}
                 </div>
                 <div className="flex flex-wrap gap-x-2 text-[9px] mt-0.5">
