@@ -3249,8 +3249,11 @@ export class Game {
 
     // Draw enemies
     const drawEnemies = this.inCave ? this.caveEnemies : this.enemies;
+    // Without a torch at night, enemies are hidden in darkness
+    const enemiesHiddenInDark = !this.inCave && this.state.gameTime.isNight && this.getCurrentItem()?.toolType !== 'torch';
     for (const enemy of drawEnemies) {
       if (!camera.isVisible(enemy.x, enemy.y, enemy.width, enemy.height)) continue;
+      if (enemiesHiddenInDark) continue;
       this.drawEnemy(enemy);
     }
 
@@ -3514,9 +3517,9 @@ export class Game {
         player.y + PLAYER_SIZE / 2
       );
       const hasTorch = this.getCurrentItem()?.toolType === 'torch';
-      // Torch: large warm light + subtle flicker | Hands: small dim light
-      const flicker = hasTorch ? Math.sin(performance.now() / 120 + player.x * 0.1) * 20 : 0;
-      const lightRadius = hasTorch ? 320 + flicker : 80;
+      // Torch: intense warm light + noticeable flicker | Hands: tiny dim glow
+      const flicker = hasTorch ? Math.sin(performance.now() / 120 + player.x * 0.1) * 25 : 0;
+      const lightRadius = hasTorch ? 400 + flicker : 80;
       const gradient = ctx.createRadialGradient(
         playerScreen.x, playerScreen.y, hasTorch ? 10 : 20,
         playerScreen.x, playerScreen.y, lightRadius
@@ -3573,27 +3576,30 @@ export class Game {
           player.x + PLAYER_SIZE / 2,
           player.y + PLAYER_SIZE / 2
         );
-        const torchFlicker = Math.sin(performance.now() / 120) * 15;
+        const torchFlicker = Math.sin(performance.now() / 120) * 20;
+        // Bright visible circle — clears the darkness overlay
         const gradient = ctx.createRadialGradient(
-          playerScreen.x, playerScreen.y, 5,
-          playerScreen.x, playerScreen.y, 240 + torchFlicker
+          playerScreen.x, playerScreen.y, 3,
+          playerScreen.x, playerScreen.y, 320 + torchFlicker
         );
         gradient.addColorStop(0, 'rgba(0, 0, 30, 0)');
-        gradient.addColorStop(0.4, 'rgba(0, 0, 30, 0)');
+        gradient.addColorStop(0.3, 'rgba(0, 0, 30, 0)');
+        gradient.addColorStop(0.7, `rgba(0, 0, 30, ${nightAlpha * 0.4})`);
         gradient.addColorStop(1, `rgba(0, 0, 30, ${nightAlpha})`);
         ctx.globalCompositeOperation = 'destination-out';
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.globalCompositeOperation = 'source-over';
 
-        // Warm torch glow overlay
+        // Warm amber glow overlay on the visible area
         const warmGlow = ctx.createRadialGradient(
           playerScreen.x, playerScreen.y, 0,
-          playerScreen.x, playerScreen.y, 200 + torchFlicker * 0.5
+          playerScreen.x, playerScreen.y, 300 + torchFlicker * 0.5
         );
-        warmGlow.addColorStop(0, 'rgba(255, 180, 60, 0.1)');
-        warmGlow.addColorStop(0.5, 'rgba(255, 150, 30, 0.04)');
-        warmGlow.addColorStop(1, 'rgba(255, 100, 20, 0)');
+        warmGlow.addColorStop(0, 'rgba(255, 200, 80, 0.18)');
+        warmGlow.addColorStop(0.3, 'rgba(255, 160, 40, 0.08)');
+        warmGlow.addColorStop(0.6, 'rgba(255, 120, 20, 0.03)');
+        warmGlow.addColorStop(1, 'rgba(255, 80, 10, 0)');
         ctx.fillStyle = warmGlow;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
