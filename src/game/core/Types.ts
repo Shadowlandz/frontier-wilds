@@ -564,7 +564,7 @@ export interface DamageNumber {
   velocity: Vec2;
 }
 
-export type ParticleEffectType = 'spark' | 'leaf' | 'wood_chip' | 'dust' | 'firefly' | 'magic' | 'hit_flash' | 'heal' | 'smoke' | 'debris' | 'water_splash' | 'harvest' | 'craft_sparkle' | 'level_up' | 'blood' | 'ember';
+export type ParticleEffectType = 'spark' | 'leaf' | 'wood_chip' | 'dust' | 'firefly' | 'magic' | 'hit_flash' | 'heal' | 'smoke' | 'debris' | 'water_splash' | 'harvest' | 'craft_sparkle' | 'level_up' | 'blood' | 'ember' | 'sawdust';
 
 export interface Particle {
   x: number;

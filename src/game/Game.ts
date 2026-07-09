@@ -2509,6 +2509,11 @@ export class Game {
   }
 
     /** Check if a structure with given itemId exists within range tiles of the player */
+  // Public helper for UI to check station proximity (Lote 8)
+  isNearbyStation(station: string): boolean {
+    return this.isNearbyStructure(station, 3);
+  }
+
   isNearbyStructure(itemId: string, range: number): boolean {
     const px = this.state.player.x + PLAYER_SIZE / 2;
     const py = this.state.player.y + PLAYER_SIZE / 2;
