@@ -563,6 +563,8 @@ export interface DamageNumber {
   velocity: Vec2;
 }
 
+export type ParticleEffectType = 'spark' | 'leaf' | 'wood_chip' | 'dust' | 'firefly' | 'magic' | 'hit_flash' | 'heal' | 'smoke' | 'debris' | 'water_splash' | 'harvest' | 'craft_sparkle' | 'level_up' | 'blood' | 'ember';
+
 export interface Particle {
   x: number;
   y: number;
@@ -572,6 +574,14 @@ export interface Particle {
   maxLife: number;
   color: string;
   size: number;
+  /** Effect type for visual variety */
+  effectType?: ParticleEffectType;
+  /** Base Y for ambient particles to float around */
+  baseY?: number;
+  /** Phase for periodic effects */
+  phase?: number;
+  /** Secondary color for gradient particles */
+  color2?: string;
 }
 
 /** Ambient light level (0=dark, 1=bright) */

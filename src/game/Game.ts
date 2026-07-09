@@ -7,7 +7,7 @@ import {
   Vec2, TileType, TILE_SIZE, PLAYER_SPEED, PLAYER_SIZE, DAY_LENGTH,
   TICK_RATE, INTERACT_RANGE, ATTACK_RANGE, PanelType,
   Weather, Season, Biome, EnemyEntity, NpcEntity, DroppedItem,
-  DamageNumber, Particle, GameUIState, Notification, ItemCategory,
+  DamageNumber, Particle, ParticleEffectType, GameUIState, Notification, ItemCategory,
   Rarity, ItemDefinition, WORLD_WIDTH, WORLD_HEIGHT, PlayerAttributes,
   EnemyType, SafeZone, StorageChest, PlacedStructure,
   generateItemAffixes, computeItemPowerScore, getAffixedItemName, getAffixSlotTypes,
@@ -54,6 +54,8 @@ export class Game {
   droppedItems: DroppedItem[] = [];
   damageNumbers: DamageNumber[] = [];
   particles: Particle[] = [];
+  ambientParticles: Particle[] = [];
+  ambientParticleTimer = 0;
   projectiles: { x: number; y: number; vx: number; vy: number; damage: number; lifetime: number; speed: number }[] = [];
 
   // World data
@@ -311,6 +313,7 @@ export class Game {
       this.updateEnemies(dt);
       this.updateDroppedItems(dt);
       this.updateParticles(dt);
+      this.updateAmbientParticles(dt);
       this.updateDamageNumbers(dt);
       this.updateProjectiles(dt);
       this.handleInput();
@@ -755,7 +758,17 @@ export class Game {
 
     // Particles based on resource type
     const particleColor = this.resourceColors[res.type] || '#8B4513';
-    this.spawnParticles(res.x + 10, res.y + 10, particleColor, 4);
+    if (isVegetation) {
+      // Wood chips and leaves
+      this.spawnParticles(res.x + 10, res.y + 15, '#6b4423', 3, 'wood_chip', { spread: 80, speed: 60, sizeRange: [2, 4] });
+      this.spawnParticles(res.x + 10, res.y + 10, '#4a8a3a', 2, 'leaf', { spread: 60, speed: 40, sizeRange: [3, 5], lifeRange: [0.4, 0.7] });
+    } else if (isOre) {
+      // Sparks and dust for mining
+      this.spawnParticles(res.x + 10, res.y + 10, '#ffcc44', 5, 'spark', { spread: 100, speed: 90, sizeRange: [1, 3], lifeRange: [0.3, 0.6] });
+      this.spawnParticles(res.x + 10, res.y + 10, particleColor, 3, 'dust', { spread: 60, speed: 40, sizeRange: [3, 6], lifeRange: [0.5, 1.0] });
+    } else {
+      this.spawnParticles(res.x + 10, res.y + 10, particleColor, 4);
+    }
 
     // Camera micro-shake
     this.camera.shake(1.5, 0.05);
@@ -808,7 +821,15 @@ export class Game {
 
       const itemName = getItem(res.itemId)?.name || res.itemId;
       this.addNotification(`+${count} ${itemName}`, 'item');
-      this.spawnParticles(res.x + 10, res.y + 10, particleColor, 12);
+      if (isVegetation) {
+        this.spawnParticles(res.x + 10, res.y + 15, '#4a6a2a', 8, 'leaf', { spread: 120, speed: 80, sizeRange: [3, 6], lifeRange: [0.5, 1.0] });
+        this.spawnParticles(res.x + 10, res.y + 10, '#6b4423', 5, 'wood_chip', { spread: 100, speed: 70, sizeRange: [2, 5] });
+      } else if (isOre) {
+        this.spawnParticles(res.x + 10, res.y + 10, '#ffcc44', 10, 'spark', { spread: 150, speed: 100, sizeRange: [1, 3], lifeRange: [0.3, 0.7] });
+        this.spawnParticles(res.x + 10, res.y + 10, particleColor, 8, 'dust', { spread: 100, speed: 60, sizeRange: [3, 7], lifeRange: [0.6, 1.2] });
+      } else {
+        this.spawnParticles(res.x + 10, res.y + 10, particleColor, 12);
+      }
 
       // Schedule respawn
       const respawnDelay = isVegetation ? 30 : 120; // trees: 30s, ores: 120s
@@ -906,7 +927,8 @@ export class Game {
       });
 
       this.audio.playArrowShot();
-      this.spawnParticles(px + player.facing.x * 20, py + player.facing.y * 20, '#8B4513', 2);
+      this.spawnParticles(px + player.facing.x * 20, py + player.facing.y * 20, '#c8a060', 3, 'dust', { spread: 30, speed: 40, sizeRange: [2, 4], lifeRange: [0.2, 0.5] });
+      this.spawnParticles(px + player.facing.x * 20, py + player.facing.y * 20, '#8B4513', 2, 'wood_chip', { spread: 40, speed: 30, sizeRange: [1, 3] });
       return;
     }
 
@@ -916,7 +938,12 @@ export class Game {
 
     // Weapon trail particles
     const trailColor = tool?.toolType === 'sword' ? '#ddd' : '#888';
-    this.spawnParticles(attackX, attackY, trailColor, 3);
+    if (tool?.toolType === 'sword' || tool?.toolType === 'spear' || tool?.toolType === 'hammer') {
+      this.spawnParticles(attackX, attackY, '#ffddaa', 4, 'spark', { spread: 60, speed: 50, sizeRange: [1, 2], lifeRange: [0.2, 0.4] });
+      this.spawnParticles(attackX, attackY, trailColor, 3, 'dust', { spread: 40, speed: 30, sizeRange: [2, 4], lifeRange: [0.3, 0.5] });
+    } else {
+      this.spawnParticles(attackX, attackY, trailColor, 3);
+    }
 
     const attackEnemies = this.inCave ? this.caveEnemies : this.enemies;
     for (const enemy of attackEnemies) {
@@ -950,7 +977,13 @@ export class Game {
 
         // Hit particles per weapon type
         const hitColor = tool?.toolType === 'sword' ? '#fff' : '#ff8844';
-        this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, hitColor, 6);
+        this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ffddaa', 6, 'hit_flash', { spread: 80, speed: 60, sizeRange: [2, 4], lifeRange: [0.2, 0.4] });
+        if (crit) {
+          this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ff4400', 5, 'spark', { spread: 150, speed: 100, sizeRange: [2, 4], lifeRange: [0.3, 0.6] });
+          this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ffaa00', 3, 'magic', { spread: 80, speed: 60, sizeRange: [3, 5], lifeRange: [0.4, 0.7], color2: '#ffdd44' });
+        } else {
+          this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, hitColor, 6);
+        }
 
         this.damageNumbers.push({
           x: enemy.x + enemy.width / 2,
@@ -1004,6 +1037,11 @@ export class Game {
   private killEnemy(enemy: EnemyEntity): void {
     enemy.state = 'dead';
     enemy.deathTimer = 0.5;
+
+    // Death particles based on enemy type
+    const deathColor = enemy.definition.color || '#ff4444';
+    this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, deathColor, 8, 'debris', { spread: 150, speed: 100, sizeRange: [2, 5], lifeRange: [0.4, 0.8] });
+    this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ff8844', 4, 'ember', { spread: 100, speed: 60, sizeRange: [2, 4], lifeRange: [0.5, 1.0] });
 
     // Death sound
     this.audio.playEnemyDeath(enemy.definition.type);
@@ -1065,6 +1103,10 @@ export class Game {
       slot.count--;
       if (slot.count <= 0) {
         this.state.player.hotbar[this.state.player.currentTool] = { item: null, count: 0 };
+      }
+      // Healing/green sparkle when using items
+      if (item.effects?.some(e => e.type === 'heal' || e.type === 'hunger')) {
+        this.spawnParticles(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y, '#44ff44', 5, 'heal', { spread: 60, speed: 50, sizeRange: [2, 4], lifeRange: [0.4, 0.8] });
       }
       this.audio.playUseItem();
     this.addNotification(`Usou ${item.name}`, 'item');
@@ -1264,7 +1306,8 @@ export class Game {
     });
 
     this.camera.shake(4, 0.15);
-    this.spawnParticles(player.x + PLAYER_SIZE / 2, player.y + PLAYER_SIZE / 2, '#ff0000', 4);
+    this.spawnParticles(player.x + PLAYER_SIZE / 2, player.y + PLAYER_SIZE / 2, '#ff2222', 6, 'blood', { spread: 80, speed: 60, sizeRange: [2, 4], lifeRange: [0.5, 1.0] });
+    this.spawnParticles(player.x + PLAYER_SIZE / 2, player.y + PLAYER_SIZE / 2, '#ff4444', 3, 'hit_flash', { spread: 50, speed: 40, sizeRange: [3, 5], lifeRange: [0.2, 0.4] });
 
     if (player.stats.hp <= 0) {
       this.playerDeath();
@@ -1479,12 +1522,153 @@ export class Game {
     this.droppedItems = this.droppedItems.filter(d => d.lifetime > 0);
   }
 
+  private updateAmbientParticles(dt: number): void {
+    // Ambient particles: fireflies at dusk/night, dust/leaves during day
+    if (this.inCave) {
+      // Cave ambient: only tiny dust motes
+      for (const ap of this.ambientParticles) {
+        if (ap.effectType === 'firefly') continue; // No fireflies in caves
+        ap.x += ap.vx * dt;
+        ap.y += ap.vy * dt;
+        ap.life -= dt;
+        ap.vx += (Math.random() - 0.5) * 8 * dt;
+        ap.vy += (Math.random() - 0.5) * 8 * dt;
+        ap.vx *= 0.98;
+        ap.vy *= 0.98;
+      }
+    } else {
+      const isNight = this.state.gameTime.isNight;
+      const hour = this.state.gameTime.hour;
+
+      // Spawn new ambient particles based on time and season
+      this.ambientParticleTimer -= dt;
+      if (this.ambientParticleTimer <= 0) {
+        this.ambientParticleTimer = 0.5 + Math.random() * 1.0;
+
+        // Get camera bounds for spawning
+        const camX = this.camera.x;
+        const camY = this.camera.y;
+        const cw = this.canvas.width / this.camera.zoom;
+        const ch = this.canvas.height / this.camera.zoom;
+
+        if (isNight || (hour >= 18 || hour < 6)) {
+          // Night: spawn fireflies
+          if (Math.random() < 0.4) { // 40% chance per tick
+            const fx = camX + Math.random() * cw;
+            const fy = camY + Math.random() * ch;
+            this.ambientParticles.push({
+              x: fx, y: fy,
+              vx: (Math.random() - 0.5) * 15,
+              vy: (Math.random() - 0.5) * 15,
+              life: 5 + Math.random() * 10,
+              maxLife: 12,
+              color: '#aaff66',
+              size: 1.5 + Math.random() * 2,
+              effectType: 'firefly',
+              phase: Math.random() * Math.PI * 2,
+              baseY: fy,
+            });
+          }
+        } else {
+          // Day: dust motes in forest, leaves in forest/plains
+          if (Math.random() < 0.2 && !this.inCave) {
+            const fx = camX + Math.random() * cw;
+            const fy = camY + Math.random() * ch;
+            const type = Math.random() < 0.5 ? 'dust' : 'leaf';
+            this.ambientParticles.push({
+              x: fx, y: fy,
+              vx: (Math.random() - 0.5) * 10,
+              vy: -Math.random() * 8 - 2,
+              life: 4 + Math.random() * 4,
+              maxLife: 6,
+              color: type === 'dust' ? 'rgba(200,180,160,0.5)' : '#5a8a3a',
+              size: type === 'dust' ? 1 : 2,
+              effectType: type as 'dust' | 'leaf',
+              phase: Math.random() * Math.PI * 2,
+            });
+          }
+        }
+      }
+
+      // Update all ambient particles
+      for (const ap of this.ambientParticles) {
+        ap.life -= dt;
+
+        if (ap.effectType === 'firefly') {
+          ap.vx += (Math.random() - 0.5) * 10 * dt;
+          ap.vy += (Math.random() - 0.5) * 10 * dt;
+          ap.vx *= 0.96;
+          ap.vy *= 0.96;
+        } else if (ap.effectType === 'dust') {
+          ap.vx += (Math.random() - 0.5) * 5 * dt;
+          ap.vy += (Math.random() - 0.5) * 5 * dt;
+          ap.vx *= 0.97;
+          ap.vy *= 0.97;
+        } else if (ap.effectType === 'leaf') {
+          ap.vy += Math.sin(ap.phase! + performance.now() * 0.001) * 5 * dt;
+          ap.vx += Math.cos(ap.phase! + performance.now() * 0.001) * 3 * dt;
+        }
+
+        ap.x += ap.vx * dt;
+        ap.y += ap.vy * dt;
+      }
+    }
+
+    this.ambientParticles = this.ambientParticles.filter(ap => ap.life > 0);
+    // Cap ambient particles to prevent memory leaks
+    if (this.ambientParticles.length > 150) {
+      this.ambientParticles = this.ambientParticles.slice(this.ambientParticles.length - 150);
+    }
+  }
+
   private updateParticles(dt: number): void {
     for (const p of this.particles) {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.life -= dt;
-      p.vy += 100 * dt;
+
+      // Per-type physics
+      const type = p.effectType;
+      if (type === 'dust' || type === 'smoke') {
+        p.vx *= 0.97;
+        p.vy *= 0.97;
+        p.vy -= 15 * dt; // Float upward
+        p.size *= 0.998; // Fade out
+      } else if (type === 'firefly') {
+        // Fireflies: gentle floating with sine wave
+        p.vx += (Math.random() - 0.5) * 30 * dt;
+        p.vy += (Math.random() - 0.5) * 30 * dt;
+        p.vx *= 0.95;
+        p.vy *= 0.95;
+        // Stay near base Y
+        if (p.baseY !== undefined) {
+          p.vy += (p.baseY - p.y) * 0.1 * dt;
+        }
+      } else if (type === 'leaf') {
+        // Leaves: drift with wind, slow fall
+        p.vx += Math.sin(p.phase! + p.y * 0.01) * 20 * dt;
+        p.vy += 30 * dt;
+        p.vx *= 0.99;
+        p.vy *= 0.99;
+        p.phase = (p.phase ?? 0) + dt * 2;
+      } else if (type === 'level_up' || type === 'magic' || type === 'craft_sparkle') {
+        // Bright particles: float up, shimmer
+        p.vy -= 30 * dt;
+        p.vx *= 0.98;
+        p.size = Math.max(0.5, p.size - 0.3 * dt);
+      } else if (type === 'blood') {
+        p.vy += 80 * dt;
+        p.vx *= 0.98;
+      } else if (type === 'hit_flash') {
+        // Flash: expand outward
+        p.vx *= 1.05;
+        p.vy *= 1.05;
+        p.size += 0.5 * dt;
+      } else {
+        // Default: gravity
+        p.vy += 120 * dt;
+        p.vx *= 0.99;
+      }
     }
     this.particles = this.particles.filter(p => p.life > 0);
   }
@@ -1536,7 +1720,8 @@ export class Game {
             velocity: { x: (Math.random() - 0.5) * 30, y: -60 },
           });
 
-          this.spawnParticles(p.x, p.y, '#8B4513', 4);
+          this.spawnParticles(p.x, p.y, '#8B4513', 3, 'wood_chip', { spread: 60, speed: 50, sizeRange: [2, 4] });
+          this.spawnParticles(p.x, p.y, '#c8a060', 3, 'dust', { spread: 50, speed: 40, sizeRange: [3, 5], lifeRange: [0.3, 0.6] });
           this.camera.shake(2, 0.08);
 
           if (enemy.hp <= 0) {
@@ -1698,6 +1883,8 @@ export class Game {
     // XP for crafting
     this.gainXp(5 + recipe.requiredLevel * 2);
 
+    // Craft sparkle particles
+    this.spawnParticles(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y, '#44ddff', 6, 'craft_sparkle', { spread: 100, speed: 70, sizeRange: [2, 4], lifeRange: [0.5, 1.0], color2: '#88eeff' });
     this.audio.playCraft();
     this.addNotification(`Craftou ${recipe.name}!`, 'success');
     this.updateQuestProgress('craft', recipe.result);
@@ -1972,6 +2159,11 @@ export class Game {
     stats.defense += 1;
     stats.skillPoints += 2;
 
+    // Level up burst particles
+    const lx = this.state.player.x + PLAYER_SIZE / 2;
+    const ly = this.state.player.y + PLAYER_SIZE / 2;
+    this.spawnParticles(lx, ly, '#ffdd44', 12, 'level_up', { spread: 200, speed: 120, sizeRange: [3, 6], lifeRange: [0.8, 1.5], color2: '#ffff88' });
+    this.spawnParticles(lx, ly, '#44ddff', 8, 'magic', { spread: 150, speed: 100, sizeRange: [2, 4], lifeRange: [0.6, 1.2] });
     this.addNotification(`Level UP! Agora nível ${stats.level}! (+2 pontos de habilidade)`, 'success');
     this.camera.shake(5, 0.3);
   }
@@ -2034,6 +2226,7 @@ export class Game {
       plantedAt: 0,
     });
 
+    this.spawnParticles(px * TILE_SIZE + TILE_SIZE / 2, py * TILE_SIZE, '#6b4a2a', 5, 'dust', { spread: 80, speed: 50, sizeRange: [3, 6], lifeRange: [0.4, 0.8] });
     this.audio.playTillSoil();
     this.addNotification('Solo preparado para plantio!', 'success');
     this.state.player.stats.farming += 0.1;
@@ -2058,6 +2251,7 @@ export class Game {
     plot.watered = false;
     plot.plantedAt = this.state.gameTime.totalTicks;
 
+    this.spawnParticles(px * TILE_SIZE + TILE_SIZE / 2, py * TILE_SIZE + TILE_SIZE / 2, '#4a8a3a', 3, 'leaf', { spread: 40, speed: 30, sizeRange: [2, 3], lifeRange: [0.3, 0.6] });
     this.audio.playPlantSeed();
     this.addNotification('Semente plantada!', 'success');
     return true;
@@ -2105,6 +2299,8 @@ export class Game {
     this.gainXp(10 + Math.floor(this.state.player.stats.farming * 2));
     this.updateQuestProgress('farm', cropId);
 
+    this.spawnParticles(px * TILE_SIZE + TILE_SIZE / 2, py * TILE_SIZE + TILE_SIZE / 2, '#ffcc44', 6, 'harvest', { spread: 100, speed: 80, sizeRange: [2, 5], lifeRange: [0.4, 0.8] });
+    this.spawnParticles(px * TILE_SIZE + TILE_SIZE / 2, py * TILE_SIZE + TILE_SIZE / 2, '#4a8a3a', 5, 'leaf', { spread: 80, speed: 60, sizeRange: [3, 5], lifeRange: [0.5, 0.9] });
     this.audio.playHarvest();
     this.addNotification(`+${harvestCount} ${getItem(cropId)?.name || cropId} colhido!`, 'item');
 
@@ -2528,16 +2724,34 @@ export class Game {
     });
   }
 
-  private spawnParticles(x: number, y: number, color: string, count: number): void {
+  private spawnParticles(x: number, y: number, color: string, count: number, effectType?: ParticleEffectType, extra?: { spread?: number; speed?: number; gravity?: number; sizeRange?: [number, number]; color2?: string; lifeRange?: [number, number] }): void {
+    const spread = extra?.spread ?? 120;
+    const speed = extra?.speed ?? 80;
+    const sizeMin = extra?.sizeRange?.[0] ?? 2;
+    const sizeMax = extra?.sizeRange?.[1] ?? 5;
+    const lifeMin = extra?.lifeRange?.[0] ?? 0.4;
+    const lifeMax = extra?.lifeRange?.[1] ?? 0.8;
+
     for (let i = 0; i < count; i++) {
+      const vx = (Math.random() - 0.5) * spread;
+      const vy = effectType === 'dust' || effectType === 'smoke'
+        ? -Math.random() * speed * 0.5 - 10
+        : effectType === 'firefly'
+          ? (Math.random() - 0.5) * 20
+          : -Math.random() * speed - 20;
+
       this.particles.push({
         x, y,
-        vx: (Math.random() - 0.5) * 120,
-        vy: -Math.random() * 80 - 20,
-        life: 0.5 + Math.random() * 0.5,
-        maxLife: 1,
+        vx,
+        vy,
+        life: lifeMin + Math.random() * (lifeMax - lifeMin),
+        maxLife: lifeMax,
         color,
-        size: 2 + Math.random() * 3,
+        size: sizeMin + Math.random() * (sizeMax - sizeMin),
+        effectType: effectType || undefined,
+        phase: Math.random() * Math.PI * 2,
+        baseY: effectType === 'firefly' ? y : undefined,
+        color2: extra?.color2,
       });
     }
   }
@@ -2940,28 +3154,190 @@ export class Game {
 
     // Draw particles
     for (const p of this.particles) {
-      const pos = camera.worldToScreen(p.x, p.y);
-      const alpha = p.life / p.maxLife;
+      const pPos = camera.worldToScreen(p.x, p.y);
+      const alpha = Math.max(0, Math.min(1, p.life / Math.max(0.001, p.maxLife)));
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(pos.x - p.size / 2, pos.y - p.size / 2, p.size, p.size);
+
+      const type = p.effectType;
+      if (type === 'spark' || type === 'hit_flash') {
+        // Sparks: bright diamond-shaped
+        ctx.fillStyle = p.color;
+        ctx.save();
+        ctx.translate(pPos.x, pPos.y);
+        ctx.rotate(p.phase! + p.life * 5);
+        ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        ctx.fillRect(-p.size / 4, -p.size / 2, p.size / 2, p.size);
+        ctx.restore();
+        // Glow
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.beginPath();
+        ctx.arc(pPos.x, pPos.y, p.size * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (type === 'firefly') {
+        // Fireflies: soft glowing circles with pulse
+        const pulse = Math.sin(p.phase! + performance.now() / 500 + p.y * 0.02) * 0.3 + 0.7;
+        ctx.globalAlpha = alpha * pulse;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(pPos.x, pPos.y, p.size * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        // Outer glow
+        ctx.globalAlpha = alpha * 0.2 * pulse;
+        ctx.beginPath();
+        ctx.arc(pPos.x, pPos.y, p.size * 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (type === 'magic' || type === 'craft_sparkle' || type === 'level_up') {
+        // Magic/sparkle: star shape with glow
+        ctx.fillStyle = p.color;
+        ctx.save();
+        ctx.translate(pPos.x, pPos.y);
+        ctx.rotate(p.phase! + performance.now() / 300);
+        const s = p.size;
+        ctx.fillRect(-s / 4, -s, s / 2, s * 2);
+        ctx.fillRect(-s, -s / 4, s * 2, s / 2);
+        ctx.restore();
+        // Glow
+        if (p.color2) {
+          ctx.globalAlpha = alpha * 0.25;
+          ctx.beginPath();
+          ctx.arc(pPos.x, pPos.y, p.size * 2, 0, Math.PI * 2);
+          ctx.fillStyle = p.color2;
+          ctx.fill();
+        }
+      } else if (type === 'leaf') {
+        // Leaves: small rotating rectangles
+        ctx.fillStyle = p.color;
+        ctx.save();
+        ctx.translate(pPos.x, pPos.y);
+        ctx.rotate(p.phase! + p.life * 2);
+        ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        ctx.restore();
+      } else if (type === 'smoke' || type === 'dust') {
+        // Smoke: soft circles that fade
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.beginPath();
+        ctx.arc(pPos.x, pPos.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (type === 'blood') {
+        // Blood: small filled circles
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(pPos.x, pPos.y, Math.max(1, p.size * alpha), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (type === 'heal') {
+        // Heal: green cross
+        ctx.fillStyle = p.color;
+        ctx.save();
+        ctx.translate(pPos.x, pPos.y);
+        const s = p.size * alpha;
+        ctx.fillRect(-s / 4, -s, s / 2, s * 2);
+        ctx.fillRect(-s, -s / 4, s * 2, s / 2);
+        ctx.restore();
+      } else if (type === 'ember') {
+        // Embers: small triangles with orange glow
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        const s = p.size * alpha;
+        ctx.moveTo(pPos.x, pPos.y - s);
+        ctx.lineTo(pPos.x - s, pPos.y + s);
+        ctx.lineTo(pPos.x + s, pPos.y + s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = alpha * 0.2;
+        ctx.beginPath();
+        ctx.arc(pPos.x, pPos.y, s * 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffa500';
+        ctx.fill();
+      } else {
+        // Default: simple filled rectangle
+        ctx.fillStyle = p.color;
+        ctx.fillRect(pPos.x - p.size / 2, pPos.y - p.size / 2, p.size, p.size);
+      }
     }
     ctx.globalAlpha = 1;
 
-    // Draw damage numbers
-    for (const dn of this.damageNumbers) {
-      const pos = camera.worldToScreen(dn.x, dn.y);
-      const alpha = Math.min(1, dn.timer * 2);
-      ctx.globalAlpha = alpha;
-      ctx.font = dn.isCrit ? 'bold 18px monospace' : '14px monospace';
-      ctx.fillStyle = dn.isHeal ? '#4caf50' : dn.isCrit ? '#ff4444' : '#ffffff';
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 3;
-      const text = dn.isHeal ? `+${dn.value}` : `-${dn.value}`;
-      ctx.strokeText(text, pos.x, pos.y);
-      ctx.fillText(text, pos.x, pos.y);
+    // Draw ambient particles
+    if (!this.inCave) {
+      const isNight = this.state.gameTime.isNight;
+      for (const ap of this.ambientParticles) {
+        if (!camera.isVisible(ap.x, ap.y, 10, 10)) continue;
+        const apPos = camera.worldToScreen(ap.x, ap.y);
+        const alpha = Math.max(0, Math.min(1, ap.life / ap.maxLife));
+        ctx.globalAlpha = alpha;
+
+        if (ap.effectType === 'firefly') {
+          const pulse = Math.sin(ap.phase! + performance.now() / 400 + ap.y) * 0.3 + 0.7;
+          ctx.globalAlpha = alpha * pulse * (isNight ? 0.9 : 0.15);
+          ctx.fillStyle = '#aaff66';
+          ctx.beginPath();
+          ctx.arc(apPos.x, apPos.y, ap.size * pulse, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = alpha * 0.2 * pulse * (isNight ? 0.6 : 0.05);
+          ctx.beginPath();
+          ctx.arc(apPos.x, apPos.y, ap.size * 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#ccff88';
+          ctx.fill();
+        } else if (ap.effectType === 'dust') {
+          ctx.globalAlpha = alpha * 0.3;
+          ctx.fillStyle = ap.color;
+          ctx.fillRect(apPos.x, apPos.y, 1, 1);
+        } else if (ap.effectType === 'leaf') {
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.fillStyle = ap.color;
+          ctx.save();
+          ctx.translate(apPos.x, apPos.y);
+          ctx.rotate(ap.phase! + ap.y * 0.02);
+          ctx.fillRect(-2, -1, 4, 2);
+          ctx.restore();
+        }
+      }
     }
     ctx.globalAlpha = 1;
+    // Draw damage numbers
+    for (const dn of this.damageNumbers) {
+      const dnPos = camera.worldToScreen(dn.x, dn.y);
+      const alpha = Math.max(0, Math.min(1, dn.timer * 2));
+      ctx.globalAlpha = alpha;
+      ctx.textAlign = 'center';
+
+      // Bounce effect: numbers start higher and settle
+      const bounceOffset = (1 - dn.timer) * 15;
+      const screenY = dnPos.y - 10 - bounceOffset;
+
+      if (dn.isCrit) {
+        // Critical hit: larger, orange, bold with shadow
+        ctx.font = 'bold 18px monospace';
+        ctx.fillStyle = '#ff6600';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.strokeText(`💥 ${dn.value}`, dnPos.x, screenY);
+        ctx.fillText(`💥 ${dn.value}`, dnPos.x, screenY);
+        // Extra glow
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.fillStyle = '#ffcc00';
+        ctx.font = 'bold 20px monospace';
+        ctx.fillText(`💥 ${dn.value}`, dnPos.x, screenY);
+      } else if (dn.isHeal) {
+        // Heal: green
+        ctx.font = 'bold 14px monospace';
+        ctx.fillStyle = '#44ff44';
+        ctx.strokeStyle = '#003300';
+        ctx.lineWidth = 2;
+        ctx.strokeText(`+${dn.value}`, dnPos.x, screenY);
+        ctx.fillText(`+${dn.value}`, dnPos.x, screenY);
+      } else {
+        // Normal damage: white with dark outline
+        ctx.font = 'bold 13px monospace';
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.strokeText(`${dn.value}`, dnPos.x, screenY);
+        ctx.fillText(`${dn.value}`, dnPos.x, screenY);
+      }
+    }
+    ctx.globalAlpha = 1;
+
 
     // ── Day/Night ambient overlay (surface only, before restore so it's in world space) ──
     if (!this.inCave) {
