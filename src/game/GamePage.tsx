@@ -1804,6 +1804,43 @@ function FurnacePanel({ game }: { game: Game }) {
               \uD83D\uDD25 Combust\u00edveis: \uD83E\uDEB5 Madeira (15s) | \uD83D\uDDA4 Carv\u00e3o (45s)
             </div>
 
+            {/* Inventory drag area */}
+            <div className="border-t border-orange-900/40 pt-2 mb-3">
+              <div className="text-[9px] text-white/40 mb-1.5 flex items-center gap-2">
+                <span>\uD83D\uDCE6 Arraste itens do invent\u00e1rio para os slots acima</span>
+              </div>
+              <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto p-1.5 rounded-lg bg-black/30 border border-white/5">
+                {game.state.player.inventory.map((slot, i) =>
+                  slot?.item && slot.count > 0 ? (
+                    <div key={`inv_${i}`}
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.setData('text/plain', slot.item!.id); e.dataTransfer.effectAllowed = 'copy'; }}
+                      className="w-9 h-9 rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-grab active:cursor-grabbing hover:border-orange-400/50 hover:bg-orange-900/20 transition-all group"
+                      title={slot.item.name}
+                    >
+                      <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>{slot.item.icon}</span>
+                      {slot.count > 1 && <span className="absolute -bottom-0.5 -right-0.5 text-[7px] text-white font-bold bg-black/60 rounded px-0.5">{slot.count}</span>}
+                      <div className="absolute inset-0 rounded border-2 border-transparent group-hover:border-orange-400/30 pointer-events-none" />
+                    </div>
+                  ) : null
+                )}
+                {game.state.player.hotbar.map((slot, i) =>
+                  slot?.item && slot.count > 0 ? (
+                    <div key={`hot_${i}`}
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.setData('text/plain', slot.item!.id); e.dataTransfer.effectAllowed = 'copy'; }}
+                      className="w-9 h-9 rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-grab active:cursor-grabbing hover:border-orange-400/50 hover:bg-orange-900/20 transition-all group"
+                      title={slot.item.name}
+                    >
+                      <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>{slot.item.icon}</span>
+                      {slot.count > 1 && <span className="absolute -bottom-0.5 -right-0.5 text-[7px] text-white font-bold bg-black/60 rounded px-0.5">{slot.count}</span>}
+                      <div className="absolute inset-0 rounded border-2 border-transparent group-hover:border-orange-400/30 pointer-events-none" />
+                    </div>
+                  ) : null
+                )}
+              </div>
+            </div>
+
             {/* Quick actions */}
             <div className="flex gap-1 justify-center">
               <button onClick={() => { game.furnaceTakeOutput(structId!); refresh(); }}
