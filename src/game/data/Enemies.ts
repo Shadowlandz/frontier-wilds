@@ -145,6 +145,7 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
     biomes: [Biome.Cave],
     loot: [
       { itemId: 'abyssal_gem', chance: 0.8, minCount: 1, maxCount: 2 },
+      { itemId: 'void_scepter', chance: 0.3, minCount: 1, maxCount: 1 },
       { itemId: 'void_crystal', chance: 1, minCount: 2, maxCount: 4 },
       { itemId: 'shadow_fragment', chance: 1, minCount: 4, maxCount: 8 },
       { itemId: 'dark_essence', chance: 1, minCount: 6, maxCount: 12 },

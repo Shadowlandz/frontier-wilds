@@ -754,6 +754,14 @@ export const ITEMS: Record<string, ItemDefinition> = {
     icon: '🔱', toolType: ToolType.Spear, damage: 68, durability: 750, maxDurability: 750,
     speed: 1.5, range: 52,
   },
+
+  // ── Boss Exclusive: Cetro do Vácuo ────────────────────────────
+  void_scepter: {
+    id: 'void_scepter', name: 'Cetro do Vácuo', description: 'Cetro lendário forjado com a essência do Guardião do Vácuo. Dizem que quem o empunha controla o vazio.',
+    category: ItemCategory.Weapon, rarity: Rarity.Legendary, stackSize: 1, weight: 1, value: 2500,
+    icon: '🔮', toolType: ToolType.Sword, damage: 85, durability: 600, maxDurability: 600,
+    speed: 1.7, range: 56,
+  },
 };
 
 export function getItem(id: string): ItemDefinition | undefined {
