@@ -536,13 +536,19 @@ export class WorldGenerator {
         const px = x * TILE_SIZE + rng.range(0, TILE_SIZE);
         const py = y * TILE_SIZE + rng.range(0, TILE_SIZE);
 
-        if (n < 0.025) {
+        if (n < 0.015) {
           resources.push({ x: px, y: py, type: 'crystal_node', itemId: 'void_crystal' });
+        } else if (n < 0.025) {
+          resources.push({ x: px, y: py, type: 'crystal_node', itemId: 'abyssal_gem' });
         } else if (n < 0.04) {
           resources.push({ x: px, y: py, type: 'crystal_node', itemId: 'dark_essence' });
         } else if (n < 0.055) {
+          resources.push({ x: px, y: py, type: 'iron_rock', itemId: 'void_ore' });
+        } else if (n < 0.07) {
+          resources.push({ x: px, y: py, type: 'iron_rock', itemId: 'shadow_ore' });
+        } else if (n < 0.08) {
           resources.push({ x: px, y: py, type: 'iron_rock', itemId: 'mithril_ore' });
-        } else if (n < 0.065) {
+        } else if (n < 0.09) {
           resources.push({ x: px, y: py, type: 'crystal_node', itemId: 'crystal' });
         }
       }

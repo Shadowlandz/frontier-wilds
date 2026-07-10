@@ -700,7 +700,59 @@ export const ITEMS: Record<string, ItemDefinition> = {
   void_chestplate: {
     id: 'void_chestplate', name: 'Peitoral Sombrio', description: 'Armadura feita de tecido sombrio. Leve como pluma, forte como aço.',
     category: ItemCategory.Armor, rarity: Rarity.Legendary, stackSize: 1, weight: 1, value: 1600,
-    icon: '🦺', armorSlot: ArmorSlot.Chest, defense: 55, durability: 900, maxDurability: 900,
+    icon: '🦺', armorSlot: ArmorSlot.Chest,    defense: 55, durability: 900, maxDurability: 900,
+  },
+
+  // ── Cursed Lands Ores (Novos Minérios) ─────────────────────
+  void_ore: {
+    id: 'void_ore', name: 'Minério do Vácuo', description: 'Minério pulsando com energia do vácuo. Raro e valioso.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 50, weight: 3, value: 60,
+    icon: '🪨',
+  },
+  shadow_ore: {
+    id: 'shadow_ore', name: 'Minério Sombrio', description: 'Minério escuro que absorve a luz ao redor.',
+    category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 99, weight: 2, value: 30,
+    icon: '🪨',
+  },
+  abyssal_gem: {
+    id: 'abyssal_gem', name: 'Gema Abissal', description: 'Gema cristalina das profundezas do vácuo. Energia pura congelada.',
+    category: ItemCategory.Material, rarity: Rarity.Legendary, stackSize: 10, weight: 0.3, value: 250,
+    icon: '💎',
+  },
+  cursed_ingot: {
+    id: 'cursed_ingot', name: 'Lingote Amaldiçoado', description: 'Lingote forjado de minério sombrio. Transborda energia obscura.',
+    category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 30, weight: 4, value: 80,
+    icon: '⚙️',
+  },
+  shadow_ingot: {
+    id: 'shadow_ingot', name: 'Lingote Sombrio', description: 'Lingote purificado do vácuo. Incrivelmente leve e resistente.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 2, value: 200,
+    icon: '🔩',
+  },
+
+  // ── Void Armor Set (Armadura do Vácuo) ───────────────────────
+  void_helmet: {
+    id: 'void_helmet', name: 'Elmo do Vácuo', description: 'Elmo forjado com essência do vácuo. Proteção absoluta.',
+    category: ItemCategory.Armor, rarity: Rarity.Legendary, stackSize: 1, weight: 1, value: 1400,
+    icon: '⛑️', armorSlot: ArmorSlot.Helmet, defense: 40, durability: 800, maxDurability: 800,
+  },
+  void_boots: {
+    id: 'void_boots', name: 'Botas do Vácuo', description: 'Botas sombrias que deslizam pelo chão como sombras.',
+    category: ItemCategory.Armor, rarity: Rarity.Legendary, stackSize: 1, weight: 1, value: 1300,
+    icon: '👢', armorSlot: ArmorSlot.Boots, defense: 30, durability: 750, maxDurability: 750,
+    bonuses: { speed: 15 },
+  },
+  void_ring: {
+    id: 'void_ring', name: 'Anel Sombrio', description: 'Anel que pulsa com energia do vazio. Concede poder imensurável.',
+    category: ItemCategory.Ring, rarity: Rarity.Legendary, stackSize: 1, weight: 0.1, value: 1800,
+    icon: '💍', armorSlot: ArmorSlot.Ring, defense: 5, durability: 999, maxDurability: 999,
+    bonuses: { strength: 12, maxHp: 50 },
+  },
+  void_spear: {
+    id: 'void_spear', name: 'Lança do Vácuo', description: 'Lança sombria que perfura qualquer defesa. Alcance letal.',
+    category: ItemCategory.Weapon, rarity: Rarity.Legendary, stackSize: 1, weight: 2, value: 1600,
+    icon: '🔱', toolType: ToolType.Spear, damage: 68, durability: 750, maxDurability: 750,
+    speed: 1.5, range: 52,
   },
 };
 

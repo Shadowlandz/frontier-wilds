@@ -566,6 +566,52 @@ export const RECIPES: CraftingRecipe[] = [
     ingredients: [{ itemId: 'void_ingot', count: 4 }, { itemId: 'dark_essence', count: 6 }, { itemId: 'shadow_fragment', count: 3 }],
     requiredLevel: 16, craftTime: 12000, station: 'furnace',
   },
+
+  // ── New Cursed Lands Smelting ──────────────────────────────
+  {
+    id: 'smelt_shadow_ingot', name: 'Lingote Sombrio', category: ItemCategory.Material,
+    result: 'shadow_ingot', resultCount: 1,
+    ingredients: [{ itemId: 'void_ore', count: 3 }, { itemId: 'coal', count: 2 }],
+    requiredLevel: 13, craftTime: 7000, station: 'furnace',
+  },
+  {
+    id: 'smelt_cursed_ingot', name: 'Lingote Amaldiçoado', category: ItemCategory.Material,
+    result: 'cursed_ingot', resultCount: 1,
+    ingredients: [{ itemId: 'shadow_ore', count: 3 }, { itemId: 'coal', count: 1 }],
+    requiredLevel: 11, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'forge_void_ingot_alt', name: 'Lingote do Vácuo (Minério)', category: ItemCategory.Material,
+    result: 'void_ingot', resultCount: 1,
+    ingredients: [{ itemId: 'void_ore', count: 3 }, { itemId: 'void_crystal', count: 1 }, { itemId: 'dark_essence', count: 2 }],
+    requiredLevel: 14, craftTime: 8000, station: 'furnace',
+  },
+
+  // ── New Void Equipment ─────────────────────────────────────
+  {
+    id: 'craft_void_helmet', name: 'Elmo do Vácuo', category: ItemCategory.Armor,
+    result: 'void_helmet', resultCount: 1,
+    ingredients: [{ itemId: 'shadow_ingot', count: 3 }, { itemId: 'void_crystal', count: 2 }, { itemId: 'dark_essence', count: 4 }],
+    requiredLevel: 16, craftTime: 10000, station: 'furnace',
+  },
+  {
+    id: 'craft_void_boots', name: 'Botas do Vácuo', category: ItemCategory.Armor,
+    result: 'void_boots', resultCount: 1,
+    ingredients: [{ itemId: 'shadow_ingot', count: 2 }, { itemId: 'void_crystal', count: 1 }, { itemId: 'dark_essence', count: 3 }],
+    requiredLevel: 15, craftTime: 9000, station: 'furnace',
+  },
+  {
+    id: 'craft_void_ring', name: 'Anel Sombrio', category: ItemCategory.Ring,
+    result: 'void_ring', resultCount: 1,
+    ingredients: [{ itemId: 'shadow_ingot', count: 1 }, { itemId: 'abyssal_gem', count: 1 }, { itemId: 'void_crystal', count: 2 }],
+    requiredLevel: 17, craftTime: 10000, station: 'furnace',
+  },
+  {
+    id: 'craft_void_spear', name: 'Lança do Vácuo', category: ItemCategory.Weapon,
+    result: 'void_spear', resultCount: 1,
+    ingredients: [{ itemId: 'shadow_ingot', count: 3 }, { itemId: 'shadow_fragment', count: 2 }, { itemId: 'enchanted_wood', count: 2 }],
+    requiredLevel: 16, craftTime: 11000, station: 'furnace',
+  },
 ];
 
 export function getRecipesByCategory(category: ItemCategory): CraftingRecipe[] {
