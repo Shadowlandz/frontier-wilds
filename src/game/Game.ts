@@ -969,6 +969,7 @@ export class Game {
     this.inCursedLands = true;
     this.spawnParticles(this.state.player.x, this.state.player.y, '#9944ff', 15, 'magic',
       { spread: 200, speed: 100, sizeRange: [3, 6], lifeRange: [0.6, 1.2], color2: '#cc66ff' });
+    this.updateQuestProgress('explore', 'portal');
     this.addNotification('🌑 Você entrou nas Terras Amaldiçoadas...', 'info');
     this.addNotification('Pressione [E] no portal para voltar.', 'info');
   }

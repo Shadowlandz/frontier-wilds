@@ -79,7 +79,7 @@ export const NPCS: Record<string, NpcDefinition> = {
       'A vila está em perigo. Monstros aparecem cada vez mais!',
       'Derrote os monstros e traga os materiais que preciso!',
     ],
-    questIds: ['tutorial_first_steps', 'quest_wolf_hunt', 'quest_cave_exploration', 'quest_slime_king', 'quest_ruins', 'quest_dragon'],
+    questIds: ['tutorial_first_steps', 'quest_wolf_hunt', 'quest_cave_exploration', 'quest_slime_king', 'quest_ruins', 'quest_dragon', 'quest_cursed_portal'],
     color: '#f57f17', icon: '👴',
   },
   identifier: {

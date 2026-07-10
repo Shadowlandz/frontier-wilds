@@ -58,6 +58,18 @@ export const QUESTS: QuestDefinition[] = [
     rewards: { xp: 1500, gold: 1000, items: [{ itemId: 'dragon_scale', count: 3 }, { itemId: 'gem_ruby', count: 2 }] },
     requiredLevel: 12, prerequisiteQuests: ['quest_ruins'],
   },
+  {
+    id: 'quest_cursed_portal', name: '🌌 O Portal Amaldiçoado', type: QuestType.Main,
+    description: 'Dizem que um portal misterioso surgiu nas terras distantes. Encontre o Portal das Terras Amaldiçoadas, explore o novo mundo e prove seu valor!',
+    objectives: [
+      { type: 'explore', target: 'portal', count: 1, description: 'Encontre e atravesse o Portal' },
+      { type: 'kill', target: 'darkKnight', count: 5, description: 'Derrote Cavaleiros das Sombras' },
+      { type: 'gather', target: 'void_crystal', count: 8, description: 'Colete Cristais do Vácuo' },
+    ],
+    rewards: { xp: 1000, gold: 500, items: [{ itemId: 'void_sword', count: 1 }, { itemId: 'crystal', count: 10 }] },
+    requiredLevel: 6, prerequisiteQuests: ['quest_slime_king'],
+  },
+
 
   // ── Side Quests ───────────────────────────────────────────────
   {
