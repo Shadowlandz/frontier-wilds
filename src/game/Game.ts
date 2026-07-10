@@ -391,6 +391,7 @@ export class Game {
     this.checkAchievements();
     this.updateResourceRespawn(dt);
     if (this.inCave) this.updateCaveResourceRespawn(dt);
+    this.updateFurnaces(dt);
 
     // Gathering cooldown
     if (this.gatherCooldown > 0) this.gatherCooldown -= dt;
@@ -749,6 +750,44 @@ export class Game {
 
     // 3. Try to open nearby storage chest
     if (this.toggleStorageChest()) return;
+
+    // 3.5 Interact with placed objects (furnace, workbench, bed, campfire)
+    const interactables = this.getInteractableStructures();
+    if (interactables.length > 0) {
+      // Sort by distance (closest first)
+      interactables.sort((a, b) => {
+        const da = distance({ x: px, y: py }, { x: a.x + a.width / 2, y: a.y + a.height / 2 });
+        const db = distance({ x: px, y: py }, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+        return da - db;
+      });
+      const target = interactables[0];
+
+      if (target.itemId === 'furnace') {
+        this.openFurnace(target.id);
+        return;
+      }
+
+      if (target.itemId === 'workbench' || target.itemId === 'workbench_advanced') {
+        this.ui.activePanel = 'crafting';
+        this.addNotification('🪚 Bancada de Trabalho — selecione uma receita para craftar!', 'info');
+        return;
+      }
+
+      if (target.itemId === 'bed') {
+        // Show sleep menu (morning = 6, night = 20)
+        this.ui.activePanel = 'sleep';
+        this.addNotification('🛏️ Cama — escolha até que horas dormir.', 'info');
+        return;
+      }
+
+      if (target.itemId === 'campfire') {
+        this.ui.activePanel = 'crafting';
+        this.audio.startMusic();
+        this.addNotification('🔥 Fogueira — você se aquece e se sente seguro.', 'info');
+        this.state.player.stamina = Math.min(this.state.player.maxStamina, this.state.player.stamina + 10);
+        return;
+      }
+    }
 
     // 4. Eat/drink current hotbar item
     this.useHotbarItem();
@@ -3038,6 +3077,185 @@ export class Game {
     if (data.settings) Object.assign(this.state.settings, data.settings);
   }
 
+
+  // ══ Placement Mode ═════════════════════════════════════════════
+
+  /** Start placement mode for a given furniture item */
+  startPlacement(itemId: string): void {
+    const item = this.getCurrentItem();
+    if (!item || !item.placeable) return;
+    this.isPlacing = true;
+    this.placeItemId = itemId;
+    this.placeTileX = 0;
+    this.placeTileY = 0;
+    this.placeValid = false;
+    this.addNotification('📐 Posicione com o mouse e clique para confirmar. ESC para cancelar.', 'info');
+  }
+
+  cancelPlacement(): void {
+    if (!this.isPlacing || !this.placeItemId) return;
+    this.isPlacing = false;
+    this.placeItemId = null;
+    this.addNotification('Posicionamento cancelado.', 'info');
+  }
+
+  confirmPlacement(): void {
+    if (!this.isPlacing || !this.placeItemId || !this.placeValid) {
+      this.addNotification('Posição inválida!', 'warning');
+      return;
+    }
+    const itemId = this.placeItemId;
+    const tx = this.placeTileX;
+    const ty = this.placeTileY;
+    const structId = 'struct_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const newStruct: PlacedStructure = {
+      id: structId, itemId,
+      x: tx * TILE_SIZE, y: ty * TILE_SIZE,
+      width: TILE_SIZE, height: TILE_SIZE,
+      health: 100, maxHealth: 100,
+    };
+    if (itemId === 'house') {
+      newStruct.isSafeZone = true;
+      this.state.safeZones.push({ centerX: tx * TILE_SIZE + TILE_SIZE / 2, centerY: ty * TILE_SIZE + TILE_SIZE / 2, radius: 15, structureId: structId });
+      this.addNotification('🏡 Casa construída! Área segura criada!', 'success');
+    }
+    if (itemId === 'storage_chest') {
+      this.state.storageChests.push({ id: 'chest_' + structId, structureId: structId, name: 'Baú Reforçado', slots: Array(30).fill(null).map(() => ({ item: null, count: 0 })), maxSlots: 30 });
+      this.addNotification('🗄️ Baú criado! Aperte [E] para abrir.', 'success');
+    }
+    if (itemId === 'furnace') {
+      newStruct.furnaceData = { input: null, fuel: null, output: null, progress: 0, smeltTime: 0, fuelTime: 0, maxFuelTime: 0, lit: false, currentRecipeId: null };
+      this.addNotification('🔥 Fornalha criada! Coloque minério e combustível.', 'success');
+    }
+    this.state.structures.push(newStruct);
+    this.achievementStats.structuresBuilt++;
+    if (itemId === 'house') this.achievementStats.hasBuiltHouse = true;
+    this.removeFromInventory(itemId, 1);
+    this.gainXp(3);
+    this.audio.playBuild();
+    const placedItem = getItem(itemId);
+    this.addNotification((placedItem?.name || itemId) + ' construído(a)!', 'success');
+    this.isPlacing = false;
+    this.placeItemId = null;
+  }
+
+  updatePlacementGhost(): void {
+    if (!this.isPlacing || !this.placeItemId) return;
+    const mw = this.camera.screenToWorld(this.input.getMousePos().x, this.input.getMousePos().y);
+    this.placeTileX = Math.floor(mw.x / TILE_SIZE);
+    this.placeTileY = Math.floor(mw.y / TILE_SIZE);
+    this.placeValid = this.canPlaceStructureAt(this.placeTileX, this.placeTileY, this.placeItemId) === null;
+  }
+
+  // ══ Furnace System ═════════════════════════════════════════════
+
+  private updateFurnaces(dt: number): void {
+    if (this.inCave) return;
+    for (const s of this.state.structures) {
+      if (s.itemId !== 'furnace' || !s.furnaceData) continue;
+      const fd = s.furnaceData;
+      if (fd.fuelTime > 0) {
+        fd.lit = true;
+        fd.fuelTime -= dt;
+        if (fd.input?.item && fd.currentRecipeId) {
+          fd.progress += dt / (fd.smeltTime / 1000);
+          if (fd.progress >= 1) {
+            const recipe = RECIPES.find(r => r.id === fd.currentRecipeId);
+            if (recipe) {
+              if (!fd.output?.item) fd.output = { item: getItem(recipe.result) ?? null, count: recipe.resultCount };
+              else if (fd.output.item?.id === recipe.result && fd.output.count < (fd.output.item?.stackSize || 99)) fd.output.count += recipe.resultCount;
+              else { fd.progress = 1; continue; }
+              fd.input.count--;
+              if (fd.input.count <= 0) fd.input = null;
+              fd.progress = 0;
+              if (!fd.input?.item || fd.input.item.id !== recipe.ingredients[0]?.itemId) fd.currentRecipeId = null;
+            }
+          }
+        }
+      } else {
+        fd.lit = false;
+        if (fd.fuel?.item) {
+          const fv = fd.fuel.item.id === 'wood' ? 15 : fd.fuel.item.id === 'coal' ? 45 : 0;
+          if (fv > 0) { fd.fuelTime = fv; fd.maxFuelTime = fv; fd.fuel.count--; if (fd.fuel.count <= 0) fd.fuel = null; fd.lit = true; }
+        }
+      }
+    }
+  }
+
+  openFurnace(structId: string): void {
+    this.ui.activeFurnaceId = structId;
+    this.ui.activePanel = 'furnace';
+  }
+
+  furnaceAddInput(structId: string, itemId: string, count: number): boolean {
+    const struct = this.state.structures.find(s => s.id === structId);
+    const fd = struct?.furnaceData;
+    if (!fd || (fd.input?.item && fd.input.item.id !== itemId)) return false;
+    if (!fd.input?.item) { const it = getItem(itemId); if (!it) return false; fd.input = { item: it, count }; }
+    else fd.input.count += Math.min(count, (fd.input.item.stackSize || 99) - fd.input.count);
+    if (fd.input?.item && !fd.currentRecipeId) {
+      const r = RECIPES.find(x => x.station === 'furnace' && x.ingredients.some(i => i.itemId === fd.input!.item!.id));
+      if (r) { fd.currentRecipeId = r.id; fd.smeltTime = r.craftTime; fd.progress = 0; }
+    }
+    return true;
+  }
+
+  furnaceAddFuel(structId: string, itemId: string, count: number): boolean {
+    const fv = itemId === 'wood' ? 15 : itemId === 'coal' ? 45 : 0;
+    if (fv <= 0) return false;
+    const fd = this.state.structures.find(s => s.id === structId)?.furnaceData;
+    if (!fd || (fd.fuel?.item && fd.fuel.item.id !== itemId)) return false;
+    if (!fd.fuel?.item) { const it = getItem(itemId); if (!it) return false; fd.fuel = { item: it, count }; }
+    else fd.fuel.count += Math.min(count, (fd.fuel.item.stackSize || 99) - fd.fuel.count);
+    return true;
+  }
+
+  furnaceTakeOutput(structId: string): boolean {
+    const fd = this.state.structures.find(s => s.id === structId)?.furnaceData;
+    if (!fd?.output?.item) return false;
+    if (this.addToInventory(fd.output.item.id, fd.output.count)) { fd.output = null; return true; }
+    this.addNotification('Inventário cheio!', 'warning');
+    return false;
+  }
+
+  furnaceTakeInput(structId: string): boolean {
+    const fd = this.state.structures.find(s => s.id === structId)?.furnaceData;
+    if (!fd?.input?.item) return false;
+    if (this.addToInventory(fd.input.item.id, fd.input.count)) { fd.input = null; fd.currentRecipeId = null; fd.progress = 0; return true; }
+    return false;
+  }
+
+  furnaceTakeFuel(structId: string): boolean {
+    const fd = this.state.structures.find(s => s.id === structId)?.furnaceData;
+    if (!fd?.fuel?.item) return false;
+    if (this.addToInventory(fd.fuel.item.id, fd.fuel.count)) { fd.fuel = null; return true; }
+    return false;
+  }
+
+  // ══ Sleep / Bed System ══════════════════════════════════════════
+
+  sleepInBed(targetHour: number): void {
+    let h = targetHour - this.timeSystem.getHour();
+    if (h <= 0) h += 24;
+    h = Math.min(h, 12);
+    this.timeSystem.advanceHours(h);
+    this.state.player.stamina = this.state.player.maxStamina;
+    this.state.player.stats.hp = Math.min(this.state.player.stats.maxHp, this.state.player.stats.hp + 30);
+    this.state.player.stats.hunger = Math.min(this.state.player.stats.maxHunger, this.state.player.stats.hunger + 20);
+    this.camera.shake(3, 0.2);
+    this.addNotification('💤 Dormiu e recuperou forças!', 'success');
+    this.syncGameTime();
+  }
+
+  getInteractableStructures(): PlacedStructure[] {
+    const px = this.state.player.x + PLAYER_SIZE / 2;
+    const py = this.state.player.y + PLAYER_SIZE / 2;
+    const ids = ['chest', 'storage_chest', 'workbench', 'workbench_advanced', 'furnace', 'bed', 'campfire'];
+    return this.state.structures.filter(s => {
+      if (!ids.includes(s.itemId)) return false;
+      return distance({ x: px, y: py }, { x: s.x + s.width / 2, y: s.y + s.height / 2 }) < INTERACT_RANGE;
+    });
+  }
   // ── Helpers ─────────────────────────────────────────────────────
   private spawnDroppedItem(x: number, y: number, itemId: string, count: number): void {
     this.droppedItems.push({

@@ -155,6 +155,13 @@ export default function GamePage() {
             <SavePanel game={game!} />
           )}
 
+          {uiState.activePanel === 'furnace' && (
+            <FurnacePanel game={game!} />
+          )}
+          {uiState.activePanel === 'sleep' && (
+            <SleepPanel game={game!} />
+          )}
+
           {uiState.activePanel === 'inventory' && game.state.activeStorageChestId && (
             <StoragePanel game={game!} />
           )}
@@ -1598,6 +1605,235 @@ function AchievementsPanel({ game }: { game: Game }) {
   );
 }
 
+
+// ── Furnace Panel ─────────────────────────────────────────────────
+function FurnacePanel({ game }: { game: Game }) {
+  const [, forceUpdate] = useState(0);
+  const refresh = () => forceUpdate(n => n + 1);
+  const structId = game.ui.activeFurnaceId;
+  const struct = structId ? game.state.structures.find(s => s.id === structId) : null;
+  const fd = struct?.furnaceData;
+  const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
+
+  if (!struct || !fd) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-auto z-50">
+        <div className="bg-gray-900/95 backdrop-blur-md rounded-2xl border border-orange-800/40 p-6">
+          <div className="text-white text-sm">Fornalha não encontrada.</div>
+          <button onClick={() => { game.ui.activePanel = 'none'; refresh(); }} className="mt-3 px-4 py-1.5 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold">Fechar</button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSlotDrop = (slotType: 'input' | 'fuel', itemId: string) => {
+    if (!game.removeFromInventory(itemId, 1)) return;
+    if (slotType === 'input') game.furnaceAddInput(structId!, itemId, 1);
+    else game.furnaceAddFuel(structId!, itemId, 1);
+    refresh();
+  };
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-auto z-50">
+      <div className="bg-gray-900/95 backdrop-blur-md rounded-2xl border border-orange-800/40 p-5 w-[420px] shadow-2xl shadow-orange-900/30">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-white font-bold text-lg flex items-center gap-2">
+            {fd.lit ? '🔥' : '⛓️'} Fornalha
+          </h2>
+          <button onClick={() => { game.ui.activeFurnaceId = null; game.ui.activePanel = 'none'; refresh(); }}
+            className="text-white/40 hover:text-white text-xl leading-none">✕</button>
+        </div>
+
+        {/* Status indicator */}
+        <div className="flex items-center gap-2 mb-3 text-xs">
+          <span className={fd.lit ? 'text-orange-400' : 'text-white/40'}>
+            {fd.lit ? '🔥 Acesa' : '⛓️ Apagada'}
+          </span>
+          {fd.fuelTime > 0 && (
+            <span className="text-yellow-400/70">⏱ {Math.ceil(fd.fuelTime)}s restantes</span>
+          )}
+          {fd.currentRecipeId && (
+            <span className="text-green-400/70">
+              {fd.progress > 0 ? `🔨 ${Math.floor(fd.progress * 100)}%` : '✅ Pronto'}
+            </span>
+          )}
+        </div>
+
+        {/* Fuel bar */}
+        {fd.maxFuelTime > 0 && (
+          <div className="mb-3">
+            <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
+              <span>Combustível</span>
+              <span>{Math.ceil(fd.fuelTime)}/{Math.ceil(fd.maxFuelTime)}s</span>
+            </div>
+            <div className="h-2.5 bg-black/50 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${(fd.fuelTime / fd.maxFuelTime) * 100}%`, background: 'linear-gradient(90deg, #ff4400, #ff8800)' }} />
+            </div>
+          </div>
+        )}
+
+        {/* Smelting progress */}
+        {fd.currentRecipeId && fd.smeltTime > 0 && (
+          <div className="mb-3">
+            <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
+              <span>Fusão</span>
+              <span>{Math.floor(fd.progress * 100)}%</span>
+            </div>
+            <div className="h-2.5 bg-black/50 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-200"
+                style={{ width: `${Math.min(100, fd.progress * 100)}%`, background: 'linear-gradient(90deg, #ff6600, #ffcc00)' }} />
+            </div>
+          </div>
+        )}
+
+        {/* Three slot areas */}
+        <div className="flex gap-4 items-start justify-center mb-4">
+          {/* Input slot */}
+          <div className="text-center">
+            <div className="text-[9px] text-white/40 mb-1">Entrada</div>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOverSlot('input'); }}
+              onDragLeave={() => setDragOverSlot(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverSlot(null);
+                const data = e.dataTransfer.getData('text/plain');
+                if (data) handleSlotDrop('input', data);
+              }}
+              className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center relative transition-all ${
+                dragOverSlot === 'input' ? 'border-green-400 bg-green-900/30' : 'border-white/20 bg-black/40'
+              }`}>
+              {fd.input?.item ? (
+                <>
+                  <span className="text-2xl" style={{ color: '#b0b0b0' }}>{fd.input.item.icon}</span>
+                  {fd.input.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.input.count}</span>}
+                </>
+              ) : (
+                <span className="text-white/20 text-[10px]">⬇️</span>
+              )}
+            </div>
+            {fd.input?.item && (
+              <button onClick={() => { game.furnaceTakeInput(structId!); refresh(); }}
+                className="mt-1 text-[8px] text-white/40 hover:text-white/60">Retirar</button>
+            )}
+          </div>
+
+          {/* Fuel slot */}
+          <div className="text-center">
+            <div className="text-[9px] text-white/40 mb-1">Combustível</div>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOverSlot('fuel'); }}
+              onDragLeave={() => setDragOverSlot(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverSlot(null);
+                const data = e.dataTransfer.getData('text/plain');
+                if (data) handleSlotDrop('fuel', data);
+              }}
+              className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center relative transition-all ${
+                dragOverSlot === 'fuel' ? 'border-orange-400 bg-orange-900/30' : 'border-white/20 bg-black/40'
+              }`}>
+              {fd.fuel?.item ? (
+                <>
+                  <span className="text-2xl">{fd.fuel.item.icon}</span>
+                  {fd.fuel.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.fuel.count}</span>}
+                </>
+              ) : (
+                <span className="text-white/20 text-[10px]">🪵</span>
+              )}
+            </div>
+            {fd.fuel?.item && (
+              <button onClick={() => { game.furnaceTakeFuel(structId!); refresh(); }}
+                className="mt-1 text-[8px] text-white/40 hover:text-white/60">Retirar</button>
+            )}
+          </div>
+
+          {/* Output slot */}
+          <div className="text-center">
+            <div className="text-[9px] text-white/40 mb-1">Saída</div>
+            <div className="w-14 h-14 rounded-lg border-2 border-yellow-600/40 bg-black/40 flex items-center justify-center relative">
+              {fd.output?.item ? (
+                <>
+                  <span className="text-2xl" style={{ color: '#b0b0b0' }}>{fd.output.item.icon}</span>
+                  {fd.output.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.output.count}</span>}
+                </>
+              ) : (
+                <span className="text-white/20 text-[10px]">➡️</span>
+              )}
+            </div>
+            {fd.output?.item && (
+              <button onClick={() => { game.furnaceTakeOutput(structId!); refresh(); }}
+                className="mt-1 text-[8px] text-green-400/60 hover:text-green-400">Pegar</button>
+            )}
+          </div>
+        </div>
+
+        {/* Combustíveis válidos */}
+        <div className="text-[9px] text-white/30 text-center mb-3">
+          🔥 Combustíveis: 🪵 Madeira (15s) | 🖤 Carvão (45s)
+        </div>
+
+        {/* Quick actions */}
+        <div className="flex gap-1 justify-center">
+          <button onClick={() => { game.furnaceTakeOutput(structId!); refresh(); }}
+            className="px-3 py-1.5 rounded bg-orange-700 hover:bg-orange-600 text-white text-[10px] font-bold">📦 Pegar tudo</button>
+          <button onClick={() => { game.ui.activePanel = 'none'; refresh(); }}
+            className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-white/60 text-[10px]">✕ Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Sleep Panel ───────────────────────────────────────────────────
+function SleepPanel({ game }: { game: Game }) {
+  const [, forceUpdate] = useState(0);
+  const refresh = () => forceUpdate(n => n + 1);
+  const currentHour = game.timeSystem.getHour();
+
+  // Determine early morning options
+  const sleepOptions = [
+    { hour: 6, label: '🌅 Amanhecer (06:00)', desc: 'Acorde cedo para um dia produtivo' },
+    { hour: 8, label: '☀️ Manhã (08:00)', desc: 'Acorde com o sol já alto' },
+    { hour: 12, label: '🌞 Meio-Dia (12:00)', desc: 'Durma até o meio-dia' },
+  ];
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-auto z-50">
+      <div className="bg-gray-900/95 backdrop-blur-md rounded-2xl border border-indigo-800/40 p-5 w-[360px] shadow-2xl shadow-indigo-900/30">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-4xl">🛏️</span>
+          <div>
+            <h2 className="text-white font-bold text-lg">Dormir</h2>
+            <p className="text-white/40 text-xs">Hora atual: {String(Math.floor(currentHour)).padStart(2, '0')}:00</p>
+          </div>
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <p className="text-white/50 text-xs mb-3">Para quando você quer acordar?</p>
+          {sleepOptions.map(opt => {
+            let hoursSlept = opt.hour - currentHour;
+            if (hoursSlept <= 0) hoursSlept += 24;
+            hoursSlept = Math.min(hoursSlept, 12);
+            return (
+              <button key={opt.hour}
+                onClick={() => { game.sleepInBed(opt.hour); refresh(); game.ui.activePanel = 'none'; }}
+                className="w-full p-3 rounded-xl border border-indigo-800/30 bg-indigo-900/20 hover:bg-indigo-800/30 text-left transition-all">
+                <div className="text-white text-sm font-bold">{opt.label}</div>
+                <div className="text-white/40 text-[10px]">{opt.desc}</div>
+                <div className="text-indigo-300/60 text-[9px] mt-1">💤 Dormir {Math.floor(hoursSlept)}h — recupera vida e stamina</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <button onClick={() => { game.ui.activePanel = 'none'; refresh(); }}
+          className="w-full py-2 rounded bg-white/10 hover:bg-white/20 text-white/60 text-xs">Cancelar</button>
+      </div>
+    </div>
+  );
+}
 // ── Farming Bar ──────────────────────────────────────────────────
 function FarmingBar({ game }: { game: Game }) {
   const [, forceUpdate] = useState(0);
