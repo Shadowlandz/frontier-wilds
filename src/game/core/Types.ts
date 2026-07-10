@@ -162,6 +162,7 @@ export const NpcType = {
   Alchemist: 'alchemist',
   Hunter: 'hunter',
   QuestGiver: 'questGiver',
+  Identifier: 'identifier',
 } as const;
 export type NpcType = typeof NpcType[keyof typeof NpcType];
 
@@ -666,6 +667,8 @@ export interface GameUIState {
   tooltipPosition: Vec2;
   /** ID of the currently active furnace structure */
   activeFurnaceId: string | null;
+  /** If true, show identification panel in crafting (set by Identifier NPC) */
+  showIdentify?: boolean;
 }
 
 // ── Constants ─────────────────────────────────────────────────────

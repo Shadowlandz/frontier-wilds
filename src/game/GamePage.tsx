@@ -911,7 +911,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
   const [craftProgress, setCraftProgress] = useState(0);
   const [isCrafting, setIsCrafting] = useState(false);
   const [stationFilter, setStationFilter] = useState<string | null>(null);
-  const [showIdentify, setShowIdentify] = useState(false);
+  const [showIdentify, setShowIdentify] = useState(!!uiState.showIdentify);
 
   const handleCraft = (recipeId: string) => {
     const recipe = RECIPES.find(r => r.id === recipeId);
@@ -990,7 +990,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
       
       {/* Lote 10: Identification Panel (shown when identification is active) */}
       {showIdentify && (
-        <IdentifyPanel game={game} onDone={() => { setShowIdentify(false); refresh(); }} />
+        <IdentifyPanel game={game} onDone={() => { setShowIdentify(false); game.ui.showIdentify = false; refresh(); }} npcMode={!!uiState.showIdentify} />
       )}
 
       {/* Lote 8e: Nearby stations indicator */}
@@ -1137,7 +1137,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
 }
 
 // ── Identification Panel ──────────────────────────────────────
-function IdentifyPanel({ game, onDone }: { game: Game; onDone: () => void }) {
+function IdentifyPanel({ game, onDone, npcMode }: { game: Game; onDone: () => void; npcMode?: boolean }) {
   const unidentified = game.getUnidentifiedSlots();
   const [identifyingId, setIdentifyingId] = useState<string | null>(null);
 
@@ -1145,7 +1145,7 @@ function IdentifyPanel({ game, onDone }: { game: Game; onDone: () => void }) {
     const key = `${pool}_${index}`;
     setIdentifyingId(key);
     setTimeout(() => {
-      game.identifyItem(pool, index);
+      game.identifyItem(pool, index, !!npcMode);
       setIdentifyingId(null);
       onDone();
     }, 600);
@@ -1166,7 +1166,7 @@ function IdentifyPanel({ game, onDone }: { game: Game; onDone: () => void }) {
       <div className="flex items-center gap-2 mb-2">
         <span className="text-lg">🔍</span>
         <span className="text-sm font-bold text-purple-300">Identificar Itens</span>
-        <span className="text-[9px] text-white/40 ml-auto">Requer 🪚 Bancada</span>
+        <span className="text-[9px] text-white/40 ml-auto">{npcMode ? '🧙 S\u00e1bio Eron' : '\uD83D\uDD2A Bancada'}</span>
       </div>
 
       {unidentified.length === 0 ? (
@@ -1365,7 +1365,11 @@ function DialoguePanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
   const handleNext = () => {
     npc.dialogueIndex++;
     if (npc.dialogueIndex >= npc.definition.dialogue.length) {
-      if (npc.definition.shopItems && npc.definition.shopItems.length > 0) {
+      if (npc.definition.type === 'identifier') {
+        // Open crafting panel with identification mode
+        game.ui.showIdentify = true;
+        game.ui.activePanel = 'crafting';
+      } else if (npc.definition.shopItems && npc.definition.shopItems.length > 0) {
         game.ui.activeShopNpc = npc;
         game.ui.activePanel = 'shop';
       } else if (npc.definition.questIds && npc.definition.questIds.length > 0) {
@@ -1389,6 +1393,9 @@ function DialoguePanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
         <div className="flex justify-end mt-3 gap-2">
           {isLastDialogue && npc.definition.type === 'blacksmith' && (
             <button onClick={() => { game.openForge(); }} className="px-4 py-1.5 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold">⚒️ Forja (Upgrade)</button>
+          )}
+          {isLastDialogue && npc.definition.type === 'identifier' && (
+            <button onClick={() => { game.ui.showIdentify = true; game.ui.activePanel = 'crafting'; }} className="px-4 py-1.5 rounded bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold">🔍 Identificar Itens</button>
           )}
           <button onClick={handleNext} className="px-4 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold">{isLastDialogue ? 'Fechar' : 'Proximo'}</button>
         </div>

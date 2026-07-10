@@ -164,6 +164,7 @@ export class Game {
       hoveredItem: null,
       tooltipPosition: { x: 0, y: 0 },
       activeFurnaceId: null,
+      showIdentify: false,
     };
   }
 
@@ -2506,7 +2507,7 @@ export class Game {
   }
 
   /** Identify an item — reveals affixes, consumes gold */
-  identifyItem(pool: 'inventory' | 'hotbar' | 'equipment', index: string | number): boolean {
+  identifyItem(pool: 'inventory' | 'hotbar' | 'equipment', index: string | number, skipStationCheck = false): boolean {
     let slot: InventorySlot | null = null;
 
     if (pool === 'inventory') slot = this.state.player.inventory[index as number];
@@ -2520,10 +2521,18 @@ export class Game {
       return false;
     }
 
-    // Check if near a workbench
-    if (!this.isNearbyStation('workbench')) {
-      this.addNotification('🔧 Precisa estar perto de uma Bancada para identificar!', 'warning');
-      return false;
+    // Check if near a workbench or Identifier NPC
+    if (!skipStationCheck && !this.isNearbyStation('workbench')) {
+      // Check if Identifier NPC is nearby
+      const npcNearby = this.npcs.some(n => 
+        n.definition.type === 'identifier' &&
+        Math.abs(n.x - this.state.player.x) < 80 &&
+        Math.abs(n.y - this.state.player.y) < 80
+      );
+      if (!npcNearby) {
+        this.addNotification('🔧 Precisa estar perto de uma Bancada ou do Sábio Eron para identificar!', 'warning');
+        return false;
+      }
     }
 
     const cost = this.getIdentifyCost(slot.item.rarity);

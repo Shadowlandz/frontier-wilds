@@ -82,6 +82,16 @@ export const NPCS: Record<string, NpcDefinition> = {
     questIds: ['tutorial_first_steps', 'quest_wolf_hunt', 'quest_cave_exploration', 'quest_slime_king', 'quest_ruins', 'quest_dragon'],
     color: '#f57f17', icon: '👴',
   },
+  identifier: {
+    type: NpcType.Identifier, name: 'Sábio Eron',
+    dialogue: [
+      'Ah, itens misteriosos! Posso revelar seus segredos... por um preço, é claro.',
+      'Traga seus itens não identificados que eu revelo seus verdadeiros atributos!',
+      'Cada item tem um custo de identificação baseado em sua raridade. Quanto mais raro, mais caro.',
+      'Volte sempre que encontrar itens misteriosos!',
+    ],
+    color: '#7c4dff', icon: '🧙',
+  },
 };
 
 export function getNpcShopItems(npcId: string): string[] {

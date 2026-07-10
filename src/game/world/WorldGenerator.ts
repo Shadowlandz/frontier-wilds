@@ -759,6 +759,7 @@ export class WorldGenerator {
       { x: cx + 60, y: cy + 40, npcId: 'alchemist' },
       { x: cx - 50, y: cy - 80, npcId: 'hunter' },
       { x: cx, y: cy - 60, npcId: 'quest_giver' },
+      { x: cx - 100, y: cy - 40, npcId: 'identifier' },
     ];
   }
 
