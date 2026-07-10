@@ -576,6 +576,8 @@ export interface DroppedItem {
   y: number;
   velocity: Vec2;
   lifetime: number;
+  /** Rarity override (if boosted by weapon power on kill) */
+  rarity?: Rarity;
 }
 
 export interface DamageNumber {

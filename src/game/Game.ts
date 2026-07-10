@@ -749,6 +749,22 @@ export class Game {
         // Generate affixes for equippable items dropped by enemies
         const added = this.addToInventory(di.itemId, di.count, true);
         if (added) {
+          // Show subtle rarity notification for non-common drops
+          if (di.rarity && di.rarity !== 'common') {
+            const item = getItem(di.itemId);
+            const rarityNames: Record<string, string> = {
+              uncommon: 'Incomum', rare: 'Raro', epic: 'Épico', legendary: 'Lendário',
+            };
+            const rarityColors: Record<string, string> = {
+              uncommon: '#4caf50', rare: '#2196f3', epic: '#9c27b0', legendary: '#ff9800',
+            };
+            const color = rarityColors[di.rarity] || '#b0b0b0';
+            const prefix = rarityNames[di.rarity] || di.rarity;
+            this.addNotification(
+              `${item?.icon || '📦'} ${prefix}: ${item?.name || di.itemId}`,
+              'item'
+            );
+          }
           this.droppedItems.splice(i, 1);
         }
         return;
@@ -1226,13 +1242,48 @@ export class Game {
     // XP reward
     this.gainXp(enemy.definition.xpReward);
 
+    // Calculate weapon power for rarity boost
+    const currentWeapon = this.getCurrentItem();
+    let weaponPower = 1;
+    let weaponLevel = 1;
+    if (currentWeapon?.damage) {
+      weaponPower = currentWeapon.damage;
+      // Add upgrade bonuses
+      const hotbarSlot = this.state.player.hotbar[this.state.player.currentTool];
+      const upgLevel = hotbarSlot?.upgradeLevel ?? 0;
+      weaponPower += upgLevel * 2;
+      weaponLevel = Math.max(1, Math.floor(weaponPower / 3));
+    }
+    const enemyLevel = enemy.definition.level || 1;
+    const powerDiff = weaponLevel - Math.floor(enemyLevel / 4);
+    const rarityBoostLevel = Math.max(0, Math.min(4, Math.floor(powerDiff / 2)));
+    
+    // Rarity boost function (climbs up the tiers)
+    const rarityTiers = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
+    
     // Drop loot
     const luckBonus = this.state.skills['treasure_hunter'] || 0;
     for (const loot of enemy.definition.loot) {
       const chance = loot.chance + (luckBonus * 0.02);
       if (Math.random() < chance) {
         const count = Math.floor(Math.random() * (loot.maxCount - loot.minCount + 1)) + loot.minCount;
-        this.spawnDroppedItem(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, loot.itemId, count);
+        // Determine boosted rarity based on weapon power
+        const baseItem = getItem(loot.itemId);
+        let dropRarity: Rarity | undefined;
+        if (baseItem && rarityBoostLevel > 0) {
+          const baseTierIdx = rarityTiers.indexOf(baseItem.rarity as typeof rarityTiers[number]);
+          if (baseTierIdx >= 0) {
+            const boostRoll = Math.random();
+            let boostSteps = 0;
+            if (boostRoll < 0.05 * rarityBoostLevel) boostSteps = 2; // 5% per level → jump 2
+            else if (boostRoll < 0.25 * rarityBoostLevel) boostSteps = 1; // 25% per level → jump 1
+            const newTierIdx = Math.min(4, baseTierIdx + boostSteps);
+            if (newTierIdx > baseTierIdx) {
+              dropRarity = rarityTiers[newTierIdx];
+            }
+          }
+        }
+        this.spawnDroppedItem(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, loot.itemId, count, dropRarity);
       }
     }
 
@@ -3283,12 +3334,13 @@ export class Game {
     });
   }
   // ── Helpers ─────────────────────────────────────────────────────
-  private spawnDroppedItem(x: number, y: number, itemId: string, count: number): void {
+  private spawnDroppedItem(x: number, y: number, itemId: string, count: number, rarity?: Rarity): void {
     this.droppedItems.push({
       id: generateId(),
       itemId, count, x, y,
       velocity: { x: (Math.random() - 0.5) * 100, y: -80 },
       lifetime: 30,
+      rarity,
     });
   }
 
@@ -3725,6 +3777,35 @@ export class Game {
       const item = getItem(di.itemId);
       if (!item) continue;
       const pos = camera.worldToScreen(di.x, di.y);
+      // Determine effective rarity for glow
+      const effRarity = di.rarity || item.rarity;
+      if (effRarity !== 'common') {
+        const glowColors: Record<string, string> = {
+          uncommon: 'rgba(76,175,80,0.25)',
+          rare: 'rgba(33,150,243,0.30)',
+          epic: 'rgba(156,39,176,0.35)',
+          legendary: 'rgba(255,152,0,0.40)',
+        };
+        const borderColors: Record<string, string> = {
+          uncommon: 'rgba(76,175,80,0.6)',
+          rare: 'rgba(33,150,243,0.7)',
+          epic: 'rgba(156,39,176,0.8)',
+          legendary: 'rgba(255,152,0,0.9)',
+        };
+        const color = glowColors[effRarity] || 'rgba(180,180,180,0.2)';
+        const border = borderColors[effRarity] || 'rgba(180,180,180,0.5)';
+        // Glow circle behind item
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(pos.x - 1, pos.y - 2, 12, 0, Math.PI * 2);
+        ctx.fill();
+        // Border ring
+        ctx.strokeStyle = border;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(pos.x - 1, pos.y - 2, 10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.font = '16px serif';
       ctx.fillText(item.icon, pos.x - 8, pos.y + 5);
     }
