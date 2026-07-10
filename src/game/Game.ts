@@ -2947,6 +2947,18 @@ export class Game {
       this.state.storageChests.push(chest);
       this.addNotification('🗄️ Baú criado! Aperte E para abrir.', 'success');
     }
+    // ── Simple Chest: creates a 12-slot storage container ──
+    if (itemId === 'chest') {
+      const chest: StorageChest = {
+        id: `chest_${structId}`,
+        structureId: structId,
+        name: 'Ba\u00fa',
+        slots: Array(12).fill(null).map(() => ({ item: null, count: 0 })),
+        maxSlots: 12,
+      };
+      this.state.storageChests.push(chest);
+      this.addNotification('\uD83D\uDCE6 Ba\u00fa criado! Guarde seus itens apertando [E].', 'success');
+    }
 
     this.state.structures.push(newStruct);
     this.achievementStats.structuresBuilt++;
