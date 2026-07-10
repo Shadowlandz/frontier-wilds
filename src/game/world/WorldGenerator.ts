@@ -87,6 +87,14 @@ export interface CaveData {
   entranceY: number;
 }
 
+export interface CursedLandsData {
+  tileMap: TileType[][];
+  resources: { x: number; y: number; type: string; itemId: string }[];
+  enemies: { x: number; y: number; type: EnemyType }[];
+  entranceX: number;
+  entranceY: number;
+}
+
 // ── World Generator ───────────────────────────────────────────────
 export class WorldGenerator {
   private seed: number;
@@ -462,6 +470,111 @@ export class WorldGenerator {
     };
   }
 
+  /** Generate a cursed underground dimension — accessible via portal (level 6+) */
+  generateCursedLands(): CursedLandsData {
+    const cw = 60; // 60x60 tiles — small, dense dungeon
+    const ch = 60;
+    const rng = new SeededRandom(this.seed + 99999);
+
+    const tileMap: TileType[][] = Array.from({ length: ch }, () => Array(cw).fill(TileType.CaveWall));
+
+    // Carve rooms and corridors using noise
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        const noise = fractalNoise(x, y, this.seed + 11111, 5, 12, 0.55);
+        if (noise > 0.30) {
+          tileMap[y][x] = TileType.CaveFloor;
+        }
+      }
+    }
+
+    // Entrance at center-top
+    const entranceX = Math.floor(cw / 2);
+    const entranceY = 0;
+
+    // Vertical corridor from entrance
+    for (let y = 0; y < ch; y++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const cx = entranceX + dx;
+        if (cx >= 0 && cx < cw) {
+          tileMap[y][cx] = TileType.CaveFloor;
+        }
+      }
+    }
+
+    // Circular hub room at center
+    const hubX = Math.floor(cw / 2);
+    const hubY = Math.floor(ch / 2);
+    for (let dy = -6; dy <= 6; dy++) {
+      for (let dx = -6; dx <= 6; dx++) {
+        if (dx * dx + dy * dy <= 36) {
+          const hx = hubX + dx, hy = hubY + dy;
+          if (hx >= 0 && hx < cw && hy >= 0 && hy < ch) {
+            tileMap[hy][hx] = TileType.CaveFloor;
+          }
+        }
+      }
+    }
+
+    // Horizontal corridors
+    const corrYs = [15, 30, 45];
+    for (const cy of corrYs) {
+      for (let x = 0; x < cw; x++) {
+        if (rng.next() < 0.25) {
+          tileMap[cy][x] = TileType.CaveFloor;
+          if (cy + 1 < ch) tileMap[cy + 1][x] = TileType.CaveFloor;
+        }
+      }
+    }
+
+    // Generate cursed resources — dark crystals, void essence deposits, etc.
+    const resources: { x: number; y: number; type: string; itemId: string }[] = [];
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        if (tileMap[y][x] !== TileType.CaveFloor) continue;
+        const n = rng.next();
+        const px = x * TILE_SIZE + rng.range(0, TILE_SIZE);
+        const py = y * TILE_SIZE + rng.range(0, TILE_SIZE);
+
+        if (n < 0.025) {
+          resources.push({ x: px, y: py, type: 'crystal_node', itemId: 'void_crystal' });
+        } else if (n < 0.04) {
+          resources.push({ x: px, y: py, type: 'crystal_node', itemId: 'dark_essence' });
+        } else if (n < 0.055) {
+          resources.push({ x: px, y: py, type: 'iron_rock', itemId: 'mithril_ore' });
+        } else if (n < 0.065) {
+          resources.push({ x: px, y: py, type: 'crystal_node', itemId: 'crystal' });
+        }
+      }
+    }
+
+    // Generate cursed enemies — shadow knights, wraiths, etc.
+    const enemies: { x: number; y: number; type: EnemyType }[] = [];
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        if (tileMap[y][x] !== TileType.CaveFloor) continue;
+        if (rng.next() > 0.008) continue;
+
+        const enemyTypes = ['Skeleton', 'DarkKnight', 'ShadowLord'];
+        const weights = [0.4, 0.35, 0.25];
+        let roll = rng.next();
+        let eType = enemyTypes[0];
+        for (let i = 0; i < enemyTypes.length; i++) {
+          if (roll < weights[i]) { eType = enemyTypes[i]; break; }
+          roll -= weights[i];
+        }
+
+        enemies.push({
+          x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4),
+          y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4),
+          type: eType as EnemyType,
+        });
+      }
+    }
+
+    return { tileMap, resources, enemies, entranceX, entranceY };
+  }
+
   generateResources(biomeMap: Biome[][]): { x: number; y: number; type: string; itemId: string }[] {
     const resources: { x: number; y: number; type: string; itemId: string }[] = [];
     const w = WORLD_WIDTH;
@@ -545,6 +658,37 @@ export class WorldGenerator {
     const caveEntrances = this.findCaveEntranceLocations(biomeMap, rng);
     for (const entrance of caveEntrances) {
       resources.push(entrance);
+    }
+
+    // ── Portal to Cursed Lands — place far from village (mountains/ruins area) ──
+    const portalPlaced = resources.some(r => r.type === 'portal');
+    if (!portalPlaced) {
+      // Find a suitable location: far from village, preferably mountains or ruins
+      const cx = Math.floor(WORLD_WIDTH / 2);
+      const cy = Math.floor(WORLD_HEIGHT / 2);
+      let bestX = 0, bestY = 0, bestDist = 0;
+      for (let y = 0; y < biomeMap.length; y++) {
+        for (let x = 0; x < biomeMap[0].length; x++) {
+          const biome = biomeMap[y][x];
+          // Mountains, ruins, or desert — far from village
+          if (biome === 'mountains' || biome === 'ruins' || biome === 'desert') {
+            const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+            if (dist > bestDist) {
+              bestDist = dist;
+              bestX = x * TILE_SIZE + TILE_SIZE / 2;
+              bestY = y * TILE_SIZE + TILE_SIZE / 2;
+            }
+          }
+        }
+      }
+      // Fallback: place at max distance
+      if (bestDist === 0) {
+        const angle = 3.5;
+        const dist = 85;
+        bestX = Math.floor(cx + Math.cos(angle) * dist) * TILE_SIZE;
+        bestY = Math.floor(cy + Math.sin(angle) * dist) * TILE_SIZE;
+      }
+      resources.push({ x: bestX, y: bestY, type: 'portal', itemId: 'portal' });
     }
 
     return resources;

@@ -20,7 +20,7 @@ import {
   SeededRandom, fractalNoise, darkenColor,
 } from './core/Utils';
 import { WorldGenerator, TILE_COLORS, BIOME_DETAIL_COLORS, getSkyColor, getSeasonTint, getSeasonForDay, getCaveSkyColor } from './world/WorldGenerator';
-import type { CaveData, DecorationDef } from './world/WorldGenerator';
+import type { CaveData, CursedLandsData, DecorationDef } from './world/WorldGenerator';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { ENEMIES } from './data/Enemies';
@@ -99,6 +99,13 @@ export class Game {
   surfacePosition: { x: number; y: number } = { x: 0, y: 0 };
   decorations: DecorationDef[] = [];
 
+  // ── Cursed Lands (Portal) System ────────────────────────────────
+  inCursedLands = false;
+  cursedLandsData: CursedLandsData | null = null;
+  cursedLandsEnemies: EnemyEntity[] = [];
+  cursedLandsResources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
+  cursedLandsResourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
+
   // Resource colors per type for particles
   private resourceColors: Record<string, string> = {
     tree: '#2d5a1e', bush: '#4a8a3a',
@@ -108,6 +115,7 @@ export class Game {
     mithril_rock: '#4ae0c0',
     ruby_rock: '#ff2244',
     cave_entrance: '#2a1a0a',
+    portal: '#9944ff',
   };
 
   // Resource sizes for collision
@@ -122,6 +130,7 @@ export class Game {
     mithril_rock: { w: 20, h: 18, hp: 60 },
     ruby_rock: { w: 18, h: 16, hp: 70 },
     cave_entrance: { w: 32, h: 32, hp: 99999 },
+    portal: { w: 32, h: 32, hp: 99999 },
   };
 
   /** Procedural audio engine */
@@ -193,6 +202,10 @@ export class Game {
     // Generate cave data (underground layer)
     this.caveData = generator.generateCaveData();
     this.inCave = false;
+
+    // Generate cursed lands data (portal dimension)
+    this.cursedLandsData = generator.generateCursedLands();
+    this.inCursedLands = false;
 
     // Generate surface resources
     const resourceDefs = generator.generateResources(biomeMap);
@@ -392,6 +405,7 @@ export class Game {
     this.checkAchievements();
     this.updateResourceRespawn(dt);
     if (this.inCave) this.updateCaveResourceRespawn(dt);
+    if (this.inCursedLands) this.updateCursedLandsResourceRespawn(dt);
     this.updateFurnaces(dt);
     this.updatePlacementGhost();
 
@@ -403,6 +417,9 @@ export class Game {
       if (res.shakeTimer > 0) res.shakeTimer -= dt;
     }
     for (const res of this.caveResources) {
+      if (res.shakeTimer > 0) res.shakeTimer -= dt;
+    }
+    for (const res of this.cursedLandsResources) {
       if (res.shakeTimer > 0) res.shakeTimer -= dt;
     }
 
@@ -564,9 +581,9 @@ export class Game {
       // Determine surface for footsteps
       const footX = Math.floor((player.x + PLAYER_SIZE / 2) / TILE_SIZE);
       const footY = Math.floor((player.y + PLAYER_SIZE / 2) / TILE_SIZE);
-      const worldTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : WORLD_WIDTH;
-      const worldTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : WORLD_HEIGHT;
-      const tileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.tileMap;
+      const worldTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap[0].length : WORLD_WIDTH;
+      const worldTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap.length : WORLD_HEIGHT;
+      const tileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap : this.tileMap;
             const footTile = (footY >= 0 && footY < worldTileH && footX >= 0 && footX < worldTileW)
         ? tileMap[footY][footX]
         : 0;
@@ -578,9 +595,13 @@ export class Game {
       // Check collision with world boundaries
       const worldW = this.inCave && this.caveData
         ? this.caveData.tileMap[0].length * TILE_SIZE
+        : this.inCursedLands && this.cursedLandsData
+        ? this.cursedLandsData.tileMap[0].length * TILE_SIZE
         : WORLD_WIDTH * TILE_SIZE;
       const worldH = this.inCave && this.caveData
         ? this.caveData.tileMap.length * TILE_SIZE
+        : this.inCursedLands && this.cursedLandsData
+        ? this.cursedLandsData.tileMap.length * TILE_SIZE
         : WORLD_HEIGHT * TILE_SIZE;
 
       // Check tile collision
@@ -595,7 +616,7 @@ export class Game {
 
         if (walkable) {
           // Check resource collision
-          const checkResources = this.inCave ? this.caveResources : this.resources;
+          const checkResources = this.inCave ? this.caveResources : this.inCursedLands ? this.cursedLandsResources : this.resources;
           let blocked = false;
           for (const res of checkResources) {
             const size = this.resourceSizes[res.type];
@@ -639,7 +660,7 @@ export class Game {
     }
 
     // Discover biome (surface only)
-    if (!this.inCave) {
+    if (!this.inCave && !this.inCursedLands) {
       const tileX = Math.floor(player.x / TILE_SIZE);
       const tileY = Math.floor(player.y / TILE_SIZE);
       if (tileY >= 0 && tileY < this.biomeMap.length && tileX >= 0 && tileX < this.biomeMap[0].length) {
@@ -669,6 +690,17 @@ export class Game {
       }
     }
 
+    // ── Cursed Lands Portal: exit ──
+    if (this.inCursedLands && this.cursedLandsData) {
+      const ex = this.cursedLandsData.entranceX;
+      const ey = this.cursedLandsData.entranceY;
+      const dist = distance({ x: px, y: py }, { x: ex + 16, y: ey + 16 });
+      if (dist < INTERACT_RANGE) {
+        this.exitCursedLands();
+        return;
+      }
+    }
+
     // ── Surface: check for cave entrance resource ──
     if (!this.inCave) {
       for (const res of this.resources) {
@@ -682,6 +714,25 @@ export class Game {
               return;
             }
             this.enterCave(res.x, res.y);
+            return;
+          }
+        }
+      }
+    }
+
+    // ── Surface: check for portal to Cursed Lands ──
+    if (!this.inCave && !this.inCursedLands) {
+      for (const res of this.resources) {
+        if (res.type === 'portal') {
+          const size = this.resourceSizes['portal'];
+          if (!size) continue;
+          const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
+          if (dist < INTERACT_RANGE) {
+            if (this.state.player.stats.level < 6) {
+              this.addNotification('🌑 Precisa de nível 6 para atravessar o portal!', 'warning');
+              return;
+            }
+            this.enterCursedLands(res.x, res.y);
             return;
           }
         }
@@ -874,6 +925,74 @@ export class Game {
     this.addNotification('Você saiu da caverna.', 'info');
   }
 
+  // ══ Cursed Lands Entry / Exit ════════════════════════════════
+  private enterCursedLands(portalX: number, portalY: number): void {
+    if (!this.cursedLandsData) return;
+
+    // Save surface position
+    this.surfacePosition = { x: this.state.player.x, y: this.state.player.y };
+
+    const cd = this.cursedLandsData;
+    this.state.player.x = cd.entranceX * TILE_SIZE + TILE_SIZE / 2;
+    this.state.player.y = cd.entranceY * TILE_SIZE + TILE_SIZE;
+
+    // Initialize cursed lands enemies
+    this.cursedLandsEnemies = cd.enemies.map(e => {
+      const def = ENEMIES[e.type];
+      if (!def) return null;
+      return {
+        id: generateId(), type: e.type,
+        x: e.x, y: e.y,
+        width: def.size, height: def.size,
+        definition: def,
+        hp: def.hp, maxHp: def.hp,
+        state: 'idle' as const,
+        direction: { x: 0, y: 0 },
+        targetId: null,
+        attackCooldown: 0,
+        patrolTimer: 0,
+        patrolDirection: { x: Math.random() - 0.5, y: Math.random() - 0.5 },
+        knockback: { x: 0, y: 0 },
+        deathTimer: 0,
+      };
+    }).filter(Boolean) as EnemyEntity[];
+
+    // Initialize cursed lands resources
+    this.cursedLandsResources = cd.resources.map(r => ({
+      ...r,
+      hp: this.resourceSizes[r.type]?.hp ?? 10,
+      maxHp: this.resourceSizes[r.type]?.hp ?? 10,
+      id: generateId(),
+      shakeTimer: 0,
+    }));
+
+    this.inCursedLands = true;
+    this.spawnParticles(this.state.player.x, this.state.player.y, '#9944ff', 15, 'magic',
+      { spread: 200, speed: 100, sizeRange: [3, 6], lifeRange: [0.6, 1.2], color2: '#cc66ff' });
+    this.addNotification('🌑 Você entrou nas Terras Amaldiçoadas...', 'info');
+    this.addNotification('Pressione [E] no portal para voltar.', 'info');
+  }
+
+  private exitCursedLands(): void {
+    if (!this.inCursedLands) return;
+
+    // Restore surface position
+    this.state.player.x = this.surfacePosition.x;
+    this.state.player.y = this.surfacePosition.y;
+
+    // Clear cursed lands runtime data
+    this.cursedLandsEnemies = [];
+    this.cursedLandsResources = [];
+    this.cursedLandsResourceRespawnQueue = [];
+
+    this.inCursedLands = false;
+    this.spawnParticles(this.state.player.x, this.state.player.y, '#9944ff', 10, 'magic',
+      { spread: 150, speed: 80, sizeRange: [2, 5], lifeRange: [0.5, 1.0], color2: '#cc66ff' });
+    this.addNotification('🌑 Você voltou das Terras Amaldiçoadas.', 'info');
+  }
+
+  /** Update cursed lands resource respawn */
+
   private gatherResource(res: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }, index: number): void {
     const { player } = this.state;
     const tool = this.getCurrentItem();
@@ -885,6 +1004,7 @@ export class Game {
     // Tool requirements
     const isVegetation = res.type === 'tree' || res.type === 'bush';
     const isOre = res.type.includes('rock') || res.type.includes('crystal');
+    if (res.type === 'portal' || res.type === 'cave_entrance') return;
 
     if (isVegetation && tool?.toolType !== 'axe' && tool?.toolType !== 'sword' && tool?.toolType !== 'scythe') {
       this.audio.playError();
@@ -1028,6 +1148,15 @@ export class Game {
           respawnTime: respawnDelay,
         });
         this.caveResources.splice(index, 1);
+      } else if (this.inCursedLands) {
+        this.cursedLandsResourceRespawnQueue.push({
+          type: res.type,
+          x: res.x,
+          y: res.y,
+          itemId: res.itemId,
+          respawnTime: respawnDelay,
+        });
+        this.cursedLandsResources.splice(index, 1);
       } else {
         this.resourceRespawnQueue.push({
           type: res.type,
@@ -1131,7 +1260,7 @@ export class Game {
       this.spawnParticles(attackX, attackY, trailColor, 3);
     }
 
-    const attackEnemies = this.inCave ? this.caveEnemies : this.enemies;
+    const attackEnemies = this.inCave ? this.caveEnemies : this.inCursedLands ? this.cursedLandsEnemies : this.enemies;
     for (const enemy of attackEnemies) {
       if (enemy.state === 'dead') continue;
       const dist = distance({ x: attackX, y: attackY }, { x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2 });
@@ -1197,7 +1326,7 @@ export class Game {
     const py = player.y + PLAYER_SIZE / 2;
 
     // 1. Check resources in range → gather (cut/mineral/forage)
-    const resources = this.inCave ? this.caveResources : this.resources;
+    const resources = this.inCave ? this.caveResources : this.inCursedLands ? this.cursedLandsResources : this.resources;
     for (let i = resources.length - 1; i >= 0; i--) {
       const res = resources[i];
       const size = this.resourceSizes[res.type];
@@ -1385,16 +1514,35 @@ export class Game {
     }
   }
 
+  private updateCursedLandsResourceRespawn(dt: number): void {
+    for (let i = this.cursedLandsResourceRespawnQueue.length - 1; i >= 0; i--) {
+      const entry = this.cursedLandsResourceRespawnQueue[i];
+      entry.respawnTime -= dt;
+      if (entry.respawnTime <= 0) {
+        const size = this.resourceSizes[entry.type];
+        this.cursedLandsResources.push({
+          x: entry.x, y: entry.y,
+          type: entry.type, itemId: entry.itemId,
+          hp: size?.hp ?? 10,
+          maxHp: size?.hp ?? 10,
+          id: generateId(),
+          shakeTimer: 0,
+        });
+        this.cursedLandsResourceRespawnQueue.splice(i, 1);
+      }
+    }
+  }
+
   private updateEnemies(dt: number): void {
     const playerPos = {
       x: this.state.player.x + PLAYER_SIZE / 2,
       y: this.state.player.y + PLAYER_SIZE / 2,
     };
 
-    const enemies = this.inCave ? this.caveEnemies : this.enemies;
-    const tileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.tileMap;
-    const worldTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : WORLD_WIDTH;
-    const worldTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : WORLD_HEIGHT;
+    const enemies = this.inCave ? this.caveEnemies : this.inCursedLands ? this.cursedLandsEnemies : this.enemies;
+    const tileMap = this.inCave && this.caveData ? this.caveData.tileMap : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap : this.tileMap;
+    const worldTileW = this.inCave && this.caveData ? this.caveData.tileMap[0].length : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap[0].length : WORLD_WIDTH;
+    const worldTileH = this.inCave && this.caveData ? this.caveData.tileMap.length : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap.length : WORLD_HEIGHT;
 
     for (const enemy of enemies) {
       if (enemy.state === 'dead') {
@@ -1509,6 +1657,8 @@ export class Game {
     // Remove fully dead enemies
     if (this.inCave) {
       this.caveEnemies = this.caveEnemies.filter(e => !(e.state === 'dead' && e.deathTimer <= 0));
+    } else if (this.inCursedLands) {
+      this.cursedLandsEnemies = this.cursedLandsEnemies.filter(e => !(e.state === 'dead' && e.deathTimer <= 0));
     } else {
       this.enemies = this.enemies.filter(e => !(e.state === 'dead' && e.deathTimer <= 0));
     }
@@ -1551,9 +1701,12 @@ export class Game {
     this.state.player.stats.gold = Math.floor(this.state.player.stats.gold * 0.8);
     this.state.player.invincibleTimer = 2;
 
-    // If in cave, exit first
+    // If in cave or cursed lands, exit first
     if (this.inCave) {
       this.exitCave();
+    }
+    if (this.inCursedLands) {
+      this.exitCursedLands();
     }
 
     this.audio.playPlayerDeath();
@@ -1822,6 +1975,7 @@ export class Game {
   /** Get current surface biome name */
   private getCurrentBiome(): string | null {
     if (this.inCave) return null;
+    if (this.inCursedLands) return 'cursed_lands';
     const tx = Math.floor(this.state.player.x / TILE_SIZE);
     const ty = Math.floor(this.state.player.y / TILE_SIZE);
     if (ty >= 0 && ty < this.biomeMap.length && tx >= 0 && tx < this.biomeMap[0].length) {
@@ -1853,6 +2007,10 @@ export class Game {
       const caveW = this.caveData.tileMap[0].length * TILE_SIZE;
       const caveH = this.caveData.tileMap.length * TILE_SIZE;
       this.camera.clampToWorld(caveW, caveH);
+    } else if (this.inCursedLands && this.cursedLandsData) {
+      const clW = this.cursedLandsData.tileMap[0].length * TILE_SIZE;
+      const clH = this.cursedLandsData.tileMap.length * TILE_SIZE;
+      this.camera.clampToWorld(clW, clH);
     } else {
       this.camera.clampToWorld(WORLD_WIDTH * TILE_SIZE, WORLD_HEIGHT * TILE_SIZE);
     }
@@ -1871,7 +2029,40 @@ export class Game {
 
   private updateAmbientParticles(dt: number): void {
     // Ambient particles: fireflies at dusk/night, dust/leaves during day
-    if (this.inCave) {
+    if (this.inCursedLands) {
+      // Cursed Lands: purple floating motes
+      this.ambientParticleTimer -= dt;
+      if (this.ambientParticleTimer <= 0) {
+        this.ambientParticleTimer = 0.3 + Math.random() * 0.5;
+        const camX = this.camera.x;
+        const camY = this.camera.y;
+        const cw = this.canvas.width / this.camera.zoom;
+        const ch = this.canvas.height / this.camera.zoom;
+        const fx = camX + Math.random() * cw;
+        const fy = camY + Math.random() * ch;
+        this.ambientParticles.push({
+          x: fx, y: fy,
+          vx: (Math.random() - 0.5) * 10,
+          vy: -Math.random() * 8 - 2,
+          life: 3 + Math.random() * 4,
+          maxLife: 5,
+          color: Math.random() < 0.5 ? 'rgba(150, 80, 255, 0.4)' : 'rgba(100, 40, 200, 0.3)',
+          size: 1.5 + Math.random() * 2.5,
+          effectType: 'dust' as ParticleEffectType,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+      for (const ap of this.ambientParticles) {
+        if (ap.effectType === 'firefly') continue;
+        ap.x += ap.vx * dt;
+        ap.y += ap.vy * dt;
+        ap.life -= dt;
+        ap.vx += (Math.random() - 0.5) * 6 * dt;
+        ap.vy += (Math.random() - 0.5) * 6 * dt;
+        ap.vx *= 0.97;
+        ap.vy *= 0.97;
+      }
+    } else if (this.inCave) {
       // Cave ambient: only tiny dust motes
       for (const ap of this.ambientParticles) {
         if (ap.effectType === 'firefly') continue; // No fireflies in caves
@@ -2038,9 +2229,9 @@ export class Game {
       p.lifetime -= dt;
 
       // Check enemy collision
-      const projectileEnemies = this.inCave ? this.caveEnemies : this.enemies;
-      const worldW = this.inCave && this.caveData ? this.caveData.tileMap[0].length * TILE_SIZE : WORLD_WIDTH * TILE_SIZE;
-      const worldH = this.inCave && this.caveData ? this.caveData.tileMap.length * TILE_SIZE : WORLD_HEIGHT * TILE_SIZE;
+      const projectileEnemies = this.inCave ? this.caveEnemies : this.inCursedLands ? this.cursedLandsEnemies : this.enemies;
+      const worldW = this.inCave && this.caveData ? this.caveData.tileMap[0].length * TILE_SIZE : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap[0].length * TILE_SIZE : WORLD_WIDTH * TILE_SIZE;
+      const worldH = this.inCave && this.caveData ? this.caveData.tileMap.length * TILE_SIZE : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap.length * TILE_SIZE : WORLD_HEIGHT * TILE_SIZE;
       let hit = false;
       for (const enemy of projectileEnemies) {
         if (enemy.state === 'dead') continue;
@@ -3582,7 +3773,7 @@ export class Game {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Sky background
-    ctx.fillStyle = this.inCave ? getCaveSkyColor() : getSkyColor(gameTime);
+    ctx.fillStyle = this.inCave ? getCaveSkyColor() : this.inCursedLands ? '#1a0a2e' : getSkyColor(gameTime);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
@@ -3748,7 +3939,7 @@ export class Game {
     }
 
     // Draw resources
-    const drawResources = this.inCave ? this.caveResources : this.resources;
+    const drawResources = this.inCave ? this.caveResources : this.inCursedLands ? this.cursedLandsResources : this.resources;
     for (const res of drawResources) {
       if (!camera.isVisible(res.x, res.y, 24, 40)) continue;
       this.drawResource(res);
@@ -4713,6 +4904,53 @@ export class Game {
         ctx.shadowBlur = 0;
         break;
       }
+      case 'portal': {
+        // Portal to Cursed Lands — animated purple swirl
+        const portalAnim = Math.sin(performance.now() * 0.003) * 0.3 + 0.7;
+        const portalAnim2 = Math.sin(performance.now() * 0.005 + 1.5) * 0.2 + 0.8;
+        // Outer glow
+        const gradient = ctx.createRadialGradient(pos.x + 16, pos.y + 16, 2, pos.x + 16, pos.y + 16, 22);
+        gradient.addColorStop(0, `rgba(180, 80, 255, ${portalAnim * 0.6})`);
+        gradient.addColorStop(0.5, `rgba(120, 40, 200, ${portalAnim * 0.3})`);
+        gradient.addColorStop(1, 'rgba(60, 20, 100, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 16, 22, 0, Math.PI * 2);
+        ctx.fill();
+        // Portal ring
+        ctx.strokeStyle = `rgba(180, 100, 255, ${portalAnim2})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 16, 14, 0, Math.PI * 2);
+        ctx.stroke();
+        // Inner portal
+        ctx.fillStyle = `rgba(80, 20, 160, ${portalAnim * 0.8})`;
+        ctx.beginPath();
+        ctx.arc(pos.x + 16, pos.y + 16, 12, 0, Math.PI * 2);
+        ctx.fill();
+        // Inner glow swirl
+        ctx.fillStyle = `rgba(200, 120, 255, ${portalAnim2 * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(pos.x + 12 + Math.sin(performance.now() * 0.004) * 4, pos.y + 14 + Math.cos(performance.now() * 0.003) * 4, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 180, 255, ${portalAnim2 * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(pos.x + 20 + Math.cos(performance.now() * 0.005) * 3, pos.y + 18 + Math.sin(performance.now() * 0.004) * 3, 2, 0, Math.PI * 2);
+        ctx.fill();
+        // Particles emanating from portal
+        if (Math.random() < 0.3) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 5 + Math.random() * 8;
+          this.spawnParticles(
+            pos.x + 16 + Math.cos(angle) * dist,
+            pos.y + 16 + Math.sin(angle) * dist,
+            Math.random() < 0.5 ? '#9944ff' : '#cc66ff',
+            1, 'magic', { spread: 20, speed: 30, sizeRange: [1, 2], lifeRange: [0.3, 0.6] }
+          );
+        }
+        break;
+      }
+
       case 'cave_entrance': {
         // Cave entrance — dark hole in the mountain
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
