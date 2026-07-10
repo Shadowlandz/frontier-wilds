@@ -1745,7 +1745,7 @@ function FurnacePanel({ game }: { game: Game }) {
                   onDrop={(e) => { e.preventDefault(); setDragOverSlot(null); const data = e.dataTransfer.getData('text/plain'); if (data) handleSlotDrop('input', data); }}
                   className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center relative transition-all ${dragOverSlot === 'input' ? 'border-green-400 bg-green-900/30' : 'border-white/20 bg-black/40'}`}>
                   {fd.input?.item ? (
-                    <><span className="text-2xl" style={{ color: '#b0b0b0' }}>{fd.input.item.icon}</span>{fd.input.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.input.count}</span>}</>
+                    <><span className="text-2xl" style={{ color: RARITY_COLORS[fd.input.item.rarity as Rarity] }}>{fd.input.item.icon}</span><div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: RARITY_COLORS[fd.input.item.rarity as Rarity] }} />{fd.input.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.input.count}</span>}</>
                   ) : (
                     <span className="text-white/20 text-[10px]">\u2B07\uFE0F</span>
                   )}
@@ -1762,7 +1762,7 @@ function FurnacePanel({ game }: { game: Game }) {
                   onDrop={(e) => { e.preventDefault(); setDragOverSlot(null); const data = e.dataTransfer.getData('text/plain'); if (data) handleSlotDrop('fuel', data); }}
                   className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center relative transition-all ${dragOverSlot === 'fuel' ? 'border-orange-400 bg-orange-900/30' : 'border-white/20 bg-black/40'}`}>
                   {fd.fuel?.item ? (
-                    <><span className="text-2xl">{fd.fuel.item.icon}</span>{fd.fuel.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.fuel.count}</span>}</>
+                    <><span className="text-2xl" style={{ color: RARITY_COLORS[fd.fuel.item.rarity as Rarity] }}>{fd.fuel.item.icon}</span><div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: RARITY_COLORS[fd.fuel.item.rarity as Rarity] }} />{fd.fuel.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.fuel.count}</span>}</>
                   ) : (
                     <span className="text-white/20 text-[10px]">\uD83E\uDEB5</span>
                   )}
@@ -1775,7 +1775,7 @@ function FurnacePanel({ game }: { game: Game }) {
                 <div className="text-[9px] text-white/40 mb-1">Sa\u00edda</div>
                 <div className="w-14 h-14 rounded-lg border-2 border-yellow-600/40 bg-black/40 flex items-center justify-center relative">
                   {fd.output?.item ? (
-                    <><span className="text-2xl" style={{ color: '#b0b0b0' }}>{fd.output.item.icon}</span>{fd.output.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.output.count}</span>}</>
+                    <><span className="text-2xl" style={{ color: RARITY_COLORS[fd.output.item.rarity as Rarity] }}>{fd.output.item.icon}</span><div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: RARITY_COLORS[fd.output.item.rarity as Rarity] }} />{fd.output.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.output.count}</span>}</>
                   ) : (
                     <span className="text-white/20 text-[10px]">\u27A1\uFE0F</span>
                   )}
@@ -1812,6 +1812,7 @@ function FurnacePanel({ game }: { game: Game }) {
                   {slot.item && (
                     <div className="relative">
                       <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.item.icon}</span>
+                      <div className="absolute -top-0.5 -left-0.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: RARITY_COLORS[slot.item.rarity] }} />
                       {(slot.upgradeLevel ?? 0) > 0 && (
                         <span className="absolute -top-1 -right-2 text-[7px] text-orange-400 font-bold">+{slot.upgradeLevel}</span>
                       )}
