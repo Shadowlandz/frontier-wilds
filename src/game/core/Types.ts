@@ -373,6 +373,28 @@ export interface SkillDefinition {
   icon: string;
 }
 
+/** Furnace smelting state */
+export interface FurnaceData {
+  /** Item being smelted (input slot) */
+  input: InventorySlot | null;
+  /** Fuel slot */
+  fuel: InventorySlot | null;
+  /** Result slot (output) */
+  output: InventorySlot | null;
+  /** Smelting progress (0-1) */
+  progress: number;
+  /** Current smelt time requirement (ms) */
+  smeltTime: number;
+  /** Remaining fuel time (seconds) */
+  fuelTime: number;
+  /** Max fuel capacity (seconds) */
+  maxFuelTime: number;
+  /** Whether the furnace is actively burning */
+  lit: boolean;
+  /** Current recipe being smelted (if any) */
+  currentRecipeId: string | null;
+}
+
 export interface PlacedStructure {
   id: string;
   itemId: string;
@@ -384,6 +406,8 @@ export interface PlacedStructure {
   maxHealth: number;
   /** If this structure is a house/safe-zone anchor */
   isSafeZone?: boolean;
+  /** Furnace data (only if itemId === 'furnace') */
+  furnaceData?: FurnaceData;
 }
 
 /** Safe zone defined by a house placement */
@@ -625,7 +649,7 @@ export function getInteriorLight(): string {
 }
 
 // ── UI State ──────────────────────────────────────────────────────
-export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'forge' | 'save' | 'achievements' | 'none';
+export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'forge' | 'save' | 'achievements' | 'furnace' | 'sleep' | 'none';
 
 export interface GameUIState {
   activePanel: PanelType;
@@ -636,6 +660,8 @@ export interface GameUIState {
   dragItem: { slot: number; inventory: 'main' | 'hotbar' | 'equipment' } | null;
   hoveredItem: ItemDefinition | null;
   tooltipPosition: Vec2;
+  /** ID of the currently active furnace structure */
+  activeFurnaceId: string | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────

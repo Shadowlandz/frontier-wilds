@@ -129,6 +129,22 @@ export class Game {
 
   /** Enhanced time-of-day system */
   timeSystem: TimeSystem;
+
+  // ── Placement Mode ───────────────────────────────────────────────
+  private isPlacing = false;
+  private placeItemId: string | null = null;
+  private placeTileX = 0;
+  private placeTileY = 0;
+  private placeValid = false;
+
+  // ── Furnace Runtime State ───────────────────────────────────────
+  /** Active furnace structure ID being processed */
+  private activeFurnaceId: string | null = null;
+  /** Furnace processing tick accumulator */
+  private furnaceTimer = 0;
+
+  // ── Interaction Tooltip ─────────────────────────────────────────
+  private interactionStructId: string | null = null;
   private lastPeriod: TimePeriod = TimePeriod.Manha;
   /** Track which time event notifications have been shown to avoid spam */
   private firedTimeEvents: Set<string> = new Set();
@@ -147,6 +163,7 @@ export class Game {
       dragItem: null,
       hoveredItem: null,
       tooltipPosition: { x: 0, y: 0 },
+      activeFurnaceId: null,
     };
   }
 
@@ -479,6 +496,19 @@ export class Game {
     // P for farm actions (till/plant/harvest)
     if (input.isKeyPressed('p')) {
       this.tryFarmAction();
+    }
+
+    // Handle placement mode cancel
+    if (this.isPlacing) {
+      if (input.isKeyPressed('escape') || input.isMouseClicked(2)) {
+        this.cancelPlacement();
+        return;
+      }
+      if (input.isMouseClicked(0) && this.placeValid) {
+        this.confirmPlacement();
+        return;
+      }
+      return; // Block other actions while placing
     }
 
     // Escape to close panels
