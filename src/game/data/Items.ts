@@ -610,6 +610,62 @@ export const ITEMS: Record<string, ItemDefinition> = {
     category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 20, weight: 0.5, value: 8,
     icon: '🥔', foodValue: 22, healAmount: 8, effects: [{ type: 'hunger', value: 22 }, { type: 'heal', value: 8 }],
   },
+
+  // ── Special Alloys (Ligas Especiais) ───────────────────────────
+  steel_ingot: {
+    id: 'steel_ingot', name: 'Lingote de Aço', description: 'Liga resistente feita de ferro e carvão prensado.',
+    category: ItemCategory.Material, rarity: Rarity.Uncommon, stackSize: 50, weight: 3, value: 40,
+    icon: '⚙️',
+  },
+  dark_steel_ingot: {
+    id: 'dark_steel_ingot', name: 'Lingote de Aço Sombrio', description: 'Liga infundida com essência das trevas. Incrivelmente forte.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 4, value: 180,
+    icon: '⚫',
+  },
+  titanium_ingot: {
+    id: 'titanium_ingot', name: 'Lingote de Titânio', description: 'O metal mais resistente já forjado, pulsando com calor vulcânico.',
+    category: ItemCategory.Material, rarity: Rarity.Legendary, stackSize: 10, weight: 5, value: 350,
+    icon: '💠',
+  },
+
+  // ── Refined Gems (Gemas Refinadas) ─────────────────────────────
+  polished_ruby: {
+    id: 'polished_ruby', name: 'Rubi Polido', description: 'Rubi lapidado à perfeição. Amplifica poder de fogo.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 10, weight: 0.3, value: 200,
+    icon: '🔴',
+  },
+  polished_sapphire: {
+    id: 'polished_sapphire', name: 'Safira Polida', description: 'Safira lapidada que brilha como o oceano. Aumenta defesa.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 10, weight: 0.3, value: 200,
+    icon: '🔵',
+  },
+  polished_emerald: {
+    id: 'polished_emerald', name: 'Esmeralda Polida', description: 'Esmeralda lapidada com precisão élfica. Concede vitalidade.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 10, weight: 0.3, value: 200,
+    icon: '🟢',
+  },
+  diamond: {
+    id: 'diamond', name: 'Diamante', description: 'Gema cristalina ultra-rara. A mais pura e valiosa de todas.',
+    category: ItemCategory.Material, rarity: Rarity.Legendary, stackSize: 5, weight: 0.2, value: 500,
+    icon: '💎',
+  },
+
+  // ── Rare Materials (Materiais Raros) ───────────────────────────
+  enchanted_ingot: {
+    id: 'enchanted_ingot', name: 'Lingote Encantado', description: 'Lingote pulsando com energia mágica arcana.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 10, weight: 2, value: 150,
+    icon: '✨',
+  },
+  phoenix_feather: {
+    id: 'phoenix_feather', name: 'Pena de Fênix', description: 'Pena lendária que nunca queima. Concede poder de renascimento.',
+    category: ItemCategory.Material, rarity: Rarity.Legendary, stackSize: 3, weight: 0.1, value: 400,
+    icon: '🔥',
+  },
+  void_crystal: {
+    id: 'void_crystal', name: 'Cristal do Vácuo', description: 'Cristal que absorve luz ao redor. Energia pura do vazio.',
+    category: ItemCategory.Material, rarity: Rarity.Legendary, stackSize: 5, weight: 0.5, value: 300,
+    icon: '🪐',
+  },
 };
 
 export function getItem(id: string): ItemDefinition | undefined {

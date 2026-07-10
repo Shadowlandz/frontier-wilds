@@ -462,6 +462,72 @@ export const RECIPES: CraftingRecipe[] = [
     ingredients: [{ itemId: 'mithril_ingot', count: 6 }, { itemId: 'wood', count: 2 }, { itemId: 'forge_core', count: 1 }],
     requiredLevel: 11, craftTime: 7000, station: 'furnace',
   },
+
+  // ── Special Alloys (Ligas Especiais) ──────────────────────────
+  {
+    id: 'forge_steel', name: 'Lingote de Aço', category: ItemCategory.Material,
+    result: 'steel_ingot', resultCount: 2,
+    ingredients: [{ itemId: 'iron_ingot', count: 2 }, { itemId: 'coal', count: 2 }],
+    requiredLevel: 5, craftTime: 4000, station: 'furnace',
+  },
+  {
+    id: 'forge_dark_steel', name: 'Lingote de Aço Sombrio', category: ItemCategory.Material,
+    result: 'dark_steel_ingot', resultCount: 1,
+    ingredients: [{ itemId: 'steel_ingot', count: 2 }, { itemId: 'dark_essence', count: 3 }, { itemId: 'shadow_fragment', count: 1 }],
+    requiredLevel: 10, craftTime: 6000, station: 'furnace',
+  },
+  {
+    id: 'forge_titanium', name: 'Lingote de Titânio', category: ItemCategory.Material,
+    result: 'titanium_ingot', resultCount: 1,
+    ingredients: [{ itemId: 'mithril_ingot', count: 2 }, { itemId: 'lava_crystal', count: 1 }, { itemId: 'forge_core', count: 1 }],
+    requiredLevel: 13, craftTime: 8000, station: 'furnace',
+  },
+
+  // ── Refined Gems (Gemas Refinadas) ────────────────────────────
+  {
+    id: 'forge_polished_ruby', name: 'Rubi Polido', category: ItemCategory.Material,
+    result: 'polished_ruby', resultCount: 1,
+    ingredients: [{ itemId: 'gem_ruby', count: 2 }, { itemId: 'forge_core', count: 1 }],
+    requiredLevel: 8, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'forge_polished_sapphire', name: 'Safira Polida', category: ItemCategory.Material,
+    result: 'polished_sapphire', resultCount: 1,
+    ingredients: [{ itemId: 'gem_sapphire', count: 2 }, { itemId: 'forge_core', count: 1 }],
+    requiredLevel: 8, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'forge_polished_emerald', name: 'Esmeralda Polida', category: ItemCategory.Material,
+    result: 'polished_emerald', resultCount: 1,
+    ingredients: [{ itemId: 'gem_emerald', count: 2 }, { itemId: 'forge_core', count: 1 }],
+    requiredLevel: 8, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'forge_diamond', name: 'Diamante', category: ItemCategory.Material,
+    result: 'diamond', resultCount: 1,
+    ingredients: [{ itemId: 'crystal', count: 6 }, { itemId: 'lava_crystal', count: 1 }, { itemId: 'forge_core', count: 1 }],
+    requiredLevel: 12, craftTime: 8000, station: 'furnace',
+  },
+
+  // ── Rare Materials (Materiais Raros) ──────────────────────────
+  {
+    id: 'forge_enchanted_ingot', name: 'Lingote Encantado', category: ItemCategory.Material,
+    result: 'enchanted_ingot', resultCount: 1,
+    ingredients: [{ itemId: 'gold_ingot', count: 2 }, { itemId: 'magic_dust', count: 3 }, { itemId: 'crystal', count: 1 }],
+    requiredLevel: 9, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'forge_phoenix_feather', name: 'Pena de Fênix', category: ItemCategory.Material,
+    result: 'phoenix_feather', resultCount: 1,
+    ingredients: [{ itemId: 'lava_crystal', count: 2 }, { itemId: 'magic_dust', count: 4 }, { itemId: 'crystal', count: 3 }],
+    requiredLevel: 11, craftTime: 7000, station: 'furnace',
+  },
+  {
+    id: 'forge_void_crystal', name: 'Cristal do Vácuo', category: ItemCategory.Material,
+    result: 'void_crystal', resultCount: 1,
+    ingredients: [{ itemId: 'shadow_fragment', count: 2 }, { itemId: 'dark_essence', count: 3 }, { itemId: 'crystal', count: 2 }],
+    requiredLevel: 12, craftTime: 7000, station: 'furnace',
+  },
 ];
 
 export function getRecipesByCategory(category: ItemCategory): CraftingRecipe[] {
