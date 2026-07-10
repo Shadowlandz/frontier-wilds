@@ -167,6 +167,7 @@ export default function GamePage() {
           )}
 
           <FarmingBar game={game!} />
+          <FishingBar game={game!} />
 
           <div className="absolute bottom-16 left-4 text-white/30 text-[10px] pointer-events-none">
             WASD=Mover | E=Coletar/Interagir | Q/Clique=Atacar | F=Usar | G=Soltar | I=Inventario | C=Craft | K=Habilidades | J=Missoes | L=Conquistas | M=Mapa | P=Plantar | H=Salvar
@@ -2089,6 +2090,146 @@ function FarmingBar({ game }: { game: Game }) {
   return (
     <div className="absolute bottom-16 left-1/2 -translate-x-1/2 pointer-events-auto flex gap-1">
       <button onClick={handleFarming} className="px-2 py-1 rounded bg-green-800 hover:bg-green-700 text-white text-[10px] border border-green-600/40">🌾 Cultivar (P)</button>
+    </div>
+  );
+}
+
+// ── Fishing Progress Bar ───────────────────────────────────────────
+function FishingBar({ game }: { game: Game }) {
+  const [fishingState, setFishingState] = useState({
+    active: false,
+    progress: 0,
+    caught: false,
+    bobberX: 0,
+    bobberY: 0,
+    phase: 0,
+    rodName: '',
+    baitName: '',
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!game) return;
+      setFishingState({
+        active: game.isFishing,
+        progress: game.fishingTotalTime > 0 ? Math.min(1, game.fishingTimer / game.fishingTotalTime) : 0,
+        caught: game.fishingCaught,
+        bobberX: game.fishingBobberX,
+        bobberY: game.fishingBobberY,
+        phase: game.fishingBobberPhase,
+        rodName: game.fishingRodId ? (getItem(game.fishingRodId)?.name ?? 'Vara') : '',
+        baitName: game.fishingBait ? (getItem(game.fishingBait)?.name ?? 'Isca') : '',
+      });
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [game]);
+
+  if (!fishingState.active && !fishingState.caught) return null;
+
+  const progress = fishingState.progress;
+  const pct = Math.round(progress * 100);
+  const wave = Math.sin(Date.now() / 300) * 0.5 + 0.5;
+  const fishPulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+  const bobOffset = Math.sin(Date.now() / 400 + fishingState.phase) * 2;
+
+  return (
+    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 pointer-events-auto z-30">
+      <div className="bg-black/75 backdrop-blur-md rounded-2xl border border-cyan-500/30 px-6 py-3 shadow-2xl shadow-cyan-900/30 min-w-[320px]">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🎣</span>
+            <span className="text-white font-bold text-xs">
+              {fishingState.caught ? '🎉 Algo pegou!' : 'Pescando...'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[9px] text-white/40">
+            {fishingState.rodName && <span>🎣 {fishingState.rodName}</span>}
+            {fishingState.baitName && <span>• 🪱 {fishingState.baitName}</span>}
+          </div>
+        </div>
+
+        {/* Bobber visualization */}
+        <div className="relative h-16 mb-2 overflow-hidden rounded-lg bg-gradient-to-b from-cyan-950/60 via-blue-950/50 to-cyan-950/60 border border-cyan-500/20">
+          {/* Water waves */}
+          <div className="absolute inset-0 opacity-20">
+            <svg viewBox="0 0 320 64" className="w-full h-full">
+              <defs>
+                <linearGradient id="waveGradFishing" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#06b6d4" />
+                  <stop offset="50%" stopColor="#0ea5e9" />
+                  <stop offset="100%" stopColor="#06b6d4" />
+                </linearGradient>
+              </defs>
+              <path d={`M0,${32 + wave * 4} Q${40},${20 + wave * 6} ${80},${32 + wave * 2} T${160},${32 - wave * 3} T${240},${32 + wave * 4} T${320},${32 - wave * 2} L320,64 L0,64 Z`}
+                fill="url(#waveGradFishing)" opacity={0.5}>
+                <animate attributeName="d" dur="3s" repeatCount="indefinite"
+                  values={`M0,${32} Q40,${20} 80,${32} T160,${32} T240,${32} T320,${32} L320,64 L0,64 Z;M0,${32 + 4} Q40,${20 + 6} 80,${32 + 2} T160,${32 - 3} T240,${32 + 4} T320,${32 - 2} L320,64 L0,64 Z;M0,${32} Q40,${20} 80,${32} T160,${32} T240,${32} T320,${32} L320,64 L0,64 Z`} />
+              </path>
+            </svg>
+          </div>
+
+          {/* Bobber */}
+          {!fishingState.caught && (
+            <div className="absolute transition-all duration-200"
+              style={{ left: `calc(50% - 10px)`, top: `${10 + bobOffset}px` }}>
+              <div className="relative">
+                <span className="text-xl" style={{ filter: `brightness(${1 + wave * 0.3})` }}>🎣</span>
+                <div className="absolute -bottom-1 -left-2 w-8 h-2 rounded-full bg-cyan-400/20 animate-ping" />
+              </div>
+            </div>
+          )}
+
+          {/* Caught indicator */}
+          {fishingState.caught && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-bounce text-center">
+                <span className="text-3xl">🐟</span>
+                <div className="text-[9px] text-yellow-400 font-bold mt-1">🔴 Clique ou [E]!</div>
+              </div>
+            </div>
+          )}
+
+          {/* Splash particles */}
+          {!fishingState.caught && (
+            <>
+              <div className="absolute bottom-2 left-1/4 w-1 h-1 rounded-full bg-cyan-300/40 animate-ping"
+                style={{ animationDuration: '0.8s', animationDelay: '0.2s' }} />
+              <div className="absolute bottom-4 right-1/4 w-1.5 h-1.5 rounded-full bg-cyan-300/30 animate-ping"
+                style={{ animationDuration: '1.2s', animationDelay: '0.6s' }} />
+              <div className="absolute bottom-1 left-1/2 w-1 h-1 rounded-full bg-white/30 animate-ping"
+                style={{ animationDuration: '1.0s', animationDelay: '0.8s' }} />
+            </>
+          )}
+        </div>
+
+        {/* Progress bar */}
+        {!fishingState.caught && (
+          <div>
+            <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
+              <span className="text-cyan-300">{fishingState.baitName ? `🪱 Isca ativa` : `🎯 Aguardando...`}</span>
+              <span className="text-cyan-400 font-bold">{pct}%</span>
+            </div>
+            <div className="h-2.5 bg-black/50 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-150"
+                style={{
+                  width: `${pct}%`,
+                  background: `linear-gradient(90deg, #0891b2, #06b6d4, #22d3ee, #67e8f9)`,
+                  backgroundSize: '200% 100%',
+                }}>
+                {pct > 0 && pct < 100 && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_1.5s_infinite]" />
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between mt-0.5 text-[8px]">
+              <span className="text-white/20">Pressione E ou clique para fisgar!</span>
+              <span className="text-cyan-400/40" style={{ opacity: fishPulse }}>●</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
