@@ -7,8 +7,9 @@
 // Actions: single JOGAR button
 // ═══════════════════════════════════════════════════════════════════
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
+import { getAudioEngine } from '@/game/core/AudioEngine';
 
 const ANIMS = `
 @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
@@ -42,6 +43,8 @@ export default function Landing() {
   const [musicOn, setMusicOn] = useState(true);
   const [sfxVolume, setSfxVolume] = useState(70);
   const [musicVolume, setMusicVolume] = useState(50);
+  const audioRef = useRef(getAudioEngine());
+  const [audioInitialized, setAudioInitialized] = useState(false);
 
   const tips = [
     'Explore cavernas para encontrar minerios raros e cristais.',
@@ -53,6 +56,58 @@ export default function Landing() {
     'Colete cristais azuis para criar itens magicos.',
     'O ouro e usado para comprar itens dos NPCs.',
   ];
+
+  // ── Initialize AudioEngine on first user interaction ──
+  const handleFirstInteraction = useCallback(() => {
+    if (!audioInitialized) {
+      const audio = audioRef.current;
+      audio.setSFXVolume(sfxVolume / 100);
+      audio.setMusicVolume(musicVolume / 100);
+      audio.setSFXMuted(!sfxOn);
+      audio.setMusicMuted(!musicOn);
+      audio.startMusic();
+      setAudioInitialized(true);
+    }
+  }, [audioInitialized, sfxVolume, musicVolume, sfxOn, musicOn]);
+
+  // ── Sync AudioEngine when settings change ──
+  const toggleSfx = useCallback(() => {
+    const audio = audioRef.current;
+    const newOn = !sfxOn;
+    setSfxOn(newOn);
+    audio.setSFXMuted(!newOn);
+    audio.playUIClick();
+    if (!audioInitialized) handleFirstInteraction();
+  }, [sfxOn, audioInitialized, handleFirstInteraction]);
+
+  const toggleMusic = useCallback(() => {
+    const audio = audioRef.current;
+    const newOn = !musicOn;
+    setMusicOn(newOn);
+    audio.setMusicMuted(!newOn);
+    audio.playUIClick();
+    if (!audioInitialized) handleFirstInteraction();
+  }, [musicOn, audioInitialized, handleFirstInteraction]);
+
+  const changeSfxVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = Number(e.target.value);
+    setSfxVolume(v);
+    audioRef.current.setSFXVolume(v / 100);
+  }, []);
+
+  const changeMusicVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = Number(e.target.value);
+    setMusicVolume(v);
+    audioRef.current.setMusicVolume(v / 100);
+  }, []);
+
+  // Initialize AudioEngine on mount (will not create AudioContext until user interaction)
+  useEffect(() => {
+    const audio = audioRef.current;
+    // Pre-warm: set initial gain values
+    audio.setSFXVolume(sfxVolume / 100);
+    audio.setMusicVolume(musicVolume / 100);
+  }, []);
 
   return (
     <>
@@ -441,8 +496,8 @@ export default function Landing() {
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-white/50 text-[7px]">🔊 SFX</span>
                     <button
-                      onClick={() => setSfxOn(!sfxOn)}
-                      className="relative w-[34px] h-[18px] rounded-full transition-all duration-200"
+                      onClick={toggleSfx}
+                      className="relative w-[34px] h-[18px] rounded-full transition-all duration-200 cursor-pointer"
                       style={{
                         background: sfxOn ? '#4d7c45' : '#3a3a3a',
                         border: '2px solid #5a5a5a',
@@ -470,7 +525,7 @@ export default function Landing() {
                       type="range"
                       min="0" max="100"
                       value={sfxVolume}
-                      onChange={e => setSfxVolume(Number(e.target.value))}
+                      onChange={changeSfxVolume}
                       className="w-full h-[6px] rounded-full appearance-none cursor-pointer"
                       style={{
                         background: `linear-gradient(90deg, #4d7c45 ${sfxVolume}%, #3a3a3a ${sfxVolume}%)`,
@@ -487,8 +542,8 @@ export default function Landing() {
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-white/50 text-[7px]">🎵 Música</span>
                     <button
-                      onClick={() => setMusicOn(!musicOn)}
-                      className="relative w-[34px] h-[18px] rounded-full transition-all duration-200"
+                      onClick={toggleMusic}
+                      className="relative w-[34px] h-[18px] rounded-full transition-all duration-200 cursor-pointer"
                       style={{
                         background: musicOn ? '#4d7c45' : '#3a3a3a',
                         border: '2px solid #5a5a5a',
@@ -516,7 +571,7 @@ export default function Landing() {
                       type="range"
                       min="0" max="100"
                       value={musicVolume}
-                      onChange={e => setMusicVolume(Number(e.target.value))}
+                      onChange={changeMusicVolume}
                       className="w-full h-[6px] rounded-full appearance-none cursor-pointer"
                       style={{
                         background: `linear-gradient(90deg, #4d7c45 ${musicVolume}%, #3a3a3a ${musicVolume}%)`,

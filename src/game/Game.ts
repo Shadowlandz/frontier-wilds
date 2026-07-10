@@ -125,10 +125,10 @@ export class Game {
   /** Procedural audio engine */
   audio: AudioEngine;
 
-  constructor() {
+  constructor(audio?: AudioEngine) {
     this.input = new Input();
     this.camera = new Camera();
-    this.audio = new AudioEngine();
+    this.audio = audio ?? new AudioEngine();
     this.ui = {
       activePanel: 'none',
       activeShopNpc: null,

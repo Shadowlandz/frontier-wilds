@@ -4,6 +4,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { Game } from './Game';
+import { getAudioEngine } from './core/AudioEngine';
 import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT, ACHIEVEMENTS, AchievementProgress } from './core/Types';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
@@ -23,7 +24,7 @@ export default function GamePage() {
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const game = new Game();
+    const game = new Game(getAudioEngine());
     let lastReactUpdate = 0;
     const REACT_THROTTLE_MS = 50;
 

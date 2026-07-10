@@ -3,6 +3,29 @@
 // Generates all game sounds using Web Audio API (no audio files needed)
 // ═══════════════════════════════════════════════════════════════════
 
+let _sharedInstance: AudioEngine | null = null;
+
+/**
+ * Get or create the shared AudioEngine singleton.
+ * Used by the Landing page CONFIG panel and the Game class.
+ */
+export function getAudioEngine(): AudioEngine {
+  if (!_sharedInstance) {
+    _sharedInstance = new AudioEngine();
+  }
+  return _sharedInstance;
+}
+
+/**
+ * Reset the shared instance (useful for testing / full cleanup).
+ */
+export function resetAudioEngine(): void {
+  if (_sharedInstance) {
+    _sharedInstance.dispose();
+    _sharedInstance = null;
+  }
+}
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
@@ -18,7 +41,11 @@ export class AudioEngine {
   private ambientNodes: OscillatorNode[] = [];
   private currentBiome: string = 'plains';
   private muted = false;
+  private sfxMuted = false;
+  private musicMuted = false;
   private volume = 0.7;
+  private sfxVolumeValue = 1;
+  private musicVolumeValue = 0.3;
 
   // Cache for buffer-based sounds
   private bufferCache: Map<string, AudioBuffer> = new Map();
@@ -54,8 +81,11 @@ export class AudioEngine {
 
   setVolume(v: number): void {
     this.volume = Math.max(0, Math.min(1, v));
-    if (this.masterGain) this.masterGain.gain.value = this.volume;
+    if (this.masterGain) this.masterGain.gain.value = this.muted ? 0 : this.volume;
   }
+
+  getVolume(): number { return this.volume; }
+  getMuted(): boolean { return this.muted; }
 
   setMuted(m: boolean): void {
     this.muted = m;
@@ -65,6 +95,52 @@ export class AudioEngine {
   toggleMute(): boolean {
     this.setMuted(!this.muted);
     return this.muted;
+  }
+
+  // ── Per-channel volume control (for Landing page CONFIG) ─────
+
+  setSFXVolume(v: number): void {
+    this.sfxVolumeValue = Math.max(0, Math.min(1, v));
+    if (this.sfxGain) {
+      this.sfxGain.gain.value = this.sfxMuted ? 0 : this.sfxVolumeValue;
+    }
+  }
+
+  getSFXVolume(): number { return this.sfxVolumeValue; }
+  getSFXMuted(): boolean { return this.sfxMuted; }
+
+  setSFXMuted(m: boolean): void {
+    this.sfxMuted = m;
+    if (this.sfxGain) {
+      this.sfxGain.gain.value = this.sfxMuted ? 0 : this.sfxVolumeValue;
+    }
+  }
+
+  toggleSFXMute(): boolean {
+    this.setSFXMuted(!this.sfxMuted);
+    return this.sfxMuted;
+  }
+
+  setMusicVolume(v: number): void {
+    this.musicVolumeValue = Math.max(0, Math.min(1, v));
+    if (this.musicGain) {
+      this.musicGain.gain.value = this.musicMuted ? 0 : this.musicVolumeValue;
+    }
+  }
+
+  getMusicVolume(): number { return this.musicVolumeValue; }
+  getMusicMuted(): boolean { return this.musicMuted; }
+
+  setMusicMuted(m: boolean): void {
+    this.musicMuted = m;
+    if (this.musicGain) {
+      this.musicGain.gain.value = this.musicMuted ? 0 : this.musicVolumeValue;
+    }
+  }
+
+  toggleMusicMute(): boolean {
+    this.setMusicMuted(!this.musicMuted);
+    return this.musicMuted;
   }
 
   // ── Utility: create white noise buffer ──────────────────────
