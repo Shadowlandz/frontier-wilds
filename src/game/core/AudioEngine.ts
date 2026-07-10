@@ -856,6 +856,45 @@ export class AudioEngine {
     setTimeout(() => this.playTone(500, 0.3, 'sine', 0.04), 150);
   }
 
+  /** Play a sound for a specific time period transition */
+  playPeriodTransition(period: string): void {
+    if (this.muted) return;
+
+    switch (period) {
+      case 'amanhecer':
+        // Dawn: gentle birdsong-like chime
+        this.playTone(800, 0.3, 'sine', 0.05);
+        setTimeout(() => this.playTone(1000, 0.3, 'sine', 0.04), 200);
+        setTimeout(() => this.playTone(1200, 0.4, 'sine', 0.03), 400);
+        break;
+      case 'porDoSol':
+        // Sunset: warm descending chords
+        this.playTone(600, 0.4, 'sine', 0.04);
+        setTimeout(() => this.playTone(500, 0.5, 'sine', 0.03), 300);
+        setTimeout(() => this.playTone(400, 0.6, 'sine', 0.02), 600);
+        break;
+      case 'noite':
+        // Night: owl hoot
+        this.playTone(200, 0.5, 'sine', 0.03);
+        setTimeout(() => this.playTone(180, 0.6, 'sine', 0.02), 400);
+        break;
+      case 'madrugada':
+        // Deep night: wind howl
+        this.playNoise(1.0, 0.02, 200, 800);
+        this.playTone(100, 0.8, 'sine', 0.02);
+        break;
+      case 'manha':
+        // Morning: bright birds
+        this.playTone(1000, 0.15, 'sine', 0.06);
+        setTimeout(() => this.playTone(1200, 0.15, 'sine', 0.05), 150);
+        setTimeout(() => this.playTone(1400, 0.2, 'sine', 0.04), 300);
+        setTimeout(() => this.playTone(1100, 0.15, 'sine', 0.04), 450);
+        break;
+      default:
+        break;
+    }
+  }
+
   /** Night time ambient owl/cricket */
   playNightAmbient(): void {
     if (this.muted) return;

@@ -29,6 +29,8 @@ import { getQuestById } from './data/Quests';
 import { SKILLS } from './data/Skills';
 import { saveGame, loadGame, loadAutoSave, autoSave } from './systems/SaveSystem';
 import { AudioEngine } from './core/AudioEngine';
+import { TimeSystem, TimeSpeedMode, TimePeriod, PERIOD_LABELS, PERIOD_ICONS,
+  PERIOD_COLORS, getFishingTimeMultiplier, getRareResourceChance, getXPMultiplier, TIME_EVENTS } from './systems/TimeSystem';
 
 type GameUpdateCallback = (state: GameState, ui: GameUIState) => void;
 
@@ -125,10 +127,15 @@ export class Game {
   /** Procedural audio engine */
   audio: AudioEngine;
 
+  /** Enhanced time-of-day system */
+  timeSystem: TimeSystem;
+  private lastPeriod: TimePeriod = TimePeriod.Manha;
+
   constructor(audio?: AudioEngine) {
     this.input = new Input();
     this.camera = new Camera();
     this.audio = audio ?? new AudioEngine();
+    this.timeSystem = new TimeSystem(TimeSpeedMode.Normal, 8, 1);
     this.ui = {
       activePanel: 'none',
       activeShopNpc: null,
@@ -355,6 +362,7 @@ export class Game {
 
     // Always update time and camera
     this.updateTime(dt);
+    this.syncGameTime();
     this.updateCamera(dt);
     this.updateWeather(dt);
     this.updateSurvival(dt);
@@ -1567,26 +1575,116 @@ export class Game {
     gt.totalTicks++;
     gt.dayTicks++;
 
-    // Update hour/minute
-    const progress = gt.dayTicks / gt.dayLength;
-    gt.hour = progress * 24;
-    gt.minute = (gt.hour % 1) * 60;
-    gt.isNight = gt.hour < 6 || gt.hour > 20;
+    // Check if time is paused (menus active)
+    const panelOpen = this.ui.activePanel !== 'none' && this.ui.activePanel !== 'dialogue';
+    this.timeSystem.setPaused(panelOpen);
 
-    // New day
+    // Update time system
+    this.timeSystem.update(dt);
+    const ts = this.timeSystem;
+
+    // Update gameTime from TimeSystem
+    gt.hour = ts.getHour();
+    gt.minute = ts.getMinute();
+    gt.day = ts.getDay();
+    gt.season = ts.getSeason();
+    gt.isNight = ts.isNight();
+    gt.weather = ts.getWeather();
+
+    // Detect period changes for events
+    const currentPeriod = ts.getPeriod();
+    if (currentPeriod !== this.lastPeriod) {
+      this.lastPeriod = currentPeriod;
+      this.onPeriodChange(currentPeriod);
+    }
+
+    // Update weather using TimeSystem's seasonal chances
+    this.updateWeather(dt);
+
+    // New day — reset daily quests, show notification
     if (gt.dayTicks >= gt.dayLength) {
       gt.dayTicks = 0;
-      gt.day++;
-      gt.season = getSeasonForDay(gt.day);
 
-      // Reset daily quests
       this.state.quests = this.state.quests.filter(q => {
         if (q.definition.type === 'daily' && q.status === 'completed') return false;
         return true;
       });
 
       this.addNotification(`Dia ${gt.day} - ${gt.season.charAt(0).toUpperCase() + gt.season.slice(1)}`, 'info');
+
+      // Auto-save at new day
+      this.performAutoSave();
     }
+
+    // Check for time events (hourly)
+    this.checkTimeEvents(ts);
+  }
+
+  /** Sync gameTime fields from TimeSystem */
+  private syncGameTime(): void {
+    const ts = this.timeSystem;
+    const gt = this.state.gameTime;
+    gt.hour = ts.getHour();
+    gt.minute = ts.getMinute();
+    gt.day = ts.getDay();
+    gt.season = ts.getSeason();
+    gt.isNight = ts.isNight();
+  }
+
+  /** Handle period change — music, ambient, notifications */
+  private onPeriodChange(period: TimePeriod): void {
+    const icon = PERIOD_ICONS[period];
+    const label = PERIOD_LABELS[period];
+
+    // Only notify for significant transitions
+    const significantPeriods: TimePeriod[] = [
+      TimePeriod.Amanhecer,
+      TimePeriod.Manha,
+      TimePeriod.PorDoSol,
+      TimePeriod.Noite,
+      TimePeriod.Madrugada,
+    ];
+
+    if (significantPeriods.includes(period)) {
+      this.addNotification(`${icon} ${label}`, 'info');
+    }
+
+    // Update dynamic music and ambient
+    if (period === TimePeriod.Amanhecer || period === TimePeriod.Manha) {
+      this.audio.startMusic();
+    }
+
+    // Update biome ambient sounds
+    const biome = this.getCurrentBiome();
+    this.audio.updateAmbient(biome || 'plains', this.state.gameTime.isNight, this.inCave);
+  }
+
+  /** Check for time-based events */
+  private checkTimeEvents(ts: TimeSystem): void {
+    const activeEvents = ts.getActiveEvents();
+    for (const event of activeEvents) {
+      if (event.minLevel && this.state.player.stats.level < event.minLevel) continue;
+      this.addNotification(`${event.icon} ${event.name}: ${event.description}`, 'info');
+      this.spawnParticles(
+        this.state.player.x + PLAYER_SIZE / 2,
+        this.state.player.y + PLAYER_SIZE / 2 - 20,
+        event.hour >= 20 ? '#4466ff' : '#ffdd44',
+        8,
+        'magic',
+        { spread: 120, speed: 80, sizeRange: [2, 4], lifeRange: [0.5, 1.0] }
+      );
+    }
+  }
+
+  /** Get current surface biome name */
+  private getCurrentBiome(): string | null {
+    if (this.inCave) return null;
+    const tx = Math.floor(this.state.player.x / TILE_SIZE);
+    const ty = Math.floor(this.state.player.y / TILE_SIZE);
+    if (ty >= 0 && ty < this.biomeMap.length && tx >= 0 && tx < this.biomeMap[0].length) {
+      return this.biomeMap[ty][tx];
+    }
+    return null;
   }
 
   private updateWeather(dt: number): void {

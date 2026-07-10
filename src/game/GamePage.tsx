@@ -14,6 +14,36 @@ import { NPCS } from './data/Npcs';
 import { formatTime } from './core/Utils';
 import { getAllSaveSlots, formatSaveDate, getMaxSaveSlots, type SaveSlotInfo } from './systems/SaveSystem';
 
+// ── Time helpers for HUD ────────────────────────────────────────────
+
+const HUD_PERIOD_ICONS: Record<string, string> = {
+  madrugada: '🌙', amanhecer: '🌅', manha: '☀️',
+  meioDia: '☀️', tarde: '⛅', porDoSol: '🌇', noite: '🌙',
+};
+
+const HUD_PERIOD_LABELS: Record<string, string> = {
+  madrugada: 'Madrugada', amanhecer: 'Amanhecer', manha: 'Manhã',
+  meioDia: 'Meio-Dia', tarde: 'Tarde', porDoSol: 'Pôr do Sol', noite: 'Noite',
+};
+
+function getHudPeriod(hour: number): string {
+  if (hour < 5) return 'madrugada';
+  if (hour < 7) return 'amanhecer';
+  if (hour < 12) return 'manha';
+  if (hour < 14) return 'meioDia';
+  if (hour < 18) return 'tarde';
+  if (hour < 19) return 'porDoSol';
+  return 'noite';
+}
+
+function getPeriodIcon(hour: number): string {
+  return HUD_PERIOD_ICONS[getHudPeriod(hour)] || '☀️';
+}
+
+function getPeriodLabel(hour: number): string {
+  return HUD_PERIOD_LABELS[getHudPeriod(hour)] || '';
+}
+
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
@@ -203,11 +233,17 @@ function HUD({ stats, gameTime, selectedTool, hotbar, notifications, player }: {
       </div>
 
       <div className="absolute top-4 right-4 text-right pointer-events-none">
-        <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 space-y-1">
-          <div className="text-white font-bold text-sm">{formatTime(gameTime.hour, gameTime.minute)}</div>
+        <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 space-y-1 border border-white/10 shadow-lg shadow-black/30">
+          <div className="text-white font-bold text-sm flex items-center justify-end gap-1.5">
+            {getPeriodIcon(gameTime.hour)}
+            {formatTime(gameTime.hour, gameTime.minute)}
+          </div>
           <div className="text-white/70 text-xs">Dia {gameTime.day} {si} {wi}</div>
           <div className="text-white/40 text-[9px]">{weatherDesc[gameTime.weather] || 'Desconhecido'}</div>
           <div className="text-white/50 text-xs capitalize">{gameTime.season}</div>
+          {getPeriodLabel(gameTime.hour) && (
+            <div className="text-white/60 text-[9px] italic">{getPeriodLabel(gameTime.hour)}</div>
+          )}
           {gameTime.isNight && <div className="text-blue-300 text-xs">🌙 Noite</div>}
         </div>
       </div>
