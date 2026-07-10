@@ -1614,6 +1614,8 @@ function FurnacePanel({ game }: { game: Game }) {
   const struct = structId ? game.state.structures.find(s => s.id === structId) : null;
   const fd = struct?.furnaceData;
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
+  const [hoveredSlot, setHoveredSlot] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [tab, setTab] = useState<'smelt' | 'upgrade'>('smelt');
 
   // ── Upgrade state ──
@@ -1634,6 +1636,9 @@ function FurnacePanel({ game }: { game: Game }) {
       </div>
     );
   }
+
+  const currentRecipe = fd?.currentRecipeId ? RECIPES.find(r => r.id === fd.currentRecipeId) : null;
+  const resultItem = currentRecipe ? getItem(currentRecipe.result) : null;
 
   const handleSlotDrop = (slotType: 'input' | 'fuel', itemId: string) => {
     if (!game.removeFromInventory(itemId, 1)) return;
@@ -1740,6 +1745,9 @@ function FurnacePanel({ game }: { game: Game }) {
               <div className="text-center">
                 <div className="text-[9px] text-white/40 mb-1">Entrada</div>
                 <div
+                  onMouseEnter={() => setHoveredSlot('input')}
+                  onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                  onMouseLeave={() => setHoveredSlot(null)}
                   onDragOver={(e) => { e.preventDefault(); setDragOverSlot('input'); }}
                   onDragLeave={() => setDragOverSlot(null)}
                   onDrop={(e) => { e.preventDefault(); setDragOverSlot(null); const data = e.dataTransfer.getData('text/plain'); if (data) handleSlotDrop('input', data); }}
@@ -1757,6 +1765,9 @@ function FurnacePanel({ game }: { game: Game }) {
               <div className="text-center">
                 <div className="text-[9px] text-white/40 mb-1">Combust\u00edvel</div>
                 <div
+                  onMouseEnter={() => setHoveredSlot('fuel')}
+                  onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                  onMouseLeave={() => setHoveredSlot(null)}
                   onDragOver={(e) => { e.preventDefault(); setDragOverSlot('fuel'); }}
                   onDragLeave={() => setDragOverSlot(null)}
                   onDrop={(e) => { e.preventDefault(); setDragOverSlot(null); const data = e.dataTransfer.getData('text/plain'); if (data) handleSlotDrop('fuel', data); }}
@@ -1773,7 +1784,11 @@ function FurnacePanel({ game }: { game: Game }) {
               {/* Output slot */}
               <div className="text-center">
                 <div className="text-[9px] text-white/40 mb-1">Sa\u00edda</div>
-                <div className="w-14 h-14 rounded-lg border-2 border-yellow-600/40 bg-black/40 flex items-center justify-center relative">
+                <div
+                  onMouseEnter={() => setHoveredSlot('output')}
+                  onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                  onMouseLeave={() => setHoveredSlot(null)}
+                  className="w-14 h-14 rounded-lg border-2 border-yellow-600/40 bg-black/40 flex items-center justify-center relative">
                   {fd.output?.item ? (
                     <><span className="text-2xl" style={{ color: RARITY_COLORS[fd.output.item.rarity as Rarity] }}>{fd.output.item.icon}</span><div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: RARITY_COLORS[fd.output.item.rarity as Rarity] }} />{fd.output.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.output.count}</span>}</>
                   ) : (
@@ -1796,6 +1811,65 @@ function FurnacePanel({ game }: { game: Game }) {
               <button onClick={() => { game.ui.activePanel = 'none'; refresh(); }}
                 className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-white/60 text-[10px]">\u2715 Fechar</button>
             </div>
+
+            {/* Recipe tooltip on hover */}
+            {hoveredSlot && currentRecipe && resultItem && (() => {
+              const timeSeconds = Math.ceil((currentRecipe.craftTime || fd.smeltTime || 0) / 1000);
+              return (
+                <div className="fixed z-[100] pointer-events-none" style={{ left: tooltipPos.x + 16, top: tooltipPos.y - 8 }}>
+                  <div className="bg-gray-900/95 backdrop-blur-md rounded-xl border border-orange-800/40 p-3 w-56 shadow-2xl shadow-orange-900/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-2xl" style={{ color: RARITY_COLORS[resultItem.rarity as Rarity] }}>{resultItem.icon}</span>
+                      <div>
+                        <div className="text-sm font-bold text-white">{currentRecipe.name}</div>
+                        <div className="text-[9px]" style={{ color: RARITY_COLORS[resultItem.rarity as Rarity] }}>{resultItem.name}</div>
+                      </div>
+                    </div>
+
+                    {/* Craft time */}
+                    <div className="flex items-center gap-1.5 text-[10px] text-white/70 mb-2 border-b border-orange-900/40 pb-2">
+                      <span>\u23F1 {timeSeconds}s</span>
+                      {fd.smeltTime > 0 && <span className="text-white/40">| {Math.floor(fd.progress * 100)}%</span>}
+                      {currentRecipe.requiredLevel > 1 && <span className="text-yellow-400/60">| Nv.{currentRecipe.requiredLevel}</span>}
+                    </div>
+
+                    {/* Ingredients */}
+                    <div className="text-[9px] text-white/50 mb-1">\uD83D\uDCE6 Ingredientes:</div>
+                    <div className="space-y-1">
+                      {currentRecipe.ingredients.map(ing => {
+                        const item = getItem(ing.itemId);
+                        const have = game.countInInventory(ing.itemId);
+                        return (
+                          <div key={ing.itemId} className="flex items-center justify-between text-[10px]">
+                            <span className="flex items-center gap-1">
+                              <span>{item?.icon}</span>
+                              <span className={have >= ing.count ? 'text-green-400' : 'text-red-400'}>{item?.name}</span>
+                            </span>
+                            <span className={have >= ing.count ? 'text-green-400' : 'text-red-400'}>
+                              {have}/{ing.count}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Result count */}
+                    {currentRecipe.resultCount && currentRecipe.resultCount > 1 && (
+                      <div className="mt-1.5 text-[9px] text-white/40 border-t border-orange-900/40 pt-1.5">
+                        \u27A1\uFE0F Produz {currentRecipe.resultCount}x
+                      </div>
+                    )}
+
+                    {/* Station */}
+                    {currentRecipe.station && (
+                      <div className="mt-1 text-[8px] text-orange-400/60">
+                        \uD83D\uDD25 {currentRecipe.station === 'furnace' ? 'Fornalha' : currentRecipe.station}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
 
