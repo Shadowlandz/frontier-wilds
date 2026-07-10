@@ -4009,6 +4009,47 @@ export class Game {
     }
     ctx.globalAlpha = 1;
 
+    ctx.globalAlpha = 1;
+
+    // ── Floating [E] Interact tooltip ──
+    if (this.ui.activePanel === 'none') {
+      const px = this.state.player.x + PLAYER_SIZE / 2;
+      const py = this.state.player.y + PLAYER_SIZE / 2;
+      const interactables = this.getInteractableStructures();
+      const target = interactables.length > 0 ? interactables.reduce((a, b) => {
+        const da = distance({ x: px, y: py }, { x: a.x + a.width / 2, y: a.y + a.height / 2 });
+        const db = distance({ x: px, y: py }, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+        return da < db ? a : b;
+      }) : null;
+      if (target) {
+        const tp = camera.worldToScreen(target.x + target.width / 2, target.y - 8);
+        const pulse = Math.sin(performance.now() / 400) * 0.15 + 0.85;
+        const bob = Math.sin(performance.now() / 600) * 3;
+
+        // Label by type
+        const labels: Record<string, string> = {
+          chest: 'Ba\u00fa', storage_chest: 'Ba\u00fa Refor\u00e7ado',
+          workbench: 'Bancada', workbench_advanced: 'Bancada Avan\u00e7ada',
+          furnace: 'Fornalha', bed: 'Cama', campfire: 'Fogueira',
+        };
+        const label = labels[target.itemId] || target.itemId;
+
+        // Shadow / outline
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = `rgba(0,0,0,${pulse * 0.6})`;
+        ctx.fillText(`[E] ${label}`, tp.x + 1, tp.y + bob + 1);
+
+        // Main text
+        ctx.fillStyle = `rgba(255, 255, 200, ${pulse})`;
+        ctx.fillText(`[E] ${label}`, tp.x, tp.y + bob);
+
+        // Subtle glow
+        ctx.fillStyle = `rgba(255, 220, 100, ${pulse * 0.15})`;
+        ctx.fillText(`[E] ${label}`, tp.x, tp.y + bob);
+      }
+    }
+
 
     // ── Day/Night ambient overlay (surface only, before restore so it's in world space) ──
     if (!this.inCave) {
