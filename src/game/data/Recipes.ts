@@ -528,6 +528,44 @@ export const RECIPES: CraftingRecipe[] = [
     ingredients: [{ itemId: 'shadow_fragment', count: 2 }, { itemId: 'dark_essence', count: 3 }, { itemId: 'crystal', count: 2 }],
     requiredLevel: 12, craftTime: 7000, station: 'furnace',
   },
+
+  // ── Void Equipment (Terras Amaldiçoadas) ──────────────────────
+  {
+    id: 'forge_void_ingot', name: 'Lingote do Vácuo', category: ItemCategory.Material,
+    result: 'void_ingot', resultCount: 1,
+    ingredients: [{ itemId: 'void_crystal', count: 2 }, { itemId: 'dark_essence', count: 3 }, { itemId: 'mithril_ingot', count: 1 }],
+    requiredLevel: 14, craftTime: 8000, station: 'furnace',
+  },
+  {
+    id: 'craft_void_sword', name: 'Espada do Vácuo', category: ItemCategory.Weapon,
+    result: 'void_sword', resultCount: 1,
+    ingredients: [{ itemId: 'void_ingot', count: 3 }, { itemId: 'shadow_fragment', count: 2 }, { itemId: 'dark_essence', count: 5 }],
+    requiredLevel: 15, craftTime: 10000, station: 'furnace',
+  },
+  {
+    id: 'craft_void_pickaxe', name: 'Picareta do Vácuo', category: ItemCategory.Tool,
+    result: 'void_pickaxe', resultCount: 1,
+    ingredients: [{ itemId: 'void_ingot', count: 3 }, { itemId: 'enchanted_wood', count: 2 }, { itemId: 'dark_essence', count: 3 }],
+    requiredLevel: 14, craftTime: 9000, station: 'furnace',
+  },
+  {
+    id: 'craft_void_axe', name: 'Machado do Vácuo', category: ItemCategory.Tool,
+    result: 'void_axe', resultCount: 1,
+    ingredients: [{ itemId: 'void_ingot', count: 3 }, { itemId: 'enchanted_wood', count: 2 }, { itemId: 'dark_essence', count: 3 }],
+    requiredLevel: 14, craftTime: 9000, station: 'furnace',
+  },
+  {
+    id: 'craft_void_bow', name: 'Arco Sombrio', category: ItemCategory.Weapon,
+    result: 'void_bow', resultCount: 1,
+    ingredients: [{ itemId: 'void_ingot', count: 2 }, { itemId: 'shadow_fragment', count: 2 }, { itemId: 'spider_silk', count: 5 }],
+    requiredLevel: 15, craftTime: 10000, station: 'furnace',
+  },
+  {
+    id: 'craft_void_chestplate', name: 'Peitoral Sombrio', category: ItemCategory.Armor,
+    result: 'void_chestplate', resultCount: 1,
+    ingredients: [{ itemId: 'void_ingot', count: 4 }, { itemId: 'dark_essence', count: 6 }, { itemId: 'shadow_fragment', count: 3 }],
+    requiredLevel: 16, craftTime: 12000, station: 'furnace',
+  },
 ];
 
 export function getRecipesByCategory(category: ItemCategory): CraftingRecipe[] {

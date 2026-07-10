@@ -666,6 +666,42 @@ export const ITEMS: Record<string, ItemDefinition> = {
     category: ItemCategory.Material, rarity: Rarity.Legendary, stackSize: 5, weight: 0.5, value: 300,
     icon: '🪐',
   },
+
+  // ── Void Equipment (Terras Amaldiçoadas) ─────────────────────
+  void_ingot: {
+    id: 'void_ingot', name: 'Lingote do Vácuo', description: 'Lingote forjado com cristais do vácuo. Pulveriza com energia sombria.',
+    category: ItemCategory.Material, rarity: Rarity.Legendary, stackSize: 10, weight: 3, value: 400,
+    icon: '🔮',
+  },
+  void_sword: {
+    id: 'void_sword', name: 'Espada do Vácuo', description: 'Lâmina forjada no vazio. Corte absoluto.',
+    category: ItemCategory.Weapon, rarity: Rarity.Legendary, stackSize: 1, weight: 2, value: 1500,
+    icon: '🗡️', toolType: ToolType.Sword, damage: 75, durability: 800, maxDurability: 800,
+    speed: 1.6, range: 48,
+  },
+  void_pickaxe: {
+    id: 'void_pickaxe', name: 'Picareta do Vácuo', description: 'Ferramenta do vazio que tritura qualquer minério.',
+    category: ItemCategory.Tool, rarity: Rarity.Legendary, stackSize: 1, weight: 2, value: 1200,
+    icon: '⛏️', toolType: ToolType.Pickaxe, damage: 25, durability: 2000, maxDurability: 2000,
+    speed: 1.7, range: 40, miningPower: 35, choppingPower: 2,
+  },
+  void_axe: {
+    id: 'void_axe', name: 'Machado do Vácuo', description: 'Lâmina sombria que corta até aço.',
+    category: ItemCategory.Tool, rarity: Rarity.Legendary, stackSize: 1, weight: 2, value: 1200,
+    icon: '🪓', toolType: ToolType.Axe, damage: 35, durability: 2000, maxDurability: 2000,
+    speed: 1.6, range: 40, miningPower: 8, choppingPower: 35,
+  },
+  void_bow: {
+    id: 'void_bow', name: 'Arco Sombrio', description: 'Arco infundido com essência das trevas. Flechas envolvidas em sombras.',
+    category: ItemCategory.Weapon, rarity: Rarity.Legendary, stackSize: 1, weight: 2, value: 1400,
+    icon: '🏹', toolType: ToolType.Bow, damage: 55, durability: 700, maxDurability: 700,
+    speed: 1.8, range: 200,
+  },
+  void_chestplate: {
+    id: 'void_chestplate', name: 'Peitoral Sombrio', description: 'Armadura feita de tecido sombrio. Leve como pluma, forte como aço.',
+    category: ItemCategory.Armor, rarity: Rarity.Legendary, stackSize: 1, weight: 1, value: 1600,
+    icon: '🦺', armorSlot: ArmorSlot.Chest, defense: 55, durability: 900, maxDurability: 900,
+  },
 };
 
 export function getItem(id: string): ItemDefinition | undefined {
