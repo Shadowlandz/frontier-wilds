@@ -587,6 +587,44 @@ export const RECIPES: CraftingRecipe[] = [
     requiredLevel: 14, craftTime: 8000, station: 'furnace',
   },
 
+  // ── Fishing Recipes ────────────────────────────────────────
+  {
+    id: 'craft_iron_fishing_rod', name: 'Vara de Pesca de Ferro', category: ItemCategory.Tool,
+    result: 'iron_fishing_rod', resultCount: 1,
+    ingredients: [{ itemId: 'fishing_rod', count: 1 }, { itemId: 'iron_ingot', count: 3 }, { itemId: 'rope', count: 2 }],
+    requiredLevel: 5, craftTime: 3000, station: 'workbench',
+  },
+  {
+    id: 'craft_void_fishing_rod', name: 'Vara do Vácuo', category: ItemCategory.Tool,
+    result: 'void_fishing_rod', resultCount: 1,
+    ingredients: [{ itemId: 'iron_fishing_rod', count: 1 }, { itemId: 'void_ingot', count: 2 }, { itemId: 'shadow_fragment', count: 3 }],
+    requiredLevel: 14, craftTime: 8000, station: 'furnace',
+  },
+  {
+    id: 'craft_worm', name: 'Minhoca', category: ItemCategory.Material,
+    result: 'worm', resultCount: 3,
+    ingredients: [{ itemId: 'fiber', count: 2 }, { itemId: 'slime_gel', count: 1 }],
+    requiredLevel: 2, craftTime: 1000,
+  },
+  {
+    id: 'craft_magic_bait', name: 'Isca Mágica', category: ItemCategory.Material,
+    result: 'magic_bait', resultCount: 1,
+    ingredients: [{ itemId: 'worm', count: 3 }, { itemId: 'magic_dust', count: 2 }, { itemId: 'crystal', count: 1 }],
+    requiredLevel: 7, craftTime: 3000, station: 'workbench',
+  },
+  {
+    id: 'craft_void_bait', name: 'Isca do Vácuo', category: ItemCategory.Material,
+    result: 'void_bait', resultCount: 1,
+    ingredients: [{ itemId: 'magic_bait', count: 1 }, { itemId: 'void_crystal', count: 1 }, { itemId: 'dark_essence', count: 3 }],
+    requiredLevel: 13, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'cook_grilled_salmon', name: 'Salmão Grelhado', category: ItemCategory.Consumable,
+    result: 'grilled_fish', resultCount: 2,
+    ingredients: [{ itemId: 'salmon', count: 1 }, { itemId: 'coal', count: 1 }],
+    requiredLevel: 2, craftTime: 2500, station: 'furnace',
+  },
+
   // ── New Void Equipment ─────────────────────────────────────
   {
     id: 'craft_void_helmet', name: 'Elmo do Vácuo', category: ItemCategory.Armor,

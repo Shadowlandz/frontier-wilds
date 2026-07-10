@@ -105,6 +105,17 @@ export class Game {
   cursedLandsEnemies: EnemyEntity[] = [];
   cursedLandsResources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
   cursedLandsResourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
+  // ── Fishing System ──────────────────────────────────────────────
+  isFishing = false;
+  fishingTimer = 0;
+  fishingTotalTime = 3.5;
+  fishingBobberX = 0;
+  fishingBobberY = 0;
+  fishingBobberPhase = 0;
+  fishingCaught = false;
+  fishingBait: string | null = null;
+  fishingRodId: string | null = null;
+
 
   // Resource colors per type for particles
   private resourceColors: Record<string, string> = {
@@ -116,6 +127,7 @@ export class Game {
     ruby_rock: '#ff2244',
     cave_entrance: '#2a1a0a',
     portal: '#9944ff',
+    fishing_spot: '#4488cc',
   };
 
   // Resource sizes for collision
@@ -131,6 +143,7 @@ export class Game {
     ruby_rock: { w: 18, h: 16, hp: 70 },
     cave_entrance: { w: 32, h: 32, hp: 99999 },
     portal: { w: 32, h: 32, hp: 99999 },
+    fishing_spot: { w: 24, h: 24, hp: 99999 },
   };
 
   /** Procedural audio engine */
@@ -388,6 +401,7 @@ export class Game {
       this.updateAmbientParticles(dt);
       this.updateDamageNumbers(dt);
       this.updateProjectiles(dt);
+      this.updateFishing(dt);
       this.handleInput();
     } else {
       this.handleUIInput();
@@ -675,6 +689,11 @@ export class Game {
   }
 
   private tryInteract(): void {
+    // ── Fishing: if currently fishing, reel in ──
+    if (this.isFishing) {
+      this.finishFishing();
+      return;
+    }
     const { player } = this.state;
     const px = player.x + PLAYER_SIZE / 2;
     const py = player.y + PLAYER_SIZE / 2;
@@ -1323,6 +1342,19 @@ export class Game {
   // ══ Left Click Primary Action ═════════════════════════════════
   private tryPrimaryAction(): void {
     const { player } = this.state;
+
+    // If currently fishing, left click also reels in
+    if (this.isFishing) {
+      this.finishFishing();
+      return;
+    }
+
+    // Check if we can start fishing (near water with rod)
+    const tool = this.getCurrentItem();
+    if (tool?.toolType === 'fishingRod') {
+      const started = this.startFishing();
+      if (started) return;
+    }
     const px = player.x + PLAYER_SIZE / 2;
     const py = player.y + PLAYER_SIZE / 2;
 
@@ -1340,8 +1372,8 @@ export class Game {
     }
 
     // 2. Bow → shoot arrow
-    const tool = this.getCurrentItem();
-    if (tool?.toolType === 'bow') {
+    const bowTool = this.getCurrentItem();
+    if (bowTool?.toolType === 'bow') {
       this.tryAttack();
       return;
     }
@@ -3681,6 +3713,134 @@ export class Game {
       default: return 'grass';
     }
   }
+  
+  /** Check if player is next to a water tile */
+  private isNearWater(): boolean {
+    const px = this.state.player.x + PLAYER_SIZE / 2;
+    const py = this.state.player.y + PLAYER_SIZE / 2;
+    const tileMap = this.inCave && this.caveData ? this.caveData.tileMap :
+                    this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap :
+                    this.tileMap;
+    if (!tileMap || tileMap.length === 0) return false;
+    const h = tileMap.length, w = tileMap[0].length;
+    const tx = Math.floor(px / TILE_SIZE), ty = Math.floor(py / TILE_SIZE);
+    // Player must be on walkable ground
+    if (ty < 0 || ty >= h || tx < 0 || tx >= w) return false;
+    const curTile = tileMap[ty][tx];
+    if (curTile === 3 || curTile === 4) return false; // Water/deepwater
+    // Check adjacent tiles for water
+    for (const [dx, dy] of [[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]]) {
+      const nx = tx + dx, ny = ty + dy;
+      if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+        const t = tileMap[ny][nx];
+        if (t === 3 || t === 4) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Get the fishing drop table based on location */
+  private getFishingLootTable(): { itemId: string; weight: number }[] {
+    const table: { itemId: string; weight: number }[] = [];
+    const hr = this.timeSystem.getHour();
+    const night = hr < 6 || hr >= 20;
+    const baitBonus = this.fishingBait ? ({ worm: 0.15, magic_bait: 0.30, void_bait: 0.50 })[this.fishingBait] || 0 : 0;
+    if (this.inCursedLands) {
+      table.push({ itemId: 'void_fish', weight: 60 }, { itemId: 'eel', weight: 25 }, { itemId: 'golden_fish', weight: 10 }, { itemId: 'seaweed', weight: 5 });
+    } else {
+      table.push({ itemId: 'fish', weight: 50 }, { itemId: 'salmon', weight: 25 }, { itemId: 'catfish', weight: 15 });
+      if (night) { table.push({ itemId: 'eel', weight: 15 }, { itemId: 'piranha', weight: 5 }); }
+      else { table.push({ itemId: 'piranha', weight: 10 }, { itemId: 'tropical_fish', weight: 5 }); }
+      table.push({ itemId: 'old_boot', weight: 8 }, { itemId: 'seaweed', weight: 12 }, { itemId: 'pufferfish', weight: 3 });
+      if (Math.random() < 0.05 + baitBonus * 0.1) table.push({ itemId: 'treasure_map', weight: 1 }); table.push({ itemId: 'golden_fish', weight: 1 });
+    }
+    return table;
+  }
+
+  /** Start fishing - cast line */
+  private startFishing(): boolean {
+    const rod = this.getCurrentItem();
+    if (!rod || rod.toolType !== 'fishingRod') { this.addNotification('🎣 Equipe uma vara de pesca!', 'info'); return false; }
+    if (this.isFishing) { this.finishFishing(); return true; }
+    if (!this.isNearWater()) { this.addNotification('🌊 Precisa estar perto da água!', 'warning'); return false; }
+    if (this.state.player.stamina < 15) { this.addNotification('Stamina insuficiente!', 'warning'); return false; }
+    this.state.player.stamina -= 15;
+    // Consume bait
+    this.fishingBait = null;
+    for (const b of ['void_bait', 'magic_bait', 'worm']) {
+      if (this.countInInventory(b) > 0) { this.removeFromInventory(b, 1); this.fishingBait = b; break; }
+    }
+    this.isFishing = true; this.fishingRodId = rod.id; this.fishingTimer = 0; this.fishingCaught = false;
+    this.fishingBobberPhase = 0;
+    const baitBonus = this.fishingBait ? ({ worm: 0.15, magic_bait: 0.30, void_bait: 0.50 })[this.fishingBait] || 0 : 0;
+    this.fishingTotalTime = Math.max(1.5, 4.0 / Math.max(0.5, rod.speed || 0.5));
+    const px = this.state.player.x + 12, py = this.state.player.y + 12;
+    this.fishingBobberX = px + this.state.player.facing.x * 40;
+    this.fishingBobberY = py + this.state.player.facing.y * 40;
+    this.spawnParticles(this.fishingBobberX, this.fishingBobberY, '#4488cc', 5, 'water_splash', { spread: 60, speed: 50, sizeRange: [2, 4], lifeRange: [0.4, 0.8] });
+    this.audio.playSwing('bow');
+    this.addNotification('🎣 Lançou a linha...', 'info');
+    this.state.player.isAttacking = true;
+    this.state.player.attackTimer = 0.3;
+    return true;
+  }
+
+  /** Update fishing progress each tick */
+  private updateFishing(dt: number): void {
+    if (!this.isFishing) return;
+    this.state.player.isAttacking = true;
+    this.fishingBobberPhase += dt * 3;
+    this.fishingTimer += dt;
+    const progress = this.fishingTimer / this.fishingTotalTime;
+    if (Math.random() < 0.08) {
+      const rc = this.fishingTimer > this.fishingTotalTime * 0.8 ? '#ffaa44' : '#4488cc';
+      this.spawnParticles(this.fishingBobberX, this.fishingBobberY, rc, 2, 'water_splash', { spread: 25, speed: 15, sizeRange: [1, 3], lifeRange: [0.3, 0.5] });
+    }
+    if (!this.fishingCaught && this.fishingTimer >= this.fishingTotalTime) {
+      this.fishingCaught = true;
+      this.audio.playFishCatch();
+      this.spawnParticles(this.fishingBobberX, this.fishingBobberY, '#ffdd44', 8, 'spark', { spread: 100, speed: 80, sizeRange: [2, 4], lifeRange: [0.4, 0.8], color2: '#ffaa00' });
+      this.addNotification('🎣 Algo pegou! Pressione [E] ou clique!', 'info');
+    }
+  }
+
+  /** Reel in - finish fishing */
+  private finishFishing(): void {
+    if (!this.isFishing) return;
+    this.state.player.isAttacking = false;
+    this.state.player.attackTimer = 0;
+    if (this.fishingCaught) {
+      // Determine catch via loot table weighted random
+      const lootTable = this.getFishingLootTable();
+      const totalWeight = lootTable.reduce((s, e) => s + e.weight, 0);
+      let roll = Math.random() * totalWeight;
+      let caught = 'fish';
+      for (const entry of lootTable) { roll -= entry.weight; if (roll <= 0) { caught = entry.itemId; break; } }
+      const count = 1 + Math.floor(Math.random() * 2);
+      if (this.addToInventory(caught, count)) {
+        const item = getItem(caught);
+        const nm = item?.name || caught;
+        const ic = item?.icon || '🐟';
+        this.addNotification(`${ic} Pescou: ${nm} x${count}!`, 'item');
+        const xpMap: Record<string, number> = { common: 8, uncommon: 15, rare: 30, epic: 60, legendary: 100 };
+        this.gainXp(xpMap[item?.rarity || 'common'] || 10);
+        this.state.player.stats.fishing = Math.min(99, this.state.player.stats.fishing + 0.12);
+        this.achievementStats.fishCaught += count;
+        this.updateQuestProgress('fish', caught);
+        this.spawnParticles(this.state.player.x + 12, this.state.player.y + 12, '#44aaff', 10, 'water_splash', { spread: 120, speed: 80, sizeRange: [2, 5], lifeRange: [0.4, 0.9] });
+        this.spawnParticles(this.fishingBobberX, this.fishingBobberY, '#ffdd44', 6, 'spark', { spread: 100, speed: 70, sizeRange: [2, 4], lifeRange: [0.3, 0.7], color2: '#ffaa44' });
+        this.camera.shake(3, 0.12);
+        // Durability
+        const hs = this.state.player.hotbar;
+        const sl = hs[this.state.player.currentTool];
+        if (sl && sl.durability !== undefined && sl.item?.maxDurability !== undefined) {
+          sl.durability = sl.durability - 1;
+          if (sl.durability <= 0) { hs[this.state.player.currentTool] = { item: null, count: 0 }; this.addNotification('Vara quebrou!', 'warning'); }
+        }
+      } else { this.addNotification('Inventário cheio! O peixe escapou...', 'warning'); }
+    } else { this.addNotification('Nada mordeu o anzol...', 'info'); }
+    this.isFishing = false; this.fishingTimer = 0; this.fishingCaught = false; this.fishingBait = null; this.fishingRodId = null;
+  }
 
   private getWindPhase(): number {
     return performance.now() / 4000;
@@ -4993,6 +5153,41 @@ export class Game {
         ctx.textAlign = 'left';
         break;
       }
+      case 'fishing_spot': {
+        // Fishing spot: floating bobber with ripples
+        const fTime = performance.now() / 1000;
+        const fBob = Math.sin(fTime * 3 + res.x * 0.01) * 4;
+        // Water ripple
+        ctx.beginPath();
+        ctx.arc(pos.x + 12, pos.y + 12 + fBob, 10, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(100, 180, 255, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Bobber body
+        const bSize = 4 + Math.sin(fTime * 2 + res.x) * 1;
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath();
+        ctx.arc(pos.x + 12, pos.y + 12 + fBob, bSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(pos.x + 12, pos.y + 10 + fBob, bSize * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Line going up
+        ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pos.x + 12, pos.y + 8 + fBob);
+        ctx.lineTo(pos.x + 12, pos.y - 4);
+        ctx.stroke();
+        // Label
+        ctx.fillStyle = 'rgba(100, 180, 255, 0.8)';
+        ctx.font = '8px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎣', pos.x + 12, pos.y - 6);
+        break;
+      }
+
     }
   }
 

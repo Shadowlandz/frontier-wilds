@@ -920,6 +920,38 @@ export class WorldGenerator {
     ];
   }
 
+  /** Generate fishing spots near water tiles on the surface */
+  generateFishingSpots(biomeMap: Biome[][], tileMap: TileType[][]): { x: number; y: number; type: string; itemId: string }[] {
+    const spots: { x: number; y: number; type: string; itemId: string }[] = [];
+    const h = tileMap.length;
+    const w = tileMap[0].length;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (tileMap[y][x] === 3 || tileMap[y][x] === 4) { // Water/DeepWater
+          const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+          for (const [dx, dy] of dirs) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+              const lt = tileMap[ny][nx];
+              if (lt === 0 || lt === 1 || lt === 2) { // Grass, Dirt, Sand
+                if (Math.random() < 0.35) {
+                  spots.push({
+                    x: nx * 32 + 16,
+                    y: ny * 32 + 16,
+                    type: 'fishing_spot',
+                    itemId: 'fishing_spot',
+                  });
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return spots;
+  }
+
   getTileAt(tileMap: TileType[][], x: number, y: number): TileType {
     if (y < 0 || y >= tileMap.length || x < 0 || x >= tileMap[0].length) {
       return TileType.Water;

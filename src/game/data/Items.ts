@@ -762,6 +762,91 @@ export const ITEMS: Record<string, ItemDefinition> = {
     icon: '🔮', toolType: ToolType.Sword, damage: 85, durability: 600, maxDurability: 600,
     speed: 1.7, range: 56,
   },
+
+  // ── Fishing Fish (Novos Peixes) ────────────────────────────────
+  salmon: {
+    id: 'salmon', name: 'Salmão', description: 'Salmão fresco e saboroso do rio.',
+    category: ItemCategory.Fish, rarity: Rarity.Common, stackSize: 20, weight: 1.5, value: 10,
+    icon: '🍣', foodValue: 25, healAmount: 10, effects: [{ type: 'hunger', value: 25 }, { type: 'heal', value: 10 }],
+  },
+  piranha: {
+    id: 'piranha', name: 'Piranha', description: 'Peixe agressivo com dentes afiados. Perigoso!',
+    category: ItemCategory.Fish, rarity: Rarity.Uncommon, stackSize: 20, weight: 1, value: 15,
+    icon: '🐡', foodValue: 20, healAmount: 8, effects: [{ type: 'hunger', value: 20 }, { type: 'heal', value: 8 }],
+  },
+  tropical_fish: {
+    id: 'tropical_fish', name: 'Peixe Tropical', description: 'Peixe exótico e colorido. Muito valioso!',
+    category: ItemCategory.Fish, rarity: Rarity.Rare, stackSize: 10, weight: 0.5, value: 45,
+    icon: '🐠', foodValue: 15, healAmount: 12, effects: [{ type: 'hunger', value: 15 }, { type: 'heal', value: 12 }, { type: 'xp', value: 15 }],
+  },
+  pufferfish: {
+    id: 'pufferfish', name: 'Baiacu', description: 'Peixe venenoso! Não é seguro comer.',
+    category: ItemCategory.Fish, rarity: Rarity.Uncommon, stackSize: 10, weight: 1, value: 20,
+    icon: '🐡', foodValue: 5, healAmount: -10, effects: [{ type: 'hunger', value: 5 }, { type: 'heal', value: -10 }],
+  },
+  eel: {
+    id: 'eel', name: 'Enguia', description: 'Enguia elétrica. Choca quem toca!',
+    category: ItemCategory.Fish, rarity: Rarity.Rare, stackSize: 10, weight: 2, value: 35,
+    icon: '🐍', foodValue: 28, healAmount: 15, effects: [{ type: 'hunger', value: 28 }, { type: 'heal', value: 15 }, { type: 'energy', value: 20 }],
+  },
+  catfish: {
+    id: 'catfish', name: 'Bagre', description: 'Peixe grande de fundo de rio. Muita carne!',
+    category: ItemCategory.Fish, rarity: Rarity.Common, stackSize: 10, weight: 3, value: 18,
+    icon: '🐟', foodValue: 40, healAmount: 18, effects: [{ type: 'hunger', value: 40 }, { type: 'heal', value: 18 }],
+  },
+  void_fish: {
+    id: 'void_fish', name: 'Peixe do Vácuo', description: 'Peixe misterioso das Terras Amaldiçoadas. Transborda energia sombria.',
+    category: ItemCategory.Fish, rarity: Rarity.Epic, stackSize: 10, weight: 1, value: 120,
+    icon: '🐟', foodValue: 50, healAmount: 35, effects: [{ type: 'hunger', value: 50 }, { type: 'heal', value: 35 }, { type: 'xp', value: 50 }],
+  },
+
+  // ── Bait (Iscas) ───────────────────────────────────────────────
+  worm: {
+    id: 'worm', name: 'Minhoca', description: 'Isca básica. Aumenta a chance de pescar em 15%.',
+    category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 30, weight: 0.1, value: 2,
+    icon: '🪱',
+  },
+  magic_bait: {
+    id: 'magic_bait', name: 'Isca Mágica', description: 'Isca encantada. Aumenta chance de peixes raros em 30%!',
+    category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 10, weight: 0.1, value: 30,
+    icon: '✨',
+  },
+  void_bait: {
+    id: 'void_bait', name: 'Isca do Vácuo', description: 'Isca sombria para pescar nas Terras Amaldiçoadas.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 10, weight: 0.1, value: 60,
+    icon: '🌌',
+  },
+
+  // ── Fishing Rods (Varas de Pesca) ────────────────────────────────
+  iron_fishing_rod: {
+    id: 'iron_fishing_rod', name: 'Vara de Pesca de Ferro', description: 'Vara resistente para pescar em águas profundas.',
+    category: ItemCategory.Tool, rarity: Rarity.Uncommon, stackSize: 1, weight: 2, value: 80,
+    icon: '🎣', toolType: ToolType.FishingRod, damage: 2, durability: 200, maxDurability: 200,
+    speed: 0.7, range: 80,
+  },
+  void_fishing_rod: {
+    id: 'void_fishing_rod', name: 'Vara do Vácuo', description: 'Vara sombria forjada com essência do vazio.',
+    category: ItemCategory.Tool, rarity: Rarity.Legendary, stackSize: 1, weight: 1, value: 600,
+    icon: '🎣', toolType: ToolType.FishingRod, damage: 5, durability: 500, maxDurability: 500,
+    speed: 1.0, range: 100,
+  },
+
+  // ── Fishing Junk (Lixo) ────────────────────────────────────────
+  old_boot: {
+    id: 'old_boot', name: 'Bota Velha', description: 'Bota encharcada e fedida. Serve pra nada.',
+    category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 5, weight: 2, value: 1,
+    icon: '👢',
+  },
+  seaweed: {
+    id: 'seaweed', name: 'Alga', description: 'Alga marinha. Pode ser usada como adubo.',
+    category: ItemCategory.Material, rarity: Rarity.Common, stackSize: 30, weight: 0.3, value: 3,
+    icon: '🌿',
+  },
+  treasure_map: {
+    id: 'treasure_map', name: 'Mapa do Tesouro', description: 'Mapa antigo rabiscado. Quem sabe onde leva?',
+    category: ItemCategory.Quest, rarity: Rarity.Epic, stackSize: 1, weight: 0.1, value: 100,
+    icon: '🗺️',
+  },
 };
 
 export function getItem(id: string): ItemDefinition | undefined {
