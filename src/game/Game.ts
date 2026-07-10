@@ -392,6 +392,7 @@ export class Game {
     this.updateResourceRespawn(dt);
     if (this.inCave) this.updateCaveResourceRespawn(dt);
     this.updateFurnaces(dt);
+    this.updatePlacementGhost();
 
     // Gathering cooldown
     if (this.gatherCooldown > 0) this.gatherCooldown -= dt;
@@ -499,7 +500,7 @@ export class Game {
       this.tryFarmAction();
     }
 
-    // Handle placement mode cancel
+    // Handle placement mode
     if (this.isPlacing) {
       if (input.isKeyPressed('escape') || input.isMouseClicked(2)) {
         this.cancelPlacement();
@@ -518,7 +519,13 @@ export class Game {
       this.ui.showMap = false;
     }
 
-    // F removed — eating/drinking is now on E
+    // F to enter placement mode with current hotbar item
+    if (input.isKeyPressed('f')) {
+      const slot = this.state.player.hotbar[this.state.player.currentTool];
+      if (slot?.item?.placeable) {
+        this.startPlacement(slot.item.id);
+      }
+    }
 
     // G to drop item
     if (input.isKeyPressed('g')) {
@@ -1244,6 +1251,13 @@ export class Game {
     if (!slot?.item) return;
 
     const item = slot.item;
+
+    // Placeable items: enter placement mode instead of consuming
+    if (item.placeable) {
+      this.startPlacement(item.id);
+      return;
+    }
+
     if (item.effects) {
       for (const effect of item.effects) {
         switch (effect.type) {
@@ -3740,6 +3754,26 @@ export class Game {
     }
 
     // Highlight workbench when player is nearby and crafting panel is open
+    // Draw placement ghost preview
+    if (this.isPlacing && this.placeItemId) {
+      const gx = this.placeTileX * TILE_SIZE;
+      const gy = this.placeTileY * TILE_SIZE;
+      const gp = camera.worldToScreen(gx, gy);
+      const item = getItem(this.placeItemId);
+      const ghostColor = this.placeValid ? 'rgba(0, 255, 100,' : 'rgba(255, 60, 60,';
+      const ghostAlpha = 0.35 + Math.sin(performance.now() / 200) * 0.15;
+      ctx.strokeStyle = ghostColor + ghostAlpha + ')';
+      ctx.fillStyle = ghostColor + (ghostAlpha * 0.4) + ')';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(gp.x, gp.y, TILE_SIZE, TILE_SIZE);
+      ctx.fillRect(gp.x, gp.y, TILE_SIZE, TILE_SIZE);
+      ctx.fillStyle = this.placeValid ? '#88ff88' : '#ff6666';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(item?.name || this.placeItemId, gp.x + TILE_SIZE / 2, gp.y - 4);
+      ctx.font = '8px monospace';
+      ctx.fillText(this.placeValid ? '\u2713' : '\u2717', gp.x + TILE_SIZE / 2, gp.y + TILE_SIZE / 2 + 3);
+    }
     if (this.ui.activePanel === 'crafting' && !this.inCave) {
       const nearbyBench = this.state.structures.find(s => 
         (s.itemId === 'workbench' || s.itemId === 'workbench_advanced') &&
