@@ -274,6 +274,8 @@ export interface InventorySlot {
   damageBonus?: number;
   defenseBonus?: number;
   affixes?: ItemAffix[];
+  /** If true, item stats/affixes are hidden until identified at a workbench */
+  unidentified?: boolean;
 }
 
 export interface Equipment {

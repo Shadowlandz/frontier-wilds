@@ -747,21 +747,14 @@ export class Game {
       const dist = distance({ x: px, y: py }, { x: di.x, y: di.y });
       if (dist < INTERACT_RANGE) {
         // Generate affixes for equippable items dropped by enemies
-        const added = this.addToInventory(di.itemId, di.count, true);
+        // Items with rarity drop unidentified — must be examined at a workbench
+        const isRareDrop = !!di.rarity && di.rarity !== 'common';
+        const added = this.addToInventory(di.itemId, di.count, true, isRareDrop);
         if (added) {
           // Show subtle rarity notification for non-common drops
-          if (di.rarity && di.rarity !== 'common') {
-            const item = getItem(di.itemId);
-            const rarityNames: Record<string, string> = {
-              uncommon: 'Incomum', rare: 'Raro', epic: 'Épico', legendary: 'Lendário',
-            };
-            const rarityColors: Record<string, string> = {
-              uncommon: '#4caf50', rare: '#2196f3', epic: '#9c27b0', legendary: '#ff9800',
-            };
-            const color = rarityColors[di.rarity] || '#b0b0b0';
-            const prefix = rarityNames[di.rarity] || di.rarity;
+          if (isRareDrop) {
             this.addNotification(
-              `${item?.icon || '📦'} ${prefix}: ${item?.name || di.itemId}`,
+              `📦 Item Misterioso (${di.rarity}) — Examine na Bancada!`,
               'item'
             );
           }
@@ -2100,12 +2093,13 @@ export class Game {
   }
 
   // ── Inventory & Crafting ────────────────────────────────────────
-  addToInventory(itemId: string, count: number, generateAffixes = false): boolean {
+  addToInventory(itemId: string, count: number, generateAffixes = false, unidentified = false): boolean {
     const item = getItem(itemId);
     if (!item) return false;
 
     // Generate affixes if this is an equippable item
-    const affixes = generateAffixes ? generateItemAffixes(item) : undefined;
+    // When unidentified, skip affix generation (will be revealed at workbench)
+    const affixes = (generateAffixes && !unidentified) ? generateItemAffixes(item) : undefined;
     const affixedName = affixes && affixes.length > 0 ? getAffixedItemName(item, affixes) : undefined;
 
     // Try stacking first
@@ -2148,6 +2142,7 @@ export class Game {
         slot.count = Math.min(count, item.stackSize);
         slot.durability = item.maxDurability;
         slot.affixes = affixes;
+        slot.unidentified = unidentified || undefined;
         count -= slot.count;
         if (count <= 0) {
           this.audio.playPickup();
@@ -2163,6 +2158,7 @@ export class Game {
         slot.count = Math.min(count, item.stackSize);
         slot.durability = item.maxDurability;
         slot.affixes = affixes;
+        slot.unidentified = unidentified || undefined;
         count -= slot.count;
         if (count <= 0) {
           if (affixedName) this.addNotification(`✨ Pegou ${affixedName}`, 'item');
@@ -2466,6 +2462,97 @@ export class Game {
     }
 
     return results;
+  }
+
+  // ── Identification System ──────────────────────────────────────
+  /** Get the gold cost to identify an item based on its rarity */
+  getIdentifyCost(rarity: Rarity): number {
+    const costs: Record<Rarity, number> = {
+      common: 0,
+      uncommon: 50,
+      rare: 150,
+      epic: 500,
+      legendary: 2000,
+    };
+    return costs[rarity] || 0;
+  }
+
+  /** Get all unidentified slots from inventory + hotbar + equipment */
+  getUnidentifiedSlots(): { slot: InventorySlot; pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number; rarity: Rarity }[] {
+    const results: { slot: InventorySlot; pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number; rarity: Rarity }[] = [];
+
+    const checkPool = (pool: 'inventory' | 'hotbar', arr: InventorySlot[]) => {
+      for (let i = 0; i < arr.length; i++) {
+        const s = arr[i];
+        if (s.item && s.unidentified) {
+          results.push({ slot: s, pool, index: i, rarity: s.item.rarity });
+        }
+      }
+    };
+
+    checkPool('inventory', this.state.player.inventory);
+    checkPool('hotbar', this.state.player.hotbar);
+
+    // Check equipment
+    const eqKeys = Object.keys(this.state.player.equipment) as (keyof typeof this.state.player.equipment)[];
+    for (const key of eqKeys) {
+      const s = this.state.player.equipment[key];
+      if (s && s.item && s.unidentified) {
+        results.push({ slot: s, pool: 'equipment', index: key, rarity: s.item.rarity });
+      }
+    }
+
+    return results;
+  }
+
+  /** Identify an item — reveals affixes, consumes gold */
+  identifyItem(pool: 'inventory' | 'hotbar' | 'equipment', index: string | number): boolean {
+    let slot: InventorySlot | null = null;
+
+    if (pool === 'inventory') slot = this.state.player.inventory[index as number];
+    else if (pool === 'hotbar') slot = this.state.player.hotbar[index as number];
+    else if (pool === 'equipment') {
+      slot = this.state.player.equipment[index as keyof typeof this.state.player.equipment];
+    }
+
+    if (!slot || !slot.item || !slot.unidentified) {
+      this.addNotification('Item não encontrado ou já identificado!', 'warning');
+      return false;
+    }
+
+    // Check if near a workbench
+    if (!this.isNearbyStation('workbench')) {
+      this.addNotification('🔧 Precisa estar perto de uma Bancada para identificar!', 'warning');
+      return false;
+    }
+
+    const cost = this.getIdentifyCost(slot.item.rarity);
+    if (this.state.player.stats.gold < cost) {
+      this.addNotification(`💰 Ouro insuficiente! Precisa de ${cost} 🪙 para identificar.`, 'warning');
+      return false;
+    }
+
+    // Consume gold
+    this.state.player.stats.gold -= cost;
+
+    // Generate affixes for the item
+    const generatedAffixes = generateItemAffixes(slot.item);
+    slot.affixes = generatedAffixes.length > 0 ? generatedAffixes : undefined;
+    slot.unidentified = false;
+
+    // Visual effects for identification
+    const cx = this.state.player.x + PLAYER_SIZE / 2;
+    const cy = this.state.player.y;
+    this.spawnParticles(cx, cy, '#44ddff', 8, 'magic', { spread: 120, speed: 80, sizeRange: [2, 4], lifeRange: [0.5, 1.0], color2: '#88ffdd' });
+    this.spawnParticles(cx, cy, '#ffdd44', 6, 'spark', { spread: 100, speed: 70, sizeRange: [1, 3], lifeRange: [0.3, 0.7] });
+    this.camera.shake(2, 0.1);
+    this.audio.playCraft();
+
+    const affixedName = generatedAffixes.length > 0 ? getAffixedItemName(slot.item, generatedAffixes) : slot.item.name;
+    this.addNotification(`🔍 ${affixedName} identificado! (+${generatedAffixes.length} atributos)`, 'success');
+    this.gainXp(10 + cost / 10);
+
+    return true;
   }
 
   // ── Quests ──────────────────────────────────────────────────────

@@ -320,8 +320,9 @@ function Hotbar({ hotbar, selected, onSelect, game }: {
           >
             {slot?.item && (
               <>
-                <span className="text-xl" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.item.icon}</span>
+                <span className="text-xl" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.unidentified ? '❓' : slot.item.icon}</span>
                 {slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[9px] text-white font-bold drop-shadow">{slot.count}</span>}
+                {slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold drop-shadow">?</span>}
                 {slot.durability !== undefined && slot.item.maxDurability && (
                   <div className="absolute bottom-0 left-0.5 right-0.5 h-1 bg-black/50 rounded-full">
                     <div className="h-full rounded-full" style={{ width: `${(slot.durability / slot.item.maxDurability) * 100}%`, backgroundColor: slot.durability / slot.item.maxDurability > 0.5 ? '#4caf50' : '#ff9800' }} />
@@ -335,7 +336,7 @@ function Hotbar({ hotbar, selected, onSelect, game }: {
       </div>
       {hoveredSlot !== null && hotbar[hoveredSlot]?.item && (
         <ItemTooltip item={hotbar[hoveredSlot].item!} durability={hotbar[hoveredSlot].durability}
-          position={tooltipPos} playerStats={{} as any} affixes={hotbar[hoveredSlot].affixes} />
+          position={tooltipPos} playerStats={{} as any} affixes={hotbar[hoveredSlot].affixes} unidentified={hotbar[hoveredSlot].unidentified} />
       )}
     </>
   );
@@ -828,7 +829,7 @@ function InventoryPanel({ game }: { game: Game }) {
                 className={`w-12 h-12 rounded border flex items-center justify-center relative cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/20 bg-black/40'} hover:border-white/40`}
               >
                 {equipped?.item ? (
-                  <><span className="text-lg" style={{ color: RARITY_COLORS[equipped.item.rarity] }}>{equipped.item.icon}</span><span className="absolute -top-1 -right-1 text-[7px] bg-white/20 rounded px-0.5">{equipLabels[equipSlot]?.split(' ')[0] || equipSlot.slice(0, 3)}</span></>
+                  <><span className="text-lg" style={{ color: RARITY_COLORS[equipped.item.rarity] }}>{equipped.unidentified ? '❓' : equipped.item.icon}</span>{equipped.unidentified && <span className="absolute -top-1 left-0.5 text-[7px] text-cyan-400 font-bold">?</span>}<span className="absolute -top-1 -right-1 text-[7px] bg-white/20 rounded px-0.5">{equipLabels[equipSlot]?.split(' ')[0] || equipSlot.slice(0, 3)}</span></>
                 ) : <span className="text-white/20 text-[9px] uppercase">{equipLabels[equipSlot]?.split(' ')[1] || equipSlot}</span>}
               </div>
             );
@@ -852,7 +853,7 @@ function InventoryPanel({ game }: { game: Game }) {
               onMouseLeave={() => setHoveredSlot(null)}
               className={`w-10 h-10 rounded border-2 flex items-center justify-center relative cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isSelected ? 'border-yellow-400 bg-yellow-400/15' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'} hover:border-white/40`}
             >
-              {slot?.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
+              {slot?.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.unidentified ? '❓' : slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}{slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold">?</span>}</>}
               <span className="absolute top-0 left-0.5 text-[7px] text-white/40">{i + 1}</span>
             </div>
           );
@@ -874,7 +875,7 @@ function InventoryPanel({ game }: { game: Game }) {
               onMouseLeave={() => setHoveredSlot(null)}
               className={`w-10 h-10 rounded border flex items-center justify-center cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'} hover:border-white/30 hover:bg-white/10`}
             >
-              {slot?.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
+              {slot?.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.unidentified ? '❓' : slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}{slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold">?</span>}</>}
             </div>
           );
         })}
@@ -895,7 +896,7 @@ function InventoryPanel({ game }: { game: Game }) {
         const eqKey = sd.item.armorSlot || (sd.item.toolType === 'sword' || sd.item.toolType === 'bow' ? 'weapon' : sd.item.toolType ? 'tool' : null);
         return <ItemTooltip item={sd.item} durability={sd.durability} position={tooltipPos}
           compareWith={eqKey ? state.player.equipment[eqKey as keyof typeof state.player.equipment] : null}
-          playerStats={state.player.stats} />;
+          playerStats={state.player.stats} affixes={sd.affixes} unidentified={sd.unidentified} />;
       })()}
     </Panel>
   );
@@ -910,6 +911,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
   const [craftProgress, setCraftProgress] = useState(0);
   const [isCrafting, setIsCrafting] = useState(false);
   const [stationFilter, setStationFilter] = useState<string | null>(null);
+  const [showIdentify, setShowIdentify] = useState(false);
 
   const handleCraft = (recipeId: string) => {
     const recipe = RECIPES.find(r => r.id === recipeId);
@@ -979,12 +981,28 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
           className={`px-2 py-0.5 rounded text-[9px] ${stationFilter === 'workbench' ? 'bg-cyan-700 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>🪚 Bancada</button>
         <button onClick={() => { setStationFilter('furnace'); refresh(); }}
           className={`px-2 py-0.5 rounded text-[9px] ${stationFilter === 'furnace' ? 'bg-orange-700 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>🔥 Fornalha</button>
+        {/* Identification tab — only active near workbench */}
+        {showIdentify && (
+          <button onClick={() => { setShowIdentify(false); refresh(); }}
+            className="px-2 py-0.5 rounded text-[9px] bg-purple-700 text-white font-bold ml-1">🔍 Identificar</button>
+        )}
       </div>
+      
+      {/* Lote 10: Identification Panel (shown when identification is active) */}
+      {showIdentify && (
+        <IdentifyPanel game={game} onDone={() => { setShowIdentify(false); refresh(); }} />
+      )}
 
       {/* Lote 8e: Nearby stations indicator */}
       <div className="text-[8px] text-white/30 mb-1 flex gap-2">
         <span>{game.isNearbyStation && game.isNearbyStation('furnace') ? '✅ Fornalha 🔥' : '❌ Fornalha'}</span>
         <span>{game.isNearbyStation && game.isNearbyStation('workbench') ? '✅ Bancada 🪚' : '❌ Bancada'}</span>
+        {game.isNearbyStation && game.isNearbyStation('workbench') && game.getUnidentifiedSlots().length > 0 && (
+          <button onClick={() => setShowIdentify(true)}
+            className="text-purple-400 hover:text-purple-300 underline decoration-purple-400/30">
+            🔍 {game.getUnidentifiedSlots().length} p/ identificar
+          </button>
+        )}
         <span className="text-green-500/50">🤲 Maos (sempre)</span>
       </div>
 
@@ -1115,6 +1133,85 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
         </div>
       )}
     </Panel>
+  );
+}
+
+// ── Identification Panel ──────────────────────────────────────
+function IdentifyPanel({ game, onDone }: { game: Game; onDone: () => void }) {
+  const unidentified = game.getUnidentifiedSlots();
+  const [identifyingId, setIdentifyingId] = useState<string | null>(null);
+
+  const handleIdentify = (pool: 'inventory' | 'hotbar' | 'equipment', index: string | number) => {
+    const key = `${pool}_${index}`;
+    setIdentifyingId(key);
+    setTimeout(() => {
+      game.identifyItem(pool, index);
+      setIdentifyingId(null);
+      onDone();
+    }, 600);
+  };
+
+  const rarityColors: Record<string, string> = {
+    common: '#b0b0b0', uncommon: '#4caf50', rare: '#2196f3', epic: '#9c27b0', legendary: '#ff9800',
+  };
+  const rarityNames: Record<string, string> = {
+    common: 'Comum', uncommon: 'Incomum', rare: 'Raro', epic: 'Epico', legendary: 'Lendario',
+  };
+  const identifyCosts: Record<string, number> = {
+    common: 0, uncommon: 50, rare: 150, epic: 500, legendary: 2000,
+  };
+
+  return (
+    <div className="border border-purple-500/30 bg-purple-900/15 rounded-lg p-3 mb-2">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-lg">🔍</span>
+        <span className="text-sm font-bold text-purple-300">Identificar Itens</span>
+        <span className="text-[9px] text-white/40 ml-auto">Requer 🪚 Bancada</span>
+      </div>
+
+      {unidentified.length === 0 ? (
+        <div className="text-white/40 text-xs text-center py-4">
+          ✨ Nenhum item misterioso para identificar!
+        </div>
+      ) : (
+        <div className="space-y-1.5 max-h-60 overflow-y-auto">
+          {unidentified.map((entry) => {
+            const key = `${entry.pool}_${entry.index}`;
+            const cost = identifyCosts[entry.rarity] || 0;
+            const canAfford = game.state.player.stats.gold >= cost;
+            const isIdentifying = identifyingId === key;
+            const color = rarityColors[entry.rarity] || '#b0b0b0';
+
+            return (
+              <div key={key}
+                className={`flex items-center gap-2 p-2 rounded border ${canAfford ? 'border-purple-500/30 bg-purple-800/20 hover:bg-purple-700/30' : 'border-white/10 bg-white/5 opacity-50'}`}
+              >
+                <span className="text-lg" style={{ color }}>❓</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold" style={{ color }}>Item Misterioso</div>
+                  <div className="text-[9px] text-white/40">{rarityNames[entry.rarity] || entry.rarity}</div>
+                  <div className="text-[9px] text-white/30">{entry.pool === 'inventory' ? 'Mochila' : entry.pool === 'hotbar' ? 'Hotbar' : 'Equipamento'} [{entry.index}]</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-yellow-400">💰 {cost}</div>
+                  {isIdentifying ? (
+                    <div className="text-[9px] text-purple-400 animate-pulse">🔮 Identificando...</div>
+                  ) : (
+                    <button
+                      disabled={!canAfford}
+                      onClick={() => handleIdentify(entry.pool, entry.index)}
+                      className={`px-2 py-1 rounded text-[9px] font-bold ${canAfford ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
+                    >
+                      Identificar
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1381,15 +1478,16 @@ function Panel({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 // ── Item Tooltip ──────────────────────────────────────────────────
-function ItemTooltip({ item, durability, position, compareWith, playerStats, affixes }: {
+function ItemTooltip({ item, durability, position, compareWith, playerStats, affixes, unidentified }: {
   item: any;
   durability?: number;
   position: { x: number; y: number };
   compareWith?: any;
   playerStats?: GameState['player']['stats'];
   affixes?: { name: string; stat: string; value: number; tier: number }[];
+  unidentified?: boolean;
 }) {
-  const rarityColor = RARITY_COLORS[item.rarity as Rarity] || '#fff';
+  const rarityColor = RARITY_COLORS[item.rarity as Rarity] || '\#fff';
 
   const statLabels: Record<string, string> = {
     maxHp: '❤️ Vida Max', strength: '⚔️ Forca', defense: '🛡️ Defesa', speed: '🏃 Velocidade',
@@ -1402,8 +1500,8 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats, aff
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xl">{item.icon}</span>
           <div>
-            <div className="text-sm font-bold" style={{ color: rarityColor }}>{item.name}</div>
-            <div className="text-[10px]" style={{ color: rarityColor }}>{item.rarity} {item.category}</div>
+            <div className="text-sm font-bold" style={{ color: rarityColor }}>{unidentified ? 'Item Misterioso' : item.name}</div>
+            <div className="text-[10px]" style={{ color: rarityColor }}>{unidentified ? 'Desconhecido' : item.rarity} {unidentified ? '' : item.category}</div>
           </div>
         </div>
 
@@ -1416,9 +1514,18 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats, aff
           </div>
         )}
 
-        <div className="text-white/50 text-[10px] mb-2 border-b border-white/10 pb-2">{item.description}</div>
+        <div className="text-white/50 text-[10px] mb-2 border-b border-white/10 pb-2">{unidentified ? '❓ Item não identificado. Leve a uma Bancada para revelar seus atributos!' : item.description}</div>
 
         <div className="space-y-0.5">
+          {unidentified ? (
+            <>
+              <div className="text-[9px] text-white/30 italic">⚔️ Dano: ???</div>
+              <div className="text-[9px] text-white/30 italic">🛡️ Defesa: ???</div>
+              <div className="text-[9px] text-white/30 italic">⚡ Velocidade: ???</div>
+              <div className="text-[9px] text-white/30 italic">🔧 Efeitos misteriosos...</div>
+            </>
+          ) : (
+            <>
           {item.damage && <StatLine label="⚔️ Dano" value={item.damage} />}
           {item.defense && <StatLine label="🛡️ Defesa" value={item.defense} />}
           {item.speed && <StatLine label="⚡ Velocidade" value={item.speed} />}
@@ -1434,6 +1541,8 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats, aff
           {item.effects?.map((eff: any, i: number) => (
             <div key={i} className="text-[9px] text-green-400/80">+{eff.value} {eff.type === 'heal' ? '❤️ Vida' : eff.type === 'hunger' ? '🍖 Fome' : eff.type === 'energy' ? '⚡ Energia' : eff.type === 'xp' ? '✨ XP' : eff.type}</div>
           ))}
+            </>
+          )}
 
           {durability !== undefined && item.maxDurability && (
             <div className="mt-1">
