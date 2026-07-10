@@ -152,6 +152,8 @@ export const EnemyType = {
   GiantBat: 'giantBat',
   CrystalGolem: 'crystalGolem',
   LavaSpider: 'lavaSpider',
+  // ── Cursed Lands Boss ──
+  VoidWarden: 'voidWarden',
 } as const;
 export type EnemyType = typeof EnemyType[keyof typeof EnemyType];
 

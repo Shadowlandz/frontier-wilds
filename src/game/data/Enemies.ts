@@ -136,6 +136,26 @@ export const ENEMIES: Record<EnemyType, EnemyDefinition> = {
   },
 
   // ═══════════════════════════════════════════════════════════════
+  // Cursed Lands Boss — Guardião do Vácuo
+  // ═══════════════════════════════════════════════════════════════
+  [EnemyType.VoidWarden]: {
+    type: EnemyType.VoidWarden, name: 'Guardião do Vácuo', hp: 600, damage: 40, defense: 18,
+    speed: 50, xpReward: 800, level: 18, aggroRange: 240, attackRange: 56,
+    attackSpeed: 1600, color: '#2d0a4e', icon: '👁️', size: 48, behavior: 'ranged',
+    biomes: [Biome.Cave],
+    loot: [
+      { itemId: 'abyssal_gem', chance: 0.8, minCount: 1, maxCount: 2 },
+      { itemId: 'void_crystal', chance: 1, minCount: 2, maxCount: 4 },
+      { itemId: 'shadow_fragment', chance: 1, minCount: 4, maxCount: 8 },
+      { itemId: 'dark_essence', chance: 1, minCount: 6, maxCount: 12 },
+      { itemId: 'void_ore', chance: 0.8, minCount: 3, maxCount: 6 },
+      { itemId: 'gold_coin', chance: 1, minCount: 50, maxCount: 100 },
+      { itemId: 'ring_of_power', chance: 0.2, minCount: 1, maxCount: 1 },
+      { itemId: 'crystal', chance: 0.6, minCount: 3, maxCount: 6 },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
   // Cave Exclusive Enemies
   // ═══════════════════════════════════════════════════════════════
   [EnemyType.CaveTroll]: {

@@ -578,6 +578,13 @@ export class WorldGenerator {
       }
     }
 
+    // ── Place VoidWarden boss at the center hub ──
+    enemies.push({
+      x: hubX * TILE_SIZE + TILE_SIZE / 2,
+      y: hubY * TILE_SIZE + TILE_SIZE / 2,
+      type: EnemyType.VoidWarden,
+    });
+
     return { tileMap, resources, enemies, entranceX, entranceY };
   }
 
