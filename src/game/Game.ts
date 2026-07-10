@@ -130,6 +130,8 @@ export class Game {
   /** Enhanced time-of-day system */
   timeSystem: TimeSystem;
   private lastPeriod: TimePeriod = TimePeriod.Manha;
+  /** Track which time event notifications have been shown to avoid spam */
+  private firedTimeEvents: Set<string> = new Set();
 
   constructor(audio?: AudioEngine) {
     this.input = new Input();
@@ -1659,11 +1661,22 @@ export class Game {
     this.audio.updateAmbient(biome || 'plains', this.state.gameTime.isNight, this.inCave);
   }
 
-  /** Check for time-based events */
+  /** Check for time-based events — fires notification only once per event occurrence */
   private checkTimeEvents(ts: TimeSystem): void {
     const activeEvents = ts.getActiveEvents();
+    const currentHour = Math.floor(ts.getHour());
+    // Reset fired events when hour changes
+    if (currentHour !== this._lastEventHour) {
+      this._lastEventHour = currentHour;
+      this.firedTimeEvents.clear();
+    }
     for (const event of activeEvents) {
       if (event.minLevel && this.state.player.stats.level < event.minLevel) continue;
+      // Skip if already fired this hour
+      const eventKey = `${event.id}_${ts.getDay()}_${currentHour}`;
+      if (this.firedTimeEvents.has(eventKey)) continue;
+      this.firedTimeEvents.add(eventKey);
+
       this.addNotification(`${event.icon} ${event.name}: ${event.description}`, 'info');
       this.spawnParticles(
         this.state.player.x + PLAYER_SIZE / 2,
@@ -1675,6 +1688,8 @@ export class Game {
       );
     }
   }
+
+  private _lastEventHour = -1;
 
   /** Get current surface biome name */
   private getCurrentBiome(): string | null {
