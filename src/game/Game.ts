@@ -4011,6 +4011,7 @@ export class Game {
 
     ctx.globalAlpha = 1;
 
+
     // ── Floating [E] Interact tooltip ──
     if (this.ui.activePanel === 'none') {
       const px = this.state.player.x + PLAYER_SIZE / 2;
@@ -4025,31 +4026,67 @@ export class Game {
         const tp = camera.worldToScreen(target.x + target.width / 2, target.y - 8);
         const pulse = Math.sin(performance.now() / 400) * 0.15 + 0.85;
         const bob = Math.sin(performance.now() / 600) * 3;
+        const breathe = Math.sin(performance.now() / 300) * 0.08 + 1.0;
 
-        // Label by type
-        const labels: Record<string, string> = {
-          chest: 'Ba\u00fa', storage_chest: 'Ba\u00fa Refor\u00e7ado',
-          workbench: 'Bancada', workbench_advanced: 'Bancada Avan\u00e7ada',
-          furnace: 'Fornalha', bed: 'Cama', campfire: 'Fogueira',
+        // ── Icon + label + color by type ──
+        const typeConfig: Record<string, { icon: string; label: string; color: string }> = {
+          chest:            { icon: '\u{1F4E6}', label: 'Ba\u00fa',              color: '#44cc88' },
+          storage_chest:    { icon: '\u{1F9F0}', label: 'Ba\u00fa Refor\u00e7ado',  color: '#44cc88' },
+          workbench:        { icon: '\u{1F6E0}\uFE0F', label: 'Bancada',           color: '#44aaff' },
+          workbench_advanced: { icon: '\u2699\uFE0F',  label: 'Bancada Avan\u00e7ada', color: '#44aaff' },
+          furnace:          { icon: '\u2692\uFE0F', label: 'Fornalha',            color: '#ff8844' },
+          bed:              { icon: '\u{1F6CF}\uFE0F', label: 'Cama',              color: '#bb66ff' },
+          campfire:         { icon: '\u{1F525}', label: 'Fogueira',           color: '#ff6633' },
+          house:            { icon: '\u{1F3E0}', label: 'Casa',               color: '#ffcc44' },
+          fence:            { icon: '\u{1F6A7}', label: 'Cerca',              color: '#aa8855' },
+          torch_item:       { icon: '\u{1F56F}\uFE0F', label: 'Tocha',              color: '#ffaa33' },
+          gate:             { icon: '\u{1F6AA}', label: 'Port\u00e3o',            color: '#aa8855' },
         };
-        const label = labels[target.itemId] || target.itemId;
+        const cfg = typeConfig[target.itemId] || { icon: '\u2753', label: target.itemId, color: '#aaa' };
+        const text = `${cfg.icon} [E] ${cfg.label}`;
 
-        // Shadow / outline
+        // ── Pill badge background ──
         ctx.font = 'bold 12px monospace';
         ctx.textAlign = 'center';
-        ctx.fillStyle = `rgba(0,0,0,${pulse * 0.6})`;
-        ctx.fillText(`[E] ${label}`, tp.x + 1, tp.y + bob + 1);
+        const tw = ctx.measureText(text).width;
+        const bx = tp.x - tw / 2 - 8;
+        const by = tp.y + bob - 14;
+        const bw = tw + 16;
+        const bh = 22;
+        const borderRadius = 6;
+        const bgAlpha = 0.55 + pulse * 0.15;
+        ctx.fillStyle = `rgba(0, 0, 0, ${bgAlpha})`;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, borderRadius);
+        ctx.fill();
 
-        // Main text
-        ctx.fillStyle = `rgba(255, 255, 200, ${pulse})`;
-        ctx.fillText(`[E] ${label}`, tp.x, tp.y + bob);
+        // ── Colored glow ring ──
+        const glowRadius = tw / 2 + 18;
+        const glow = ctx.createRadialGradient(tp.x, tp.y + bob - 2, 0, tp.x, tp.y + bob - 2, glowRadius);
+        const glowAlpha = Math.floor(pulse * 0.12 * 255).toString(16).padStart(2, '0');
+        glow.addColorStop(0, cfg.color + glowAlpha);
+        glow.addColorStop(0.5, cfg.color + Math.floor(Number('0x' + glowAlpha) * 0.5).toString(16).padStart(2, '0'));
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(tp.x, tp.y + bob - 2, glowRadius, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Subtle glow
-        ctx.fillStyle = `rgba(255, 220, 100, ${pulse * 0.15})`;
-        ctx.fillText(`[E] ${label}`, tp.x, tp.y + bob);
+        // ── Shadow text ──
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
+        ctx.fillText(text, tp.x + 1, tp.y + bob + 1);
+
+        // ── Main text with type color + pulse ──
+        ctx.globalAlpha = 0.8 + pulse * 0.2;
+        ctx.fillStyle = cfg.color;
+        ctx.fillText(text, tp.x, tp.y + bob);
+
+        // ── White highlight on [E] key hint ──
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + pulse * 0.35})`;
+        ctx.globalAlpha = 1;
+        ctx.fillText(text, tp.x, tp.y + bob);
       }
     }
-
 
     // ── Day/Night ambient overlay (surface only, before restore so it's in world space) ──
     if (!this.inCave) {
