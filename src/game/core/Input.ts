@@ -15,6 +15,14 @@ export class Input {
   private canvas: HTMLCanvasElement | null = null;
   private scrollDelta = 0;
 
+  // ── Touch / Mobile Controls ──────────────────────────────────────
+  /** Movement vector from touch (virtual joystick), normalized */
+  touchMovement: Vec2 = { x: 0, y: 0 };
+  /** Virtual keys set by the MobileHUD (simulate keyboard presses) */
+  private virtualKeys: Set<string> = new Set();
+  /** Virtual keys that were just pressed this frame */
+  private virtualKeysPressed: Set<string> = new Set();
+
   init(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
 
@@ -60,14 +68,17 @@ export class Input {
     this.mouseClicked.clear();
     this.mouseReleased.clear();
     this.scrollDelta = 0;
+    this.virtualKeysPressed.clear();
   }
 
   isKeyDown(key: string): boolean {
-    return this.keys.has(key.toLowerCase());
+    const k = key.toLowerCase();
+    return this.keys.has(k) || this.virtualKeys.has(k);
   }
 
   isKeyPressed(key: string): boolean {
-    return this.keysPressed.has(key.toLowerCase());
+    const k = key.toLowerCase();
+    return this.keysPressed.has(k) || this.virtualKeysPressed.has(k);
   }
 
   isKeyReleased(key: string): boolean {
@@ -94,10 +105,18 @@ export class Input {
     let dx = 0;
     let dy = 0;
 
-    if (this.isKeyDown('w') || this.isKeyDown('arrowup')) dy -= 1;
-    if (this.isKeyDown('s') || this.isKeyDown('arrowdown')) dy += 1;
-    if (this.isKeyDown('a') || this.isKeyDown('arrowleft')) dx -= 1;
-    if (this.isKeyDown('d') || this.isKeyDown('arrowright')) dx += 1;
+    // Keyboard movement
+    const k = this.keys;
+    if (k.has('w') || k.has('arrowup')) dy -= 1;
+    if (k.has('s') || k.has('arrowdown')) dy += 1;
+    if (k.has('a') || k.has('arrowleft')) dx -= 1;
+    if (k.has('d') || k.has('arrowright')) dx += 1;
+
+    // Touch movement (overrides keyboard if active)
+    if (this.touchMovement.x !== 0 || this.touchMovement.y !== 0) {
+      dx = this.touchMovement.x;
+      dy = this.touchMovement.y;
+    }
 
     // Normalize diagonal movement
     if (dx !== 0 && dy !== 0) {
@@ -109,9 +128,57 @@ export class Input {
     return { x: dx, y: dy };
   }
 
+  // ── Touch Control API ───────────────────────────────────────────
+  /** Set the virtual movement direction from a touch joystick (values -1..1) */
+  setTouchMovement(x: number, y: number): void {
+    // Clamp and normalize
+    const len = Math.sqrt(x * x + y * y);
+    if (len > 1) {
+      this.touchMovement.x = x / len;
+      this.touchMovement.y = y / len;
+    } else {
+      this.touchMovement.x = x;
+      this.touchMovement.y = y;
+    }
+  }
+
+  /** Clear touch movement (finger lifted) */
+  clearTouchMovement(): void {
+    this.touchMovement.x = 0;
+    this.touchMovement.y = 0;
+  }
+
+  /** Simulate pressing a virtual key (will be held until released) */
+  setVirtualKey(key: string, pressed: boolean): void {
+    const k = key.toLowerCase();
+    if (pressed) {
+      if (!this.virtualKeys.has(k)) {
+        this.virtualKeysPressed.add(k);
+      }
+      this.virtualKeys.add(k);
+    } else {
+      this.virtualKeys.delete(k);
+    }
+  }
+
+  /** Trigger a single press-release of a virtual key (for taps) */
+  triggerVirtualKeyPress(key: string): void {
+    const k = key.toLowerCase();
+    this.virtualKeysPressed.add(k);
+    this.virtualKeys.add(k);
+    // Will be cleared on next update() cycle
+  }
+
+  /** Check if this is a touch-enabled device */
+  static isMobileDevice(): boolean {
+    return ('maxTouchPoints' in navigator && navigator.maxTouchPoints > 0) ||
+      /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+
   destroy(): void {
     // Listeners are cleaned up when canvas is removed
     this.keys.clear();
     this.mouseDown.clear();
+    this.virtualKeys.clear();
   }
 }

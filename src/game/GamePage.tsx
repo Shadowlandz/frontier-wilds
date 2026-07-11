@@ -4,6 +4,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { Game } from './Game';
+import { Input } from './core/Input';
 import { getAudioEngine } from './core/AudioEngine';
 import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT, ACHIEVEMENTS, AchievementProgress } from './core/Types';
 import { getItem } from './data/Items';
@@ -13,6 +14,7 @@ import { QUESTS } from './data/Quests';
 import { NPCS } from './data/Npcs';
 import { formatTime } from './core/Utils';
 import { getAllSaveSlots, formatSaveDate, getMaxSaveSlots, type SaveSlotInfo } from './systems/SaveSystem';
+import MobileHUD from './MobileHUD';
 
 // ── Time helpers for HUD ────────────────────────────────────────────
 
@@ -169,9 +171,13 @@ export default function GamePage() {
           <FarmingBar game={game!} />
           <FishingBar game={game!} />
 
-          <div className="absolute bottom-16 left-4 text-white/30 text-[10px] pointer-events-none">
-            WASD=Mover | E=Coletar/Interagir | Q/Clique=Atacar | F=Usar | G=Soltar | I=Inventario | C=Craft | K=Habilidades | J=Missoes | L=Conquistas | M=Mapa | P=Plantar | H=Salvar
-          </div>
+          {Input.isMobileDevice() ? (
+            <MobileHUD game={game!} uiState={uiState} />
+          ) : (
+            <div className="absolute bottom-16 left-4 text-white/30 text-[10px] pointer-events-none">
+              WASD=Mover | E=Coletar/Interagir | Q/Clique=Atacar | F=Usar | G=Soltar | I=Inventario | C=Craft | K=Habilidades | J=Missoes | L=Conquistas | M=Mapa | P=Plantar | H=Salvar
+            </div>
+          )}
         </>
       )}
     </div>
