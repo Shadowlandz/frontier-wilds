@@ -797,6 +797,72 @@ export class WorldGenerator {
       resources.push({ x: bestX, y: bestY, type: 'portal', itemId: 'portal' });
     }
 
+    // ── Portal to Ice Caves — place in Tundra biome ──
+    const icePortalPlaced = resources.some(r => r.type === 'portal_ice');
+    if (!icePortalPlaced) {
+      const cx = Math.floor(WORLD_WIDTH / 2);
+      const cy = Math.floor(WORLD_HEIGHT / 2);
+      let bestX = 0, bestY = 0, bestDist = 0;
+      for (let y = 0; y < biomeMap.length; y++) {
+        for (let x = 0; x < biomeMap[0].length; x++) {
+          if (biomeMap[y][x] !== 'tundra') continue;
+          const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+          if (dist > bestDist) {
+            bestDist = dist;
+            bestX = x * TILE_SIZE + TILE_SIZE / 2;
+            bestY = y * TILE_SIZE + TILE_SIZE / 2;
+          }
+        }
+      }
+      if (bestDist > 0) {
+        resources.push({ x: bestX, y: bestY, type: 'portal_ice', itemId: 'portal_ice' });
+      }
+    }
+
+    // ── Portal to Volcanic Mine — place in Volcanic biome ──
+    const volcanicPortalPlaced = resources.some(r => r.type === 'portal_volcanic');
+    if (!volcanicPortalPlaced) {
+      const cx = Math.floor(WORLD_WIDTH / 2);
+      const cy = Math.floor(WORLD_HEIGHT / 2);
+      let bestX = 0, bestY = 0, bestDist = 0;
+      for (let y = 0; y < biomeMap.length; y++) {
+        for (let x = 0; x < biomeMap[0].length; x++) {
+          if (biomeMap[y][x] !== 'volcanic') continue;
+          const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+          if (dist > bestDist) {
+            bestDist = dist;
+            bestX = x * TILE_SIZE + TILE_SIZE / 2;
+            bestY = y * TILE_SIZE + TILE_SIZE / 2;
+          }
+        }
+      }
+      if (bestDist > 0) {
+        resources.push({ x: bestX, y: bestY, type: 'portal_volcanic', itemId: 'portal_volcanic' });
+      }
+    }
+
+    // ── Portal to Crystal Depths — place in Mountains biome ──
+    const crystalPortalPlaced = resources.some(r => r.type === 'portal_crystal');
+    if (!crystalPortalPlaced) {
+      const cx = Math.floor(WORLD_WIDTH / 2);
+      const cy = Math.floor(WORLD_HEIGHT / 2);
+      let bestX = 0, bestY = 0, bestDist = 0;
+      for (let y = 0; y < biomeMap.length; y++) {
+        for (let x = 0; x < biomeMap[0].length; x++) {
+          if (biomeMap[y][x] !== 'mountains') continue;
+          const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+          if (dist > bestDist) {
+            bestDist = dist;
+            bestX = x * TILE_SIZE + TILE_SIZE / 2;
+            bestY = y * TILE_SIZE + TILE_SIZE / 2;
+          }
+        }
+      }
+      if (bestDist > 0) {
+        resources.push({ x: bestX, y: bestY, type: 'portal_crystal', itemId: 'portal_crystal' });
+      }
+    }
+
     return resources;
   }
 

@@ -96,6 +96,8 @@ export class Game {
   // ── Cave System ─────────────────────────────────────────────────
   inCave = false;
   caveData: GeneratedLevel | null = null;
+  /** Generic dungeon state for non-cave/non-cursed-lands dungeons */
+  dungeonData: GeneratedLevel | null = null;
   caveEnemies: EnemyEntity[] = [];
   caveResources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
   caveResourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
@@ -144,9 +146,12 @@ export class Game {
     crystal_node: { w: 16, h: 20, hp: 45 },
     mithril_rock: { w: 20, h: 18, hp: 60 },
     ruby_rock: { w: 18, h: 16, hp: 70 },
-    cave_entrance: { w: 32, h: 32, hp: 99999 },
-    portal: { w: 32, h: 32, hp: 99999 },
-    fishing_spot: { w: 24, h: 24, hp: 99999 },
+  cave_entrance: { w: 32, h: 32, hp: 99999 },
+  portal: { w: 32, h: 32, hp: 99999 },
+  portal_ice: { w: 32, h: 32, hp: 99999 },
+  portal_volcanic: { w: 32, h: 32, hp: 99999 },
+  portal_crystal: { w: 32, h: 32, hp: 99999 },
+  fishing_spot: { w: 24, h: 24, hp: 99999 },
   };
 
   /** Procedural audio engine */
@@ -724,6 +729,17 @@ export class Game {
       }
     }
 
+    // ── Generic Dungeon: check for exit ──
+    if (this.dungeonData && !this.inCave && !this.inCursedLands) {
+      const ex = this.dungeonData.entranceX;
+      const ey = this.dungeonData.entranceY;
+      const dist = distance({ x: px, y: py }, { x: ex + 16, y: ey + 16 });
+      if (dist < INTERACT_RANGE) {
+        this.exitDungeon();
+        return;
+      }
+    }
+
     // ── Surface: check for cave entrance resource ──
     if (!this.inCave) {
       for (const res of this.resources) {
@@ -756,6 +772,63 @@ export class Game {
               return;
             }
             this.enterCursedLands(res.x, res.y);
+            return;
+          }
+        }
+      }
+    }
+
+    // ── Surface: check for portal to Ice Caves (Tundra) ──
+    if (!this.inCave && !this.inCursedLands) {
+      for (const res of this.resources) {
+        if (res.type === 'portal_ice') {
+          const size = this.resourceSizes['portal_ice'];
+          if (!size) continue;
+          const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
+          if (dist < INTERACT_RANGE) {
+            if (this.state.player.stats.level < 8) {
+              this.addNotification('❄️ Precisa de nível 8 para entrar nas Cavernas de Gelo!', 'warning');
+              return;
+            }
+            this.enterDungeon('ice_caves', res.x, res.y);
+            return;
+          }
+        }
+      }
+    }
+
+    // ── Surface: check for portal to Volcanic Mine (Volcanic biome) ──
+    if (!this.inCave && !this.inCursedLands) {
+      for (const res of this.resources) {
+        if (res.type === 'portal_volcanic') {
+          const size = this.resourceSizes['portal_volcanic'];
+          if (!size) continue;
+          const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
+          if (dist < INTERACT_RANGE) {
+            if (this.state.player.stats.level < 10) {
+              this.addNotification('🌋 Precisa de nível 10 para entrar na Mina Vulcânica!', 'warning');
+              return;
+            }
+            this.enterDungeon('volcanic_mine', res.x, res.y);
+            return;
+          }
+        }
+      }
+    }
+
+    // ── Surface: check for portal to Crystal Depths (Mountains) ──
+    if (!this.inCave && !this.inCursedLands) {
+      for (const res of this.resources) {
+        if (res.type === 'portal_crystal') {
+          const size = this.resourceSizes['portal_crystal'];
+          if (!size) continue;
+          const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
+          if (dist < INTERACT_RANGE) {
+            if (this.state.player.stats.level < 12) {
+              this.addNotification('💎 Precisa de nível 12 para entrar nas Profundezas de Cristal!', 'warning');
+              return;
+            }
+            this.enterDungeon('crystal_depths', res.x, res.y);
             return;
           }
         }
@@ -948,6 +1021,74 @@ export class Game {
 
     this.inCave = false;
     this.addNotification('Você saiu da caverna.', 'info');
+  }
+
+  // ── Generic Dungeon Entry / Exit ────────────────────────────────
+  /** Enter any dungeon level via WorldRegistry (generic method for new dungeons) */
+  private enterDungeon(levelId: string, portalX: number, portalY: number): void {
+    const generated = worldRegistry.generateLevel(levelId, this.worldSeed);
+    if (!generated) return;
+    this.dungeonData = generated;
+
+    // Save surface position
+    this.surfacePosition = { x: this.state.player.x, y: this.state.player.y };
+
+    const dd = this.dungeonData;
+    this.state.player.x = dd.entranceX + TILE_SIZE / 2;
+    this.state.player.y = dd.entranceY + TILE_SIZE + TILE_SIZE;
+
+    // Initialize dungeon enemies
+    const enemies: EnemyEntity[] = dd.enemies.map(e => {
+      const def = ENEMIES[e.type];
+      if (!def) return null;
+      return {
+        id: generateId(), type: e.type,
+        x: e.x, y: e.y,
+        width: def.size, height: def.size,
+        definition: def,
+        hp: def.hp, maxHp: def.hp,
+        state: 'idle' as const,
+        direction: { x: 0, y: 0 },
+        targetId: null,
+        attackCooldown: 0,
+        patrolTimer: 0,
+        patrolDirection: { x: Math.random() - 0.5, y: Math.random() - 0.5 },
+        knockback: { x: 0, y: 0 },
+        deathTimer: 0,
+      };
+    }).filter(Boolean) as EnemyEntity[];
+
+    // Store as dungeon enemies (reuse cave enemy properties for rendering)
+    this.caveEnemies = enemies;
+    this.caveResources = dd.resources.map(r => ({
+      ...r,
+      hp: this.resourceSizes[r.type]?.hp ?? 10,
+      maxHp: this.resourceSizes[r.type]?.hp ?? 10,
+      id: generateId(),
+      shakeTimer: 0,
+    }));
+
+    this.addNotification(`Você entrou em ${worldRegistry.getConfig(levelId)?.name ?? levelId}...`, 'info');
+    this.addNotification('Pressione [E] perto da entrada para voltar.', 'info');
+  }
+
+  /** Exit any generic dungeon and return to the surface */
+  private exitDungeon(): void {
+    if (!this.dungeonData) return;
+
+    // Restore surface position
+    if (this.surfacePosition) {
+      this.state.player.x = this.surfacePosition.x;
+      this.state.player.y = this.surfacePosition.y;
+    }
+
+    // Clear dungeon data
+    this.caveEnemies = [];
+    this.caveResources = [];
+    this.caveResourceRespawnQueue = [];
+    this.dungeonData = null;
+
+    this.addNotification('Você voltou à superfície.', 'info');
   }
 
   // ══ Cursed Lands Entry / Exit ════════════════════════════════
