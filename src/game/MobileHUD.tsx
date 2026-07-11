@@ -7,6 +7,23 @@ import { Game } from './Game';
 import { GameUIState, RARITY_COLORS } from './core/Types';
 import { getItem } from './data/Items';
 
+// ── Haptic vibration helper ───────────────────────────────────────
+/** Safely trigger device vibration if the API is available */
+function vibrate(pattern: number | number[]) {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try { navigator.vibrate(pattern); } catch {} // eslint-disable-line no-empty
+  }
+}
+
+/** Short tap feedback */
+const HAPTIC_TAP = 10;
+/** Medium feedback for important actions */
+const HAPTIC_MEDIUM = 20;
+/** Strong feedback for attacks */
+const HAPTIC_STRONG = [15, 30, 15];
+/** Double-tap pattern for toggles */
+const HAPTIC_DOUBLE = [10, 20, 10];
+
 interface MobileHUDProps {
   game: Game;
   uiState: GameUIState;
@@ -72,8 +89,8 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
             return (
               <button
                 key={i}
-                onClick={() => { player.currentTool = i; refresh(); }}
-                onContextMenu={(e) => { e.preventDefault(); game.input.triggerVirtualKeyPress('g'); refresh(); }}
+                onClick={() => { vibrate(HAPTIC_TAP); player.currentTool = i; refresh(); }}
+                onContextMenu={(e) => { e.preventDefault(); vibrate(HAPTIC_DOUBLE); game.input.triggerVirtualKeyPress('g'); refresh(); }}
                 className={`w-11 h-11 rounded-lg border-2 flex items-center justify-center relative transition-all ${
                   isSelected
                     ? 'border-yellow-400 bg-yellow-400/20 scale-110 shadow-lg shadow-yellow-400/20'
@@ -137,7 +154,7 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
         )}
 
         <button
-          onClick={() => setShowExtra(!showExtra)}
+          onClick={() => { vibrate(HAPTIC_DOUBLE); setShowExtra(!showExtra); }}
           className="w-10 h-10 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white/70 text-xs hover:bg-white/10 transition-all"
         >
           {showExtra ? '✕' : '···'}
@@ -168,6 +185,7 @@ function JoystickArea({ game }: { game: Game }) {
     const touch = e.changedTouches[0];
     touchIdRef.current = touch.identifier;
     setActive(true);
+    vibrate(HAPTIC_TAP);
     updateKnob(touch.clientX, touch.clientY);
   }, []);
 
@@ -298,11 +316,17 @@ function TouchButton({
   const btnSize = isSmall ? 'w-10 h-10' : 'w-14 h-14';
   const iconSize = isSmall ? 'text-base' : 'text-xl';
 
+  // Determine vibration pattern based on color (action importance)
+  const hapticPattern = color === 'red' ? HAPTIC_STRONG
+    : color === 'blue' || color === 'green' ? HAPTIC_MEDIUM
+    : HAPTIC_TAP;
+
   return (
     <button
       onTouchStart={(e) => {
         e.preventDefault();
         setPressed(true);
+        vibrate(hapticPattern);
         onTouchStart?.();
       }}
       onTouchEnd={(e) => {
@@ -314,6 +338,7 @@ function TouchButton({
       onClick={(e) => {
         // Only trigger on actual clicks (not from touch simulation)
         if (e.detail === 0) return;
+        vibrate(hapticPattern);
         onClick?.();
       }}
       className={`${btnSize} rounded-full border-2 ${c.ring} ${pressed ? c.activeBg + ' scale-90' : c.bg} transition-all duration-75 flex items-center justify-center relative`}
