@@ -1048,3 +1048,261 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   { id: 'golden_fish', name: 'Pescador Sortudo', description: 'Pegar um peixe dourado', icon: '🐠', category: 'special',
     condition: (s) => s.fishCaught >= 1 }, // Will be tracked separately in fishing
 ];
+
+// ═══════════════════════════════════════════════════════════════════
+// Dungeon / Level System
+// ═══════════════════════════════════════════════════════════════════
+
+/** Theme of a dungeon — controls tile colors, default tile types, and visual style */
+export const DungeonTheme = {
+  Cave: 'cave',
+  Cursed: 'cursed',
+  Ice: 'ice',
+  Volcanic: 'volcanic',
+  Sunken: 'sunken',
+  Crystal: 'crystal',
+  Abyssal: 'abyssal',
+} as const;
+export type DungeonTheme = typeof DungeonTheme[keyof typeof DungeonTheme];
+
+/** Algorithm used to carve the dungeon layout */
+export const DungeonGeneratorMode = {
+  Noise: 'noise',    // Default: fractal noise threshold carve
+  Cellular: 'cellular', // Cellular automata for organic caves
+  BSP: 'bsp',        // Binary Space Partition for structured rooms + corridors
+} as const;
+export type DungeonGeneratorMode = typeof DungeonGeneratorMode[keyof typeof DungeonGeneratorMode];
+
+/** How the entrance is positioned in the generated level */
+export const EntrancePolicy = {
+  TopCenter: 'top-center',       // Entrance at top-center (default for caves)
+  RandomEdge: 'random-edge',     // Random position on any edge
+  BottomCenter: 'bottom-center', // Entrance at bottom-center
+  Specific: 'specific',          // Specific coordinates provided
+} as const;
+export type EntrancePolicy = typeof EntrancePolicy[keyof typeof EntrancePolicy];
+
+/**
+ * DepthBand defines what spawns at a range of depths (y-ratio within the dungeon).
+ * Used for both resources and enemies that vary by "how deep" the player is.
+ */
+export interface DepthBand {
+  /** Minimum y-ratio (0.0 = top of dungeon, 1.0 = bottom) */
+  minDepthRatio: number;
+  /** Maximum y-ratio */
+  maxDepthRatio: number;
+  /** Items to spawn: format is `{ itemId: string; resourceType: string; chance: number }[]` */
+  items: { itemId: string; resourceType: string; chance: number }[];
+  /** Enemy types to spawn: format is `{ type: EnemyType; weight: number }[]` (weighted random pick) */
+  enemies?: { type: EnemyType; weight: number }[];
+}
+
+/** Configuration for a specific special resource placed within the dungeon */
+export interface SpecialPlacement {
+  /** Resource type string (e.g. 'portal', 'cave_entrance', 'chest') */
+  type: string;
+  /** Item ID for the resource */
+  itemId: string;
+  /** Position as tile coordinates (x, y in tile-space, not pixel-space) */
+  tileX: number;
+  tileY: number;
+  /** If true, carve open an area around this position */
+  carveRadius?: number;
+}
+
+/** Boss configuration for a dungeon level */
+export interface BossConfig {
+  /** Enemy type of the boss */
+  type: EnemyType;
+  /** How to determine boss position */
+  position: 'center' | 'deepest' | Vec2;
+}
+
+/** Full configuration for a single dungeon/level */
+export interface LevelConfig {
+  /** Unique identifier for this level (e.g. 'cave', 'cursed_lands') */
+  id: string;
+  /** Display name (e.g. 'Caverna Sombria') */
+  name: string;
+  /** Width of the dungeon in tiles */
+  width: number;
+  /** Height of the dungeon in tiles */
+  height: number;
+  /** Visual theme */
+  theme: DungeonTheme;
+  /** Generation algorithm */
+  mode: DungeonGeneratorMode;
+  /** Floor tile type */
+  floorTile: TileType;
+  /** Wall tile type */
+  wallTile: TileType;
+  /** Optional hazard tile config (e.g. lava pools) */
+  hazardTile?: {
+    tileType: TileType;
+    /** Minimum y-ratio to start spawning hazards */
+    minDepthRatio: number;
+    /** Noise chance per tile */
+    chance: number;
+    /** Size of hazard pool in tiles (e.g. 3 = 3x3) */
+    poolSize: number;
+  };
+  /** Noise parameters for layout carving */
+  noiseParams?: {
+    threshold: number;
+    octaves: number;
+    scale: number;
+    persistence: number;
+  };
+  /** Entrance policy */
+  entrancePolicy: EntrancePolicy;
+  /** Specific entrance coordinates (only used if EntrancePolicy.Specific) */
+  specificEntrance?: Vec2;
+  /** Resources by depth band */
+  resourceBands: DepthBand[];
+  /** Enemies by depth band */
+  enemyBands: DepthBand[];
+  /** Boss config (optional) */
+  boss?: BossConfig;
+  /** Special placements (portals, exits, chests, etc.) */
+  specialPlacements?: SpecialPlacement[];
+  /** Cellular automata params (only used if mode === Cellular) */
+  cellularParams?: {
+    initialFillChance: number;
+    iterations: number;
+    birthLimit: number;
+    deathLimit: number;
+  };
+  /** BSP params (only used if mode === BSP) */
+  bspParams?: {
+    minRoomSize: number;
+    maxRoomSize: number;
+    corridorWidth: number;
+    maxIterations: number;
+  };
+  /** If > 0, flood-fill after carving and discard unreachable areas */
+  ensureConnectivity: boolean;
+}
+
+/**
+ * PortalLink defines a connection between two levels.
+ * This creates a directed edge: fromLevel → toLevel, activated by interacting
+ * with a resource at `fromPos`.
+ */
+export interface PortalLink {
+  /** Unique portal ID */
+  id: string;
+  /** From which level (e.g. 'surface', 'cave', 'cursed_lands') */
+  fromLevel: string;
+  /** Position on the source level (tile coords) */
+  fromPos: Vec2;
+  /** To which level */
+  toLevel: string;
+  /** Where the player appears in the destination level (tile coords) */
+  toEntrance: Vec2;
+  /** Optional minimum player level to use this portal */
+  requiredLevel?: number;
+}
+
+/**
+ * Generic output of any level generator.
+ * Replaces both CaveData and CursedLandsData with a single type.
+ */
+export interface GeneratedLevel {
+  /** Level config ID that generated this */
+  configId: string;
+  /** Generated tile map */
+  tileMap: TileType[][];
+  /** Resources placed in the level */
+  resources: { x: number; y: number; type: string; itemId: string }[];
+  /** Enemies placed in the level */
+  enemies: { x: number; y: number; type: EnemyType }[];
+  /** Entrance position in pixels */
+  entranceX: number;
+  /** Entrance position in pixels */
+  entranceY: number;
+  /** Width in tiles */
+  width: number;
+  /** Height in tiles */
+  height: number;
+}
+
+/**
+ * Deterministic seed hashing: replaces magic number offsets.
+ * Given a base seed and a level/context ID, produces a unique seed.
+ * 
+ * Example:
+ *   levelSeed(12345, 'cave')        → different from
+ *   levelSeed(12345, 'cursed_lands') → guaranteed unique
+ */
+export function levelSeed(baseSeed: number, id: string): number {
+  let h = baseSeed | 0;
+  for (let i = 0; i < id.length; i++) {
+    h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+  }
+  // Ensure positive 32-bit integer
+  return h >>> 0;
+}
+
+/**
+ * Theme-specific tile configurations and colors.
+ */
+export const DUNGEON_THEME_CONFIGS: Record<DungeonTheme, {
+  floorTile: TileType;
+  wallTile: TileType;
+  hazardTile?: TileType;
+  ambientColor: string;
+  floorColor: string;
+  wallColor: string;
+}> = {
+  [DungeonTheme.Cave]: {
+    floorTile: TileType.CaveFloor,
+    wallTile: TileType.CaveWall,
+    hazardTile: TileType.Lava,
+    ambientColor: '#0a0a0a',
+    floorColor: '#3a3a3a',
+    wallColor: '#1a1a2a',
+  },
+  [DungeonTheme.Cursed]: {
+    floorTile: TileType.CaveFloor,
+    wallTile: TileType.CaveWall,
+    ambientColor: '#0a0015',
+    floorColor: '#2a1a3a',
+    wallColor: '#1a0a2a',
+  },
+  [DungeonTheme.Ice]: {
+    floorTile: TileType.CaveFloor,
+    wallTile: TileType.CaveWall,
+    ambientColor: '#0a1a2a',
+    floorColor: '#8ab4d8',
+    wallColor: '#4a6a8a',
+  },
+  [DungeonTheme.Volcanic]: {
+    floorTile: TileType.CaveFloor,
+    wallTile: TileType.CaveWall,
+    hazardTile: TileType.Lava,
+    ambientColor: '#1a0a00',
+    floorColor: '#5a3a1a',
+    wallColor: '#2a1a0a',
+  },
+  [DungeonTheme.Sunken]: {
+    floorTile: TileType.Floor,
+    wallTile: TileType.Wall,
+    ambientColor: '#00101a',
+    floorColor: '#3a6a8a',
+    wallColor: '#1a3a5a',
+  },
+  [DungeonTheme.Crystal]: {
+    floorTile: TileType.CaveFloor,
+    wallTile: TileType.CaveWall,
+    ambientColor: '#0a0a1a',
+    floorColor: '#4a3a6a',
+    wallColor: '#2a1a4a',
+  },
+  [DungeonTheme.Abyssal]: {
+    floorTile: TileType.CaveFloor,
+    wallTile: TileType.CaveWall,
+    ambientColor: '#00000a',
+    floorColor: '#1a0a1a',
+    wallColor: '#0a000a',
+  },
+};
