@@ -1,734 +1,916 @@
 // ═══════════════════════════════════════════════════════════════════
-// Farm Survival — Premium Pixel-Art Landing Page (v2)
+// Farm Survival — Landing Page Premium
 // ═══════════════════════════════════════════════════════════════════
-// Display face: Press Start 2P (titles, keycaps, eyebrows only)
-// Body face:    VT323 (panel copy, tips, labels — legible at small sizes)
-// Background:   CSS-only landscape with sky, mountains, forest, grass
-// Signature:    A campfire on a stone ring — the game's "safe zone" motif,
-//               grounded instead of a floating decorative torch.
+// Hero com parallax: Sky (day/night) → Clouds → Sun → Mountains →
+// Forest → River → Ground → House → Windmill → Garden → Player → Campfire
+// Seções: Gameplay, Survival, Building, Exploration, Craft, Gallery,
+// Roadmap, Download, Footer
+// Tudo em CSS/SVG/HTML puro — zero imagens externas
 // ═══════════════════════════════════════════════════════════════════
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { getAudioEngine } from '@/game/core/AudioEngine';
 
-const ANIMS = `
+// ─── TIPOGRAFIA ──────────────────────────────────────────────────────────
+// Press Start 2P → títulos, labels, teclas
+// VT323 → corpo, descrições, painéis
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────
+
+function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
+
+const PALETTE = {
+  grass: '#4CAF50', forest: '#2E7D32', wood: '#8D6E63', stone: '#616161',
+  sky: '#64B5F6', water: '#42A5F5', gold: '#FFC107', fire: '#FF7043',
+  darkSoil: '#3e2723', leaf: '#66BB6A', path: '#A1887F', roof: '#c62828',
+  wall: '#EFEBE9', windowGlow: '#FFF9C4', chimney: '#5D4037',
+};
+
+// ─── ANIMAÇÕES GLOBAIS ──────────────────────────────────────────────────
+
+const GLOBAL_ANIMS = `
 @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-@keyframes twinkle { 0%,100%{opacity:0.1} 50%{opacity:0.8} }
-@keyframes fire-flicker {
-  0%{transform:scale(1) rotate(0deg);opacity:0.95}
-  25%{transform:scale(1.07) rotate(-2deg);opacity:1}
-  50%{transform:scale(0.95) rotate(1.5deg);opacity:0.9}
-  75%{transform:scale(1.05) rotate(-1deg);opacity:1}
-  100%{transform:scale(1) rotate(0deg);opacity:0.95}
-}
-@keyframes fire-glow {
-  0%,100%{box-shadow:0 0 30px rgba(255,120,0,0.35),0 0 70px rgba(255,80,0,0.18)}
-  50%{box-shadow:0 0 45px rgba(255,180,50,0.55),0 0 100px rgba(255,120,0,0.28)}
-}
+@keyframes cloud-drift { 0%{transform:translateX(-120%)} 100%{transform:translateX(120vw)} }
+@keyframes cloud-drift-slow { 0%{transform:translateX(-100%)} 100%{transform:translateX(110vw)} }
+@keyframes cloud-drift-fast { 0%{transform:translateX(-150%)} 100%{transform:translateX(130vw)} }
+@keyframes windmill-blade { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+@keyframes fire-flicker { 0%,100%{transform:scale(1) rotate(0deg);opacity:0.95} 25%{transform:scale(1.08) rotate(-1.5deg);opacity:1} 50%{transform:scale(0.94) rotate(1deg);opacity:0.88} 75%{transform:scale(1.06) rotate(-0.5deg);opacity:1} }
+@keyframes fire-glow { 0%,100%{box-shadow:0 0 30px rgba(255,120,0,0.35),0 0 70px rgba(255,80,0,0.18)} 50%{box-shadow:0 0 50px rgba(255,180,50,0.55),0 0 100px rgba(255,120,0,0.28)} }
 @keyframes spark-rise { 0%{transform:translateY(0) scale(1);opacity:1} 100%{transform:translateY(-70px) scale(0);opacity:0} }
 @keyframes smoke-rise { 0%{transform:translateY(0) translateX(0) scale(1);opacity:0.18} 100%{transform:translateY(-100px) translateX(18px) scale(3.2);opacity:0} }
-@keyframes firefly { 0%,100%{opacity:0;transform:translate(0,0)} 25%{opacity:0.7;transform:translate(12px,-8px)} 50%{opacity:0.9;transform:translate(-6px,-18px)} 75%{opacity:0.5;transform:translate(8px,-6px)} }
-@keyframes logo-glow { 0%,100%{filter:brightness(1) drop-shadow(0 0 22px rgba(216,180,74,0.22))} 50%{filter:brightness(1.1) drop-shadow(0 0 34px rgba(216,180,74,0.4))} }
-@keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.006)} }
-@keyframes slide-up { 0%{opacity:0;transform:translateY(12px)} 10%{opacity:1;transform:translateY(0)} 88%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-12px)} }
-@keyframes crystal-glow { 0%,100%{opacity:0.45} 50%{opacity:0.95} }
-@keyframes gold-shine { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.35)} }
-@keyframes ember-pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+@keyframes twinkle { 0%,100%{opacity:0.1} 50%{opacity:0.9} }
+@keyframes firefly { 0%,100%{opacity:0;transform:translate(0,0)} 25%{opacity:0.7;transform:translate(15px,-10px)} 50%{opacity:0.9;transform:translate(-8px,-20px)} 75%{opacity:0.5;transform:translate(10px,-5px)} }
+@keyframes logo-glow { 0%,100%{filter:brightness(1) drop-shadow(0 0 22px rgba(216,180,74,0.22))} 50%{filter:brightness(1.12) drop-shadow(0 0 40px rgba(216,180,74,0.43))} }
+@keyframes crop-grow { 0%{transform:scaleY(0.3)} 100%{transform:scaleY(1)} }
+@keyframes river-flow { 0%{background-position:0 0} 100%{background-position:200px 0} }
+@keyframes smoke-chimney { 0%{transform:translateY(0) scale(1);opacity:0.35} 100%{transform:translateY(-60px) scale(2.5);opacity:0} }
+@keyframes player-idle { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+@keyframes player-blink { 0%,48%,52%,100%{transform:scaleY(1)} 50%{transform:scaleY(0.1)} }
+@keyframes slide-up-fade { 0%{opacity:0;transform:translateY(25px)} 100%{opacity:1;transform:translateY(0)} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes gold-shine { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.4)} }
+@keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.005)} }
+@keyframes star-pulse { 0%,100%{opacity:0.2;transform:scale(0.8)} 50%{opacity:0.9;transform:scale(1.2)} }
+@keyframes day-night-cycle {
+  0%{--sky-top:#0b1a2e;--sky-bot:#0d1f0d;--sun-color:rgba(255,200,100,0.08);--moon-color:rgba(200,210,255,0.5)}
+  25%{--sky-top:#1a3050;--sky-bot:#0e2a1a;--sun-color:rgba(255,180,80,0.15);--moon-color:rgba(200,210,255,0.3)}
+  50%{--sky-top:#4a90d9;--sky-bot:#87CEEB;--sun-color:rgba(255,230,150,0.6);--moon-color:transparent}
+  75%{--sky-top:#1a3050;--sky-bot:#0e2a1a;--sun-color:rgba(255,180,80,0.15);--moon-color:rgba(200,210,255,0.3)}
+  100%{--sky-top:#0b1a2e;--sky-bot:#0d1f0d;--sun-color:rgba(255,200,100,0.08);--moon-color:rgba(200,210,255,0.5)}
+}
 `;
 
-// Small inline pixel-icon set — replaces emoji for a consistent, higher-quality look
-function Icon({ name, size = 10 }: { name: 'controls' | 'gear' | 'leaf' | 'sprout'; size?: number }) {
-  const common = { width: size, height: size, viewBox: '0 0 16 16', shapeRendering: 'crispEdges' as const };
-  if (name === 'controls') {
-    return (
-      <svg {...common}>
-        <rect x="1" y="6" width="14" height="6" fill="#caa04c" />
-        <rect x="3" y="4" width="10" height="2" fill="#caa04c" />
-        <rect x="3" y="7" width="2" height="2" fill="#3a2a18" />
-        <rect x="6" y="7" width="2" height="2" fill="#3a2a18" />
-        <rect x="10" y="7" width="2" height="2" fill="#3a2a18" />
-      </svg>
-    );
-  }
-  if (name === 'gear') {
-    return (
-      <svg {...common}>
-        <rect x="6" y="1" width="4" height="2" fill="#caa04c" />
-        <rect x="6" y="13" width="4" height="2" fill="#caa04c" />
-        <rect x="1" y="6" width="2" height="4" fill="#caa04c" />
-        <rect x="13" y="6" width="2" height="4" fill="#caa04c" />
-        <rect x="3" y="3" width="2" height="2" fill="#caa04c" />
-        <rect x="11" y="3" width="2" height="2" fill="#caa04c" />
-        <rect x="3" y="11" width="2" height="2" fill="#caa04c" />
-        <rect x="11" y="11" width="2" height="2" fill="#caa04c" />
-        <rect x="5" y="5" width="6" height="6" fill="#2a1a0a" />
-        <rect x="6" y="6" width="4" height="4" fill="#caa04c" />
-      </svg>
-    );
-  }
-  if (name === 'sprout') {
-    return (
-      <svg {...common}>
-        <rect x="7" y="9" width="2" height="6" fill="#7a9a4a" />
-        <rect x="4" y="6" width="5" height="3" fill="#5aaa3a" />
-        <rect x="8" y="4" width="5" height="3" fill="#3a8a22" />
-      </svg>
-    );
-  }
+// ─── SUBCOMPONENTES ──────────────────────────────────────────────────────
+
+/** Nuvem SVG com velocidade única */
+function Cloud({ color = '#fff', opacity = 0.7, width = 120, speed = 20, delay = 0, top = '10%' }: any) {
   return (
-    <svg {...common}>
-      <rect x="4" y="2" width="8" height="2" fill="#6a9a4a" />
-      <rect x="2" y="4" width="12" height="2" fill="#5a8a3a" />
-      <rect x="3" y="6" width="10" height="2" fill="#4a7a2a" />
-      <rect x="7" y="8" width="2" height="7" fill="#5a3a1a" />
-    </svg>
+    <div className="absolute pointer-events-none" style={{ top, animation: `cloud-drift ${speed}s linear ${delay}s infinite`, zIndex: 2 }}>
+      <svg width={width} height={width * 0.5} viewBox="0 0 120 60" fill={color} opacity={opacity}>
+        <ellipse cx="40" cy="40" rx="30" ry="18" />
+        <ellipse cx="65" cy="35" rx="35" ry="22" />
+        <ellipse cx="85" cy="38" rx="25" ry="16" />
+        <ellipse cx="55" cy="30" rx="20" ry="14" />
+      </svg>
+    </div>
   );
 }
 
+/** Árvore CSS pura */
+function Tree({ x, y, scale = 1, type = 'pine' }: { x: number | string; y: number | string; scale?: number; type?: 'pine' | 'round' }) {
+  const s = scale * (0.7 + Math.random() * 0.6);
+  const h = 60 * s;
+  const w = 30 * s;
+  const trunkW = 6 * s;
+  const trunkH = h * 0.3;
+  const hue = 100 + Math.random() * 30;
+  if (type === 'round') {
+    return (
+      <div className="absolute pointer-events-none" style={{ left: x, bottom: y, width: w * 2, height: h, zIndex: 5 }}>
+        <div style={{ position: 'absolute', bottom: 0, left: '50%', marginLeft: -trunkW / 2, width: trunkW, height: trunkH, background: '#5D4037', borderRadius: '2px' }} />
+        <div style={{ position: 'absolute', bottom: trunkH - 5, left: '50%', marginLeft: -w, width: w * 2, height: w * 1.6, borderRadius: '50%', background: `hsl(${hue},50%,35%)`, boxShadow: `0 0 20px hsla(${hue},50%,25%,0.3)` }} />
+        <div style={{ position: 'absolute', bottom: trunkH + 5, left: '50%', marginLeft: -w * 0.6, width: w * 1.2, height: w * 1.2, borderRadius: '50%', background: `hsl(${hue},55%,40%)` }} />
+      </div>
+    );
+  }
+  // Pine tree
+  return (
+    <div className="absolute pointer-events-none" style={{ left: x, bottom: y, width: w * 2, height: h, zIndex: 5 }}>
+      <div style={{ position: 'absolute', bottom: 0, left: '50%', marginLeft: -trunkW / 2, width: trunkW, height: trunkH, background: '#4E342E', borderRadius: '2px' }} />
+      {[0, 1, 2].map((i) => (
+        <div key={i} style={{
+          position: 'absolute', bottom: trunkH + i * h * 0.22, left: '50%',
+          marginLeft: -(w * (1 - i * 0.2)), width: w * 2 * (1 - i * 0.2),
+          height: h * 0.28,
+          clipPath: `polygon(50% 0%, 0% 100%, 100% 100%)`,
+          background: `hsl(${hue - i * 8},${50 + i * 5}%,${30 + i * 8}%)`,
+          boxShadow: i === 0 ? `0 0 12px hsla(${hue},50%,25%,0.3)` : 'none',
+        }} />
+      ))}
+    </div>
+  );
+}
+
+/** Planta (crop) com 4 estágios */
+function Crop({ stage = 0, x, y, color = '#66BB6A' }: { stage: number; x: number; y: number; color?: string }) {
+  const heights = [6, 12, 20, 28];
+  const h = heights[clamp(stage, 0, 3)];
+  const icons = ['🌱', '🌿', '🌾', '🌻'];
+  return (
+    <div className="absolute pointer-events-none flex items-end justify-center" style={{ left: x, bottom: y, width: 16, height: 32, zIndex: 6 }}>
+      <div style={{
+        width: 4, height: h * 0.5, background: '#4E342E', borderRadius: '1px',
+        transformOrigin: 'bottom', animation: stage >= 2 ? 'crop-grow 0.5s ease-out' : 'none',
+      }} />
+      {stage < 2 ? (
+        <div className="absolute" style={{ bottom: h * 0.4, fontSize: stage === 0 ? '8px' : '10px', filter: 'drop-shadow(0 0 2px rgba(100,200,100,0.3))' }}>
+          {icons[stage]}
+        </div>
+      ) : (
+        <div className="absolute" style={{
+          bottom: h * 0.3, width: stage === 2 ? 10 : 14, height: stage === 2 ? 14 : 16,
+          background: stage === 2 ? `radial-gradient(circle at 40% 30%, ${color}, #2E7D32)` : color,
+          borderRadius: stage === 2 ? '50%' : '40% 60% 50% 50%', boxShadow: `0 0 6px ${color}44`,
+          animation: stage >= 3 ? 'gold-shine 2s ease-in-out infinite' : 'none',
+        }} />
+      )}
+    </div>
+  );
+}
+
+/** Personagem pixel CSS */
+function PixelPlayer({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
+  const s = scale;
+  return (
+    <div className="absolute pointer-events-none" style={{ left: x, bottom: y, width: 20 * s, height: 32 * s, zIndex: 10, animation: 'player-idle 2s ease-in-out infinite' }}>
+      {/* Body */}
+      <div style={{ position: 'absolute', bottom: 10 * s, left: '50%', marginLeft: -6 * s, width: 12 * s, height: 14 * s, background: '#5D4037', borderRadius: '3px' }} />
+      {/* Head */}
+      <div style={{ position: 'absolute', bottom: 22 * s, left: '50%', marginLeft: -7 * s, width: 14 * s, height: 12 * s, background: '#FFCCBC', borderRadius: '5px 5px 3px 3px' }} />
+      {/* Hat */}
+      <div style={{ position: 'absolute', bottom: 30 * s, left: '50%', marginLeft: -8 * s, width: 16 * s, height: 5 * s, background: '#8D6E63', borderRadius: '2px 2px 0 0' }} />
+      <div style={{ position: 'absolute', bottom: 33 * s, left: '50%', marginLeft: -6 * s, width: 12 * s, height: 4 * s, background: '#A1887F', borderRadius: '50%' }} />
+      {/* Eyes */}
+      <div style={{ position: 'absolute', bottom: 26 * s, left: '50%', marginLeft: -5 * s, width: 3 * s, height: 3 * s, background: '#333', borderRadius: '50%', animation: 'player-blink 3s ease-in-out infinite' }} />
+      <div style={{ position: 'absolute', bottom: 26 * s, left: '50%', marginLeft: 2 * s, width: 3 * s, height: 3 * s, background: '#333', borderRadius: '50%', animation: 'player-blink 3s ease-in-out infinite' }} />
+      {/* Legs */}
+      <div style={{ position: 'absolute', bottom: 2 * s, left: '50%', marginLeft: -5 * s, width: 4 * s, height: 8 * s, background: '#3E2723', borderRadius: '2px' }} />
+      <div style={{ position: 'absolute', bottom: 2 * s, left: '50%', marginLeft: 1 * s, width: 4 * s, height: 8 * s, background: '#3E2723', borderRadius: '2px' }} />
+      {/* Tool (hoe) */}
+      <div style={{ position: 'absolute', bottom: 16 * s, right: -4 * s, width: 2 * s, height: 14 * s, background: '#8D6E63', borderRadius: '1px', transform: 'rotate(-15deg)', transformOrigin: 'bottom' }} />
+      <div style={{ position: 'absolute', bottom: 16 * s, right: -6 * s, width: 6 * s, height: 2 * s, background: '#616161', borderRadius: '1px', transform: 'rotate(-15deg)', transformOrigin: 'bottom' }} />
+    </div>
+  );
+}
+
+/** Moinho com pás girando */
+function Windmill({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
+  const s = scale;
+  return (
+    <div className="absolute pointer-events-none" style={{ left: x, bottom: y, width: 40 * s, height: 60 * s, zIndex: 6 }}>
+      {/* Base */}
+      <div style={{ position: 'absolute', bottom: 0, left: '50%', marginLeft: -12 * s, width: 24 * s, height: 30 * s, background: '#8D6E63', clipPath: 'polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)' }} />
+      {/* Roof */}
+      <div style={{ position: 'absolute', bottom: 28 * s, left: '50%', marginLeft: -16 * s, width: 32 * s, height: 14 * s, background: '#5D4037', clipPath: 'polygon(10% 100%, 90% 100%, 50% 0%)' }} />
+      {/* Blades */}
+      <div style={{
+        position: 'absolute', bottom: 36 * s, left: '50%', marginLeft: -2 * s,
+        width: 4 * s, height: 4 * s, background: '#333', borderRadius: '50%',
+        animation: 'windmill-blade 4s linear infinite', transformOrigin: 'center',
+      }}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} style={{
+            position: 'absolute', top: -16 * s, left: -1 * s, width: 2 * s, height: 18 * s,
+            background: '#BCAAA4', borderRadius: '1px',
+            transform: `rotate(${i * 90}deg)`, transformOrigin: 'center 20px',
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Casa completa */
+function House({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
+  const s = scale;
+  return (
+    <div className="absolute pointer-events-none" style={{ left: x, bottom: y, width: 70 * s, height: 55 * s, zIndex: 6 }}>
+      {/* Chaminé */}
+      <div style={{ position: 'absolute', bottom: 42 * s, right: 8 * s, width: 10 * s, height: 16 * s, background: PALETTE.chimney, borderRadius: '2px' }} />
+      <div style={{ position: 'absolute', bottom: 56 * s, right: 6 * s, width: 14 * s, height: 3 * s, background: '#4E342E', borderRadius: '1px' }} />
+      {/* Fumaça */}
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="absolute rounded-full" style={{
+          bottom: 57 * s, right: (10 + i * 4) * s, width: (6 + i * 3) * s, height: (6 + i * 3) * s,
+          background: 'rgba(200,200,200,0.12)', animation: `smoke-chimney ${2.5 + i * 0.5}s ease-out ${i * 0.4}s infinite`,
+        }} />
+      ))}
+      {/* Paredes */}
+      <div style={{ position: 'absolute', bottom: 0, left: '50%', marginLeft: -30 * s, width: 60 * s, height: 35 * s, background: PALETTE.wall, borderRadius: '3px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.08)' }} />
+      {/* Telhado */}
+      <div style={{ position: 'absolute', bottom: 33 * s, left: '50%', marginLeft: -35 * s, width: 70 * s, height: 20 * s, background: PALETTE.roof, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)', borderRadius: '3px 3px 0 0' }} />
+      {/* Porta */}
+      <div style={{ position: 'absolute', bottom: 0, left: '50%', marginLeft: -6 * s, width: 12 * s, height: 22 * s, background: '#5D4037', borderRadius: '3px 3px 0 0', border: '1px solid #3E2723' }} />
+      <div style={{ position: 'absolute', bottom: 10 * s, left: '50%', marginLeft: 2 * s, width: 2 * s, height: 2 * s, background: PALETTE.gold, borderRadius: '50%' }} />
+      {/* Janelas */}
+      {[-1, 1].map((side) => (
+        <div key={side} style={{
+          position: 'absolute', bottom: 16 * s, left: `calc(50% + ${side * 16}px)`, marginLeft: -7 * s,
+          width: 14 * s, height: 12 * s, background: PALETTE.windowGlow, borderRadius: '2px',
+          border: '2px solid #5D4037', boxShadow: '0 0 8px rgba(255,249,196,0.4)',
+        }}>
+          <div style={{ position: 'absolute', left: '50%', top: 0, width: 2 * s, height: '100%', background: '#5D4037' }} />
+          <div style={{ position: 'absolute', top: '50%', left: 0, width: '100%', height: 2 * s, background: '#5D4037' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Planta baixa de casa (para seção Building) */
+function MiniHouse({ className }: { className?: string }) {
+  return (
+    <div className={`relative inline-block ${className || ''}`} style={{ width: 60, height: 50 }}>
+      <div style={{ position: 'absolute', bottom: 0, left: '50%', marginLeft: -25, width: 50, height: 30, background: PALETTE.wall, borderRadius: 3, boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.08)' }} />
+      <div style={{ position: 'absolute', bottom: 28, left: '50%', marginLeft: -30, width: 60, height: 18, background: PALETTE.roof, clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: '50%', marginLeft: -5, width: 10, height: 18, background: '#5D4037', borderRadius: '2px 2px 0 0' }} />
+      <div style={{ position: 'absolute', bottom: 2, left: 8, width: 10, height: 10, background: PALETTE.windowGlow, borderRadius: 2, border: '1px solid #5D4037' }} />
+      <div style={{ position: 'absolute', bottom: 2, right: 8, width: 10, height: 10, background: PALETTE.windowGlow, borderRadius: 2, border: '1px solid #5D4037' }} />
+    </div>
+  );
+}
+
+/** Card animado de gameplay */
+function GameplayCard({ icon, title, desc, color = PALETTE.grass, delay = 0 }: { icon: string; title: string; desc: string; color?: string; delay?: number }) {
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.2 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="flex flex-col items-center text-center p-5 rounded-xl transition-all duration-500 hover:-translate-y-2 cursor-default"
+      style={{
+        background: 'linear-gradient(180deg, rgba(30,20,10,0.85), rgba(15,8,3,0.95))',
+        border: `1px solid ${color}44`, boxShadow: `0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 ${color}22`,
+        opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(30px)',
+        transition: `all 0.6s cubic-bezier(0.22,1,0.36,1) ${delay}s`,
+      }}>
+      <div className="text-4xl mb-3" style={{ filter: `drop-shadow(0 0 12px ${color}44)` }}>{icon}</div>
+      <h3 className="text-sm font-bold mb-1.5 tracking-wide" style={{ fontFamily: "'Press Start 2P', monospace", color }}>{title}</h3>
+      <p className="text-xs leading-relaxed opacity-80" style={{ fontFamily: "'VT323', monospace", fontSize: '15px' }}>{desc}</p>
+    </div>
+  );
+}
+
+/** Slide da galeria */
+function GallerySlide({ image, title, desc, active }: { image: string; title: string; desc: string; active: boolean }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center transition-all duration-700" style={{ opacity: active ? 1 : 0, transform: active ? 'scale(1)' : 'scale(0.9)' }}>
+      <div className="rounded-xl overflow-hidden border border-amber-800/30 max-w-lg w-full mx-4" style={{ background: 'linear-gradient(180deg, rgba(30,20,10,0.9), rgba(15,8,3,0.95))', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+        <div className="h-48 flex items-center justify-center text-7xl" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(100,200,100,0.1), transparent)' }}>{image}</div>
+        <div className="p-5">
+          <h3 className="text-sm font-bold mb-2" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.gold }}>{title}</h3>
+          <p className="text-sm leading-relaxed" style={{ fontFamily: "'VT323', monospace" }}>{desc}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPONENTE PRINCIPAL
+// ═══════════════════════════════════════════════════════════════════
+
 export default function Landing() {
   const navigate = useNavigate();
+  const [scrollY, setScrollY] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const [sfxOn, setSfxOn] = useState(true);
   const [musicOn, setMusicOn] = useState(true);
-  const [sfxVolume, setSfxVolume] = useState(70);
-  const [musicVolume, setMusicVolume] = useState(50);
   const audioRef = useRef(getAudioEngine());
-  const [audioInitialized, setAudioInitialized] = useState(false);
 
-  const tips = [
-    'Explore cavernas para encontrar minérios raros e cristais.',
-    'Use tochas para iluminar cavernas escuras — essencial!',
-    'Combine recursos na bancada de trabalho para criar armas.',
-    'Na zona segura perto da fogueira, inimigos não atacam.',
-    'Minere ouro e cristais para forjar equipamentos raros.',
-    'Árvores, pedras e minérios se renovam com o tempo.',
-    'Colete cristais azuis para criar itens mágicos.',
-    'O ouro é usado para comprar itens dos NPCs.',
-  ];
-
-  const handleFirstInteraction = useCallback(() => {
-    if (!audioInitialized) {
-      const audio = audioRef.current;
-      audio.setSFXVolume(sfxVolume / 100);
-      audio.setMusicVolume(musicVolume / 100);
-      audio.setSFXMuted(!sfxOn);
-      audio.setMusicMuted(!musicOn);
-      audio.startMusic();
-      setAudioInitialized(true);
-    }
-  }, [audioInitialized, sfxVolume, musicVolume, sfxOn, musicOn]);
-
-  const toggleSfx = useCallback(() => {
-    const audio = audioRef.current;
-    const newOn = !sfxOn;
-    setSfxOn(newOn);
-    audio.setSFXMuted(!newOn);
-    audio.playUIClick();
-    if (!audioInitialized) handleFirstInteraction();
-  }, [sfxOn, audioInitialized, handleFirstInteraction]);
-
-  const toggleMusic = useCallback(() => {
-    const audio = audioRef.current;
-    const newOn = !musicOn;
-    setMusicOn(newOn);
-    audio.setMusicMuted(!newOn);
-    audio.playUIClick();
-    if (!audioInitialized) handleFirstInteraction();
-  }, [musicOn, audioInitialized, handleFirstInteraction]);
-
-  const changeSfxVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = Number(e.target.value);
-    setSfxVolume(v);
-    audioRef.current.setSFXVolume(v / 100);
+  // Parallax scroll
+  useEffect(() => {
+    const handle = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handle, { passive: true });
+    return () => window.removeEventListener('scroll', handle);
   }, []);
 
-  const changeMusicVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = Number(e.target.value);
-    setMusicVolume(v);
-    audioRef.current.setMusicVolume(v / 100);
+  // Galeria slider automático
+  useEffect(() => {
+    const timer = setInterval(() => setGalleryIndex((i) => (i + 1) % gallerySlides.length), 5000);
+    return () => clearInterval(timer);
   }, []);
 
+  // Áudio
   useEffect(() => {
     const audio = audioRef.current;
-    audio.setSFXVolume(sfxVolume / 100);
-    audio.setMusicVolume(musicVolume / 100);
+    audio.setSFXVolume(0.7);
+    audio.setMusicVolume(0.5);
   }, []);
 
-  // Shared wood-panel styling (nameplate look)
-  const woodPanel: React.CSSProperties = {
-    background: 'linear-gradient(180deg, #3f2c18 0%, #2a1b0d 55%, #23160a 100%)',
-    boxShadow: 'inset 0 1px 0 rgba(255,210,140,0.08), inset 0 0 0 1px rgba(0,0,0,0.4), 0 6px 18px rgba(0,0,0,0.55)',
+  const toggleSfx = useCallback(() => { setSfxOn((v) => !v); audioRef.current.setSFXMuted(sfxOn); }, [sfxOn]);
+  const toggleMusic = useCallback(() => { setMusicOn((v) => !v); audioRef.current.setMusicMuted(musicOn); }, [musicOn]);
+
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    setMenuOpen(false);
   };
-  const woodGrain: React.CSSProperties = {
-    backgroundImage:
-      'repeating-linear-gradient(180deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 5px), repeating-linear-gradient(180deg, rgba(255,200,140,0.03) 0px, rgba(255,200,140,0.03) 2px, transparent 2px, transparent 9px)',
-  };
+
+  const gallerySlides = [
+    { image: '🌾', title: 'Plantio & Colheita', desc: 'Cultive trigo, cenoura, batata e abóbora. Cada estação traz novos desafios e recompensas.' },
+    { image: '⚔️', title: 'Combate Épico', desc: 'Enfrente lobos, esqueletos, golems e dragões. Derrote chefes lendários como o Shadow Lord.' },
+    { image: '🪨', title: 'Mineração', desc: 'Explore cavernas profundas em busca de minérios raros: mitril, rubi e cristais mágicos.' },
+    { image: '🏠', title: 'Construção', desc: 'Construa sua casa, fornalha, bancada e baús. Crie seu próprio vilarejo safe zone.' },
+    { image: '🎣', title: 'Pesca', desc: 'Pesque em rios e lagos para conseguir alimentos e itens raros como o Peixe do Vácuo.' },
+    { image: '🔮', title: 'Craft & Equipamentos', desc: 'Forje espadas, armaduras, anéis e amuletos. Encante seus itens com afixos mágicos.' },
+  ];
+
+  const roadmapItems = [
+    { phase: 'Alpha 1.0', title: 'Fundações', desc: 'Mundo aberto, biomas, crafting básico, farming, combate simples', done: true },
+    { phase: 'Alpha 2.0', title: 'Cavernas & Chefes', desc: 'Sistema de masmorras, chefes lendários, equipamentos raros', done: true },
+    { phase: 'Alpha 3.0', title: 'NPCs & Economia', desc: 'Vendedores, ferreiros, alquimistas, sistema de missões', done: true },
+    { phase: 'Beta 1.0', title: 'Multiplayer', desc: 'Cooperativo, trading entre jogadores, eventos mundiais', done: false },
+    { phase: 'Beta 2.0', title: 'Expansão', desc: 'Novos biomas (vulcânico, gelo, subaquático), montarias', done: false },
+    { phase: '1.0', title: 'Lançamento', desc: 'História completa, conquistas, endless mode, workshop', done: false },
+  ];
+
+  const navLinks = [
+    { id: 'gameplay', label: 'Gameplay' }, { id: 'survival', label: 'Sobrevivência' },
+    { id: 'building', label: 'Construção' }, { id: 'craft', label: 'Craft' },
+    { id: 'gallery', label: 'Galeria' }, { id: 'roadmap', label: 'Roadmap' },
+  ];
+
+  const parallax = (speed: number) => scrollY * speed;
 
   return (
     <>
-      <style>{ANIMS}</style>
-      <div
-        className="w-screen h-screen overflow-hidden relative select-none bg-[#0a0f05]"
-        style={{ fontFamily: "'VT323', 'Courier New', monospace" }}
-      >
-        {/* ================================================================
-             BACKGROUND LANDSCAPE
-             ================================================================ */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0b1a2e] via-[#0e2a1a] to-[#0d1f0d]" />
+      <style>{GLOBAL_ANIMS}</style>
 
-        {Array.from({ length: 45 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-white pointer-events-none"
-            style={{
-              left: `${(i * 31 + 17) % 100}%`,
-              top: `${(i * 19 + 5) % 50}%`,
-              width: `${1 + (i % 3)}px`,
-              height: `${1 + (i % 3)}px`,
-              opacity: 0.1 + (i % 5) * 0.15,
-              animation: `twinkle ${2 + (i % 5)}s ease-in-out ${i * 0.15}s infinite`,
-            }}
-          />
-        ))}
+      {/* ─── NAVBAR ─────────────────────────────────────────────────── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-2 flex items-center justify-between"
+        style={{
+          background: 'linear-gradient(180deg, rgba(10,5,2,0.92), rgba(10,5,2,0.7))',
+          borderBottom: '1px solid rgba(180,140,60,0.2)',
+          backdropFilter: 'blur(8px)',
+          fontFamily: "'Press Start 2P', monospace",
+        }}>
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <span className="text-lg">🌾</span>
+          <span className="text-[10px] tracking-wider hidden sm:inline" style={{ color: PALETTE.gold }}>FARM SURVIVAL</span>
+        </div>
+        <div className="hidden md:flex items-center gap-5">
+          {navLinks.map((l) => (
+            <button key={l.id} onClick={() => scrollTo(l.id)}
+              className="text-[8px] tracking-wider transition-colors duration-200 hover:text-amber-300"
+              style={{ color: '#c8b89a' }}>{l.label}</button>
+          ))}
+          <button onClick={() => navigate('/auth')}
+            className="px-4 py-1.5 rounded text-[8px] font-bold tracking-wider text-white transition-all duration-200 hover:brightness-110"
+            style={{ background: 'linear-gradient(180deg, #64bb45, #3e9127)', border: '2px solid #4a8a2a', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+            JOGAR
+          </button>
+        </div>
+        <button className="md:hidden text-xl" style={{ color: PALETTE.gold }} onClick={() => setMenuOpen(!menuOpen)}>☰</button>
+      </nav>
 
-        {/* Fireflies drifting near the grass line — adds life without clutter */}
-        {[{ l: 14, b: 22 }, { l: 68, b: 26 }, { l: 40, b: 20 }, { l: 82, b: 24 }].map((f, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              left: `${f.l}%`,
-              bottom: `${f.b}%`,
-              width: '3px',
-              height: '3px',
-              background: '#d9f57a',
-              boxShadow: '0 0 6px 2px rgba(217,245,122,0.6)',
-              animation: `firefly ${4 + i}s ease-in-out ${i * 0.7}s infinite`,
-            }}
-          />
-        ))}
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 md:hidden" style={{ background: 'rgba(10,5,2,0.97)', fontFamily: "'Press Start 2P', monospace" }}>
+          {navLinks.map((l) => (
+            <button key={l.id} onClick={() => scrollTo(l.id)} className="text-sm tracking-wider text-amber-200 hover:text-amber-400">{l.label}</button>
+          ))}
+          <button onClick={() => navigate('/auth')} className="px-6 py-2 rounded text-xs font-bold text-white"
+            style={{ background: 'linear-gradient(180deg, #64bb45, #3e9127)', border: '2px solid #4a8a2a' }}>
+            JOGAR
+          </button>
+          <button onClick={() => setMenuOpen(false)} className="text-white/40 text-xs mt-4">✕ Fechar</button>
+        </div>
+      )}
 
-        <div
-          className="absolute rounded-full pointer-events-none"
-          style={{
-            right: '10%',
-            top: '5%',
-            width: 'clamp(36px,5vw,52px)',
-            height: 'clamp(36px,5vw,52px)',
-            background: 'radial-gradient(circle at 35% 35%, #f5f0d0, #d4c89a)',
-            boxShadow: '0 0 40px rgba(245,240,200,0.3), 0 0 80px rgba(245,240,200,0.1)',
-            animation: 'float 6s ease-in-out infinite',
-          }}
-        />
+      {/* ─── HERO ───────────────────────────────────────────────────── */}
+      <section id="hero" className="relative w-full overflow-hidden" style={{ height: '100vh', minHeight: '600px', fontFamily: "'VT323', monospace" }}>
+        {/* Sky day/night */}
+        <div className="absolute inset-0 transition-colors duration-[2000ms]" style={{
+          background: `linear-gradient(180deg,
+            hsl(${210 + Math.sin(scrollY * 0.002) * 20}, ${50 + Math.sin(scrollY * 0.001) * 20}%, ${10 + Math.sin(scrollY * 0.002) * 20}%),
+            hsl(${200 + Math.sin(scrollY * 0.001) * 15}, ${40 + Math.sin(scrollY * 0.001) * 20}%, ${15 + Math.sin(scrollY * 0.002) * 30}%)
+          )`,
+        }}>
+          {/* Stars (visible at night) */}
+          {Array.from({ length: 35 }).map((_, i) => (
+            <div key={i} className="absolute rounded-full pointer-events-none" style={{
+              left: `${(i * 29 + 13) % 100}%`, top: `${(i * 17 + 7) % 55}%`,
+              width: `${1 + (i % 3)}px`, height: `${1 + (i % 3)}px`,
+              background: '#fff', opacity: `${0.1 + Math.sin(i) * 0.3}`,
+              animation: `star-pulse ${2 + (i % 4)}s ease-in-out ${i * 0.2}s infinite`,
+              filter: `brightness(${1.5 - Math.abs(Math.sin(scrollY * 0.001)) * 1.2})`,
+            }} />
+          ))}
+        </div>
 
-        <svg
-          className="absolute bottom-0 w-full pointer-events-none"
-          viewBox="0 0 1200 500"
-          preserveAspectRatio="none"
-          style={{ height: '65%', zIndex: 1 }}
-        >
-          <path d="M0,500 L0,330 L60,290 L140,340 L220,270 L300,320 L380,250 L460,300 L540,230 L620,280 L700,210 L780,260 L860,190 L940,240 L1020,180 L1100,230 L1200,200 L1200,500Z" fill="#0d1f0d" opacity="0.4" />
-          <path d="M0,500 L0,360 L90,330 L190,380 L290,320 L390,360 L490,300 L590,350 L690,290 L790,340 L890,280 L990,330 L1090,290 L1200,320 L1200,500Z" fill="#142a14" opacity="0.6" />
-          <path d="M0,500 L0,400 L100,370 L200,410 L300,350 L400,390 L500,330 L600,370 L700,310 L800,360 L900,310 L1000,360 L1100,320 L1200,360 L1200,500Z" fill="#1a3a1a" opacity="0.75" />
-        </svg>
+        {/* Sol / Lua */}
+        <div className="absolute rounded-full pointer-events-none transition-all duration-[3000ms]" style={{
+          right: '12%', top: `${8 + parallax(0.02)}%`,
+          width: 'clamp(40px,6vw,65px)', height: 'clamp(40px,6vw,65px)',
+          background: `radial-gradient(circle at 35% 35%, ${Math.sin(scrollY * 0.002) > 0 ? '#f5f0d0,#d4c89a' : '#e8e8f0,#a0a0c0'})`,
+          boxShadow: `0 0 ${Math.max(10, 40 + Math.sin(scrollY * 0.002) * 30)}px rgba(245,240,200,${Math.max(0.05, Math.sin(scrollY * 0.002) * 0.3)})`,
+          animation: 'float 6s ease-in-out infinite',
+        }} />
 
-        <svg
-          className="absolute bottom-0 w-full pointer-events-none"
-          viewBox="0 0 1200 400"
-          preserveAspectRatio="none"
-          style={{ height: '32%', zIndex: 2 }}
-        >
-          {[
-            { x: 3, s: 1.1 }, { x: 10, s: 0.9 }, { x: 17, s: 1.3 },
-            { x: 24, s: 0.8 }, { x: 32, s: 1.2 }, { x: 40, s: 0.9 },
-            { x: 49, s: 1.4 }, { x: 57, s: 0.8 }, { x: 64, s: 1.1 },
-            { x: 72, s: 1.3 }, { x: 80, s: 0.9 }, { x: 87, s: 1.0 },
-            { x: 93, s: 1.2 },
-          ].map((t, i) => {
-            const h = 90 * t.s;
-            const w = 30 * t.s;
-            const cx = (t.x / 100) * 1200;
-            return (
-              <g key={i}>
-                <rect x={cx - 3} y={400 - h} width={6} height={h * 0.35} fill="#1a0d05" />
-                <polygon points={`${cx - w / 2},${400 - h + 15} ${cx},${400 - h - 15} ${cx + w / 2},${400 - h + 15}`} fill="#0d2a0d" />
-                <polygon points={`${cx - w / 2 + 5},${400 - h + 30} ${cx},${400 - h + 2} ${cx + w / 2 - 5},${400 - h + 30}`} fill="#103510" />
-              </g>
-            );
+        {/* Nuvens (3 camadas com velocidades diferentes) */}
+        <Cloud color="#f0f4f8" opacity={0.6} width={140} speed={35} delay={0} top="6%" />
+        <Cloud color="#e8edf2" opacity={0.4} width={180} speed={50} delay={8} top="12%" />
+        <Cloud color="#dce4ec" opacity={0.3} width={100} speed={25} delay={3} top="4%" />
+        <Cloud color="#eef2f6" opacity={0.5} width={160} speed={42} delay={15} top="18%" />
+        <Cloud color="#f5f8fa" opacity={0.35} width={120} speed={30} delay={5} top="8%" />
+
+        {/* Montanhas — 3 camadas SVG (parallax em velocidade) */}
+        <div className="absolute bottom-0 w-full pointer-events-none" style={{ height: '60%', transform: `translateY(${parallax(0.05)}px)`, zIndex: 1 }}>
+          <svg className="absolute bottom-0 w-full" viewBox="0 0 1200 500" preserveAspectRatio="none" style={{ height: '70%' }}>
+            <path d="M0,500 L0,380 L80,350 L180,400 L280,330 L380,370 L480,290 L580,340 L680,270 L780,320 L880,250 L980,300 L1080,260 L1200,310 L1200,500Z" fill="#1a2a1a" opacity="0.35" />
+            <path d="M0,500 L0,400 L100,360 L220,410 L320,340 L440,380 L540,310 L640,360 L740,290 L840,340 L940,280 L1040,330 L1140,290 L1200,340 L1200,500Z" fill="#1d301d" opacity="0.5" />
+            <path d="M0,500 L0,430 L120,390 L240,440 L360,360 L480,410 L580,340 L680,390 L780,320 L880,380 L980,310 L1080,360 L1200,330 L1200,500Z" fill="#2a402a" opacity="0.65" />
+          </svg>
+        </div>
+
+        {/* Floresta — dezenas de árvores posicionadas por JS */}
+        <div className="absolute bottom-0 w-full pointer-events-none" style={{ height: '50%', transform: `translateY(${parallax(0.12)}px)`, zIndex: 3 }}>
+          {Array.from({ length: 48 }).map((_, i) => {
+            const col = i % 12;
+            const row = Math.floor(i / 12);
+            const x = (col / 12) * 100 + (Math.random() - 0.5) * 8;
+            const y = 5 + row * 12 + Math.random() * 6;
+            return <Tree key={i} x={`${x}%`} y={`${y}%`} scale={0.6 + Math.random() * 0.5} type={i % 3 === 0 ? 'round' : 'pine'} />;
           })}
-          <rect x="0" y="385" width="1200" height="15" fill="#142a10" />
-        </svg>
+        </div>
 
-        <div
-          className="absolute bottom-0 w-full pointer-events-none"
-          style={{
-            height: '28%',
-            zIndex: 3,
-            background: 'linear-gradient(180deg, #1a4010 0%, #185010 30%, #155008 55%, #104006 80%, #0c2a04 100%)',
-          }}
-        />
-        <div
-          className="absolute bottom-0 w-full pointer-events-none"
-          style={{
-            height: '18%',
-            zIndex: 4,
-            opacity: 0.15,
-            background:
-              'repeating-linear-gradient(90deg,transparent 0px,transparent 7px,rgba(60,160,60,0.12) 7px,rgba(60,160,60,0.12) 9px,transparent 9px,transparent 16px), repeating-linear-gradient(0deg,transparent 0px,transparent 5px,rgba(40,120,40,0.08) 5px,rgba(40,120,40,0.08) 6px,transparent 6px,transparent 12px)',
-            backgroundSize: '16px 100%, 100% 12px',
-          }}
-        />
+        {/* Rio */}
+        <div className="absolute bottom-0 w-full pointer-events-none" style={{ height: '22%', zIndex: 4, overflow: 'hidden' }}>
+          {/* Rio — ondas CSS */}
+          <div className="absolute bottom-0 w-[200%] h-full" style={{
+            background: `repeating-linear-gradient(90deg,
+              rgba(66,165,245,0.25) 0px, rgba(66,165,245,0.15) 40px,
+              rgba(100,181,246,0.2) 80px, rgba(66,165,245,0.1) 120px,
+              rgba(66,165,245,0.25) 160px
+            )`,
+            backgroundSize: '200px 100%',
+            animation: 'river-flow 4s linear infinite',
+            maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 20%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.8) 100%)',
+          }} />
+          {/* Espuma/brilho */}
+          <div className="absolute" style={{ bottom: '30%', left: '20%', width: '30px', height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '50%', animation: 'float 3s ease-in-out infinite' }} />
+          <div className="absolute" style={{ bottom: '20%', right: '30%', width: '20px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '50%', animation: 'float 4s ease-in-out infinite 1s' }} />
+        </div>
 
-        {/* Ground resources — using pixel icon for grass tufts, kept emoji only for the most "natural" ones */}
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute z-[5] pointer-events-none"
-            style={{
-              bottom: `${3 + (i * 3) % 12}%`,
-              left: `${4 + (i * 8 + 2) % 92}%`,
-              animation: `float ${3 + (i % 3)}s ease-in-out ${i * 0.4}s infinite`,
-              opacity: 0.55,
-            }}
-          >
-            <Icon name="leaf" size={9} />
-          </div>
-        ))}
-
-        {[{ b: 4, l: 8, s: 6 }, { b: 6, l: 22, s: 4 }, { b: 3, l: 38, s: 8 }, { b: 5, l: 55, s: 5 }, { b: 2, l: 72, s: 7 }, { b: 7, l: 88, s: 4 }, { b: 4, l: 95, s: 6 }].map((r, i) => (
-          <div
-            key={i}
-            className="absolute z-[5] rounded-full pointer-events-none"
-            style={{
-              bottom: `${r.b}%`,
-              left: `${r.l}%`,
-              width: `${r.s}px`,
-              height: `${Math.max(3, r.s - 1)}px`,
-              background: '#3a3a3a',
-              borderRadius: '40% 60% 50% 50% / 50% 50% 40% 60%',
-              boxShadow: 'inset 0 -1px 2px rgba(0,0,0,0.3)',
-            }}
-          />
-        ))}
-
-        {[{ b: 5, l: 18, s: 7 }, { b: 6, l: 45, s: 5 }, { b: 3, l: 78, s: 6 }].map((g, i) => (
-          <div
-            key={i}
-            className="absolute z-[5] pointer-events-none rounded-sm"
-            style={{
-              bottom: `${g.b}%`,
-              left: `${g.l}%`,
-              width: `${g.s + 3}px`,
-              height: `${g.s}px`,
-              background: 'linear-gradient(135deg,#8a8a8a,#4a4a4a)',
-              animation: `gold-shine ${2 + i * 0.5}s ease-in-out ${i * 0.8}s infinite`,
-              boxShadow: '0 0 5px rgba(255,215,0,0.35), inset 2px 2px 0 rgba(255,215,90,0.5)',
-            }}
-          />
-        ))}
-
-        {[{ b: 8, l: 30, color: '#66ccff' }, { b: 4, l: 62, color: '#9966ff' }, { b: 6, l: 84, color: '#66ccff' }].map((c, i) => (
-          <div
-            key={i}
-            className="absolute z-[5] flex items-end pointer-events-none"
-            style={{ bottom: `${c.b}%`, left: `${c.l}%`, animation: `crystal-glow ${2.5 + i * 0.3}s ease-in-out ${i * 0.6}s infinite` }}
-          >
-            <div
-              style={{
-                width: '8px',
-                height: `${12 + i * 3}px`,
-                background: `linear-gradient(180deg, ${c.color} 0%, ${c.color}88 100%)`,
-                clipPath: 'polygon(50% 0%, 100% 40%, 90% 100%, 10% 100%, 0% 40%)',
-                boxShadow: `0 0 8px ${c.color}44`,
-              }}
-            />
-            <div
-              style={{
-                width: '5px',
-                height: `${7 + i * 2}px`,
-                marginLeft: '-2px',
-                background: `linear-gradient(180deg, ${c.color}aa 0%, ${c.color}44 100%)`,
-                clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                transform: 'rotate(-15deg)',
-              }}
-            />
-          </div>
-        ))}
-
-        {/* ================================================================
-             PIXEL-ART FRAME — hammered iron border with corner rivets
-             ================================================================ */}
-        <div
-          className="absolute inset-0 pointer-events-none z-20"
-          style={{ boxShadow: 'inset 0 0 0 5px #1a0f05, inset 0 0 0 8px #2e1c0c, inset 0 0 0 9px #120a03' }}
-        />
-        {/* Vignette for depth */}
-        <div
-          className="absolute inset-0 pointer-events-none z-20"
-          style={{ background: 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.45) 100%)' }}
-        />
-        {[
-          { t: '10px', l: '10px' }, { t: '10px', r: '10px' },
-          { b: '10px', l: '10px' }, { b: '10px', r: '10px' },
-        ].map((pos, i) => (
-          <div
-            key={i}
-            className="absolute z-20 pointer-events-none rounded-full"
-            style={{
-              width: '10px',
-              height: '10px',
-              top: pos.t,
-              left: (pos as any).l,
-              right: (pos as any).r,
-              bottom: (pos as any).b,
-              background: 'radial-gradient(circle at 35% 30%, #d9b872, #6b4325 70%, #3a2410)',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.6)',
-            }}
-          />
-        ))}
-
-        {/* ================================================================
-             MAIN CONTENT
-             ================================================================ */}
-        <div className="relative z-30 w-full h-full flex flex-col" style={{ animation: 'breathe 4s ease-in-out infinite' }}>
-          <div className="flex-1 flex items-center justify-center px-2 sm:px-4 gap-3 sm:gap-6">
-
-            {/* ──── LEFT PANEL: CONTROLS ──── */}
-            <div
-              className="hidden md:block w-[180px] sm:w-[210px] flex-shrink-0 self-center rounded-sm overflow-hidden border border-black/40"
-              style={woodPanel}
-            >
-              <div className="relative h-[26px] flex items-center justify-center gap-2 border-b border-black/40"
-                style={{ background: 'linear-gradient(180deg, #4a3420, #2f2010)' }}>
-                <Icon name="controls" size={11} />
-                <h3
-                  className="text-amber-300 font-bold text-[10px] tracking-[0.15em]"
-                  style={{ fontFamily: "'Press Start 2P', monospace", textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}
-                >
-                  COMANDOS
-                </h3>
-              </div>
-              <div className="p-2.5 relative" style={woodGrain}>
-                <div className="space-y-[6px]">
-                  {[
-                    { keys: ['W', 'A', 'S', 'D'], action: 'Movimentar' },
-                    { keys: ['Mouse'], action: 'Atacar / Coletar' },
-                    { keys: ['E'], action: 'Interagir' },
-                    { keys: ['Espaço'], action: 'Rolar / Esquivar' },
-                    { keys: ['Shift'], action: 'Correr' },
-                    { keys: ['I'], action: 'Inventário' },
-                    { keys: ['C'], action: 'Craft' },
-                    { keys: ['P'], action: 'Plantar' },
-                    { keys: ['M'], action: 'Mapa' },
-                    { keys: ['Esc'], action: 'Menu' },
-                  ].map((ctrl, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <div className="flex gap-[3px] shrink-0">
-                        {ctrl.keys.map((key, ki) => (
-                          <span
-                            key={ki}
-                            className="inline-block px-[5px] py-[2px] rounded text-white/95 leading-none text-center font-bold"
-                            style={{
-                              background: 'linear-gradient(180deg, #5a5a5a 0%, #333 100%)',
-                              border: '1px solid #6e6e6e',
-                              boxShadow: '0 2px 0 #1a1a1a, inset 0 1px 0 rgba(255,255,255,0.15)',
-                              fontFamily: "'Press Start 2P', monospace",
-                              fontSize: '7px',
-                              minWidth: key === 'Espaço' || key === 'Mouse' ? 'auto' : key === 'Esc' ? '24px' : '16px',
-                            }}
-                          >
-                            {key}
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-[15px] leading-none" style={{ color: '#e8dcc0' }}>
-                        {ctrl.action}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {/* Gramado */}
+        <div className="absolute bottom-0 w-full pointer-events-none" style={{ height: '30%', zIndex: 5 }}>
+          <div className="absolute bottom-0 w-full h-full" style={{
+            background: 'linear-gradient(180deg, #1a4010 0%, #185010 25%, #155008 50%, #104006 75%, #0c2a04 100%)',
+          }} />
+          {/* Textura da grama */}
+          <div className="absolute bottom-0 w-full h-1/2" style={{
+            background: 'repeating-linear-gradient(90deg, transparent 0px, transparent 8px, rgba(60,160,60,0.08) 8px, rgba(60,160,60,0.08) 10px, transparent 10px, transparent 18px)',
+            backgroundSize: '18px 100%',
+          }} />
+          {/* Flores */}
+          {Array.from({ length: 15 }).map((_, i) => (
+            <div key={i} className="absolute text-xs" style={{
+              left: `${3 + (i * 7 + 2) % 94}%`, bottom: `${3 + (i * 5 + 1) % 15}%`,
+              animation: `float ${2.5 + (i % 3)}s ease-in-out ${i * 0.3}s infinite`,
+              opacity: 0.6, zIndex: 5,
+            }}>
+              {['🌸', '🌼', '🌺', '🌷', '🌻'][i % 5]}
             </div>
+          ))}
+          {/* Pedras */}
+          {[{ l: 8, b: 4, s: 6 }, { l: 22, b: 6, s: 4 }, { l: 38, b: 3, s: 8 }, { l: 55, b: 5, s: 5 }, { l: 72, b: 2, s: 7 }, { l: 88, b: 7, s: 4 }].map((r, i) => (
+            <div key={i} className="absolute rounded-full" style={{
+              left: `${r.l}%`, bottom: `${r.b}%`, width: r.s, height: Math.max(3, r.s - 1),
+              background: '#3a3a3a', borderRadius: '40% 60% 50% 50% / 50% 50% 40% 60%',
+              boxShadow: 'inset 0 -1px 2px rgba(0,0,0,0.3)', zIndex: 5,
+            }} />
+          ))}
+          {/* Arbustos */}
+          {[{ l: 15, b: 8, s: 12 }, { l: 48, b: 6, s: 10 }, { l: 82, b: 9, s: 14 }].map((b, i) => (
+            <div key={i} className="absolute rounded-full" style={{
+              left: `${b.l}%`, bottom: `${b.b}%`, width: b.s, height: b.s * 0.7,
+              background: '#2E7D32', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', zIndex: 5,
+              opacity: 0.7,
+            }} />
+          ))}
+        </div>
 
-            {/* ──── CENTER: Logo → Button → Campfire ──── */}
-            <div className="flex-1 flex flex-col items-center max-w-[520px]">
-              <div className="flex-[1] min-h-0" />
+        {/* Casa */}
+        <div className="absolute" style={{ left: '15%', bottom: '2%', transform: `translateY(${parallax(0.2)}px)`, zIndex: 7 }}>
+          <House x={0} y={0} scale={1.1} />
+        </div>
 
-              <div className="shrink-0 text-center" style={{ animation: 'logo-glow 3s ease-in-out infinite' }}>
-                <div className="flex items-center justify-center gap-2 mb-2 sm:mb-3">
-                  <div className="h-[2px] flex-1 max-w-[50px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(216,180,74,0.4))' }} />
-                  <div className="w-[6px] h-[6px] rotate-45" style={{ background: '#caa04c', boxShadow: '0 0 6px rgba(216,180,74,0.6)' }} />
-                  <div className="h-[2px] flex-1 max-w-[50px]" style={{ background: 'linear-gradient(90deg, rgba(216,180,74,0.4), transparent)' }} />
-                </div>
-                <h1
-                  className="text-[clamp(28px,5.5vw,68px)] font-black tracking-[0.15em] leading-none"
-                  style={{
-                    fontFamily: "'Press Start 2P', monospace",
-                    color: '#f5c842',
-                    textShadow: '2px 2px 0 #8a5a10, 4px 4px 0 #6a4a08, 6px 6px 0 rgba(0,0,0,0.4), 0 0 30px rgba(245,200,66,0.25)',
-                  }}
-                >
-                  FARM
-                </h1>
-                <div className="h-[2px] mx-auto mt-1 rounded-full" style={{ width: '70%', background: 'linear-gradient(90deg, transparent, rgba(216,180,74,0.3), transparent)' }} />
-                <h1
-                  className="text-[clamp(28px,5.5vw,68px)] font-black tracking-[0.2em] leading-none mt-1"
-                  style={{
-                    fontFamily: "'Press Start 2P', monospace",
-                    color: '#d4a830',
-                    textShadow: '2px 2px 0 #7a4a08, 4px 4px 0 #5a3a06, 6px 6px 0 rgba(0,0,0,0.5), 0 0 25px rgba(212,168,48,0.18)',
-                  }}
-                >
-                  SURVIVAL
-                </h1>
-              </div>
+        {/* Moinho */}
+        <div className="absolute" style={{ right: '20%', bottom: '3%', transform: `translateY(${parallax(0.15)}px)`, zIndex: 6 }}>
+          <Windmill x={0} y={0} scale={1.2} />
+        </div>
 
-              <div
-                className="shrink-0 mt-3 sm:mt-4 px-4 py-1.5 rounded-sm border border-amber-800/30"
-                style={{ background: 'linear-gradient(180deg, rgba(60,35,12,0.55), rgba(30,15,5,0.55))', boxShadow: 'inset 0 1px 0 rgba(255,200,100,0.06)' }}
-              >
-                <p className="tracking-[0.25em] font-bold" style={{ color: '#d9c79a', fontSize: '13px' }}>
-                  SOBREVIVA · EXPLORE · FORJE · EVOLUA
-                </p>
-              </div>
+        {/* Plantação */}
+        <div className="absolute" style={{ left: '35%', bottom: '3%', zIndex: 7, transform: `translateY(${parallax(0.18)}px)` }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[2, 3, 1, 3, 0, 2].map((stage, i) => (
+              <Crop key={i} stage={stage} x={i * 18} y={0} color={['#66BB6A', '#FFC107', '#8D6E63', '#FF7043', '#AB47BC', '#66BB6A'][i]} />
+            ))}
+          </div>
+        </div>
 
-              <div className="flex-[0.5] min-h-[14px]" />
+        {/* Personagem */}
+        <div className="absolute" style={{ left: '52%', bottom: '4%', zIndex: 10, transform: `translateY(${parallax(0.25)}px)` }}>
+          <PixelPlayer x={0} y={0} scale={1.3} />
+        </div>
 
-              <button
-                onClick={() => navigate('/game')}
-                className="group relative shrink-0 px-9 sm:px-14 py-3 sm:py-3.5 rounded text-white transition-all duration-150 active:translate-y-[3px]"
-                style={{
-                  fontFamily: "'Press Start 2P', monospace",
-                  background: 'linear-gradient(180deg, #64bb45 0%, #3e9127 50%, #2a6a12 100%)',
-                  border: '3px solid #4a8a2a',
-                  boxShadow: '0 5px 0 #1a4a08, 0 10px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25)',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.6)',
-                  fontSize: 'clamp(11px, 1.6vw, 14px)',
-                  letterSpacing: '0.1em',
-                }}
-              >
-                <span
-                  className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-                  style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%)' }}
-                />
-                <span className="flex items-center gap-3 relative z-10">
-                  <span className="group-hover:rotate-12 transition-transform duration-200">▶</span>
-                  <span>JOGAR</span>
-                </span>
-              </button>
-
-              <div className="flex-[0.5] min-h-[14px]" />
-
-              {/* ---- CAMPFIRE (grounded signature element, replaces floating torch) ---- */}
-              <div className="relative shrink-0 flex flex-col items-center" style={{ zIndex: 10 }}>
-                <div
-                  className="absolute rounded-full pointer-events-none"
-                  style={{
-                    width: 'clamp(70px,10vw,100px)',
-                    height: 'clamp(70px,10vw,100px)',
-                    bottom: '2px',
-                    background: 'radial-gradient(circle, rgba(255,120,0,0.15) 0%, transparent 70%)',
-                    animation: 'fire-glow 1s ease-in-out infinite',
-                  }}
-                />
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="absolute rounded-full pointer-events-none"
-                    style={{
-                      width: `${7 + i * 3}px`,
-                      height: `${7 + i * 3}px`,
-                      bottom: '46px',
-                      background: 'rgba(150,130,110,0.12)',
-                      animation: `smoke-rise ${2.2 + i * 0.4}s ease-out ${i * 0.35}s infinite`,
-                      left: `${(i - 1) * 5}px`,
-                    }}
-                  />
-                ))}
-                <div
-                  className="text-[clamp(26px,4.2vw,38px)] pointer-events-none leading-none"
-                  style={{ filter: 'drop-shadow(0 0 18px rgba(255,160,50,0.45))', animation: 'fire-flicker 0.8s ease-in-out infinite' }}
-                >
-                  🔥
-                </div>
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="absolute rounded-full pointer-events-none"
-                    style={{
-                      width: '2px',
-                      height: '2px',
-                      bottom: '30px',
-                      left: `${(i - 1) * 7}px`,
-                      background: '#ffaa33',
-                      boxShadow: '0 0 3px 1px rgba(255,170,50,0.5)',
-                      animation: `spark-rise ${0.7 + i * 0.15}s ease-out ${i * 0.2}s infinite`,
-                    }}
-                  />
-                ))}
-                {/* Stone ring base — grounds the fire, echoes the game's "safe zone" campfire */}
-                <div className="relative flex items-end justify-center" style={{ width: '54px', height: '14px' }}>
-                  {[-20, -10, 0, 10, 20].map((x, i) => (
-                    <div
-                      key={i}
-                      className="absolute rounded-full"
-                      style={{
-                        left: `calc(50% + ${x}px)`,
-                        bottom: 0,
-                        width: '13px',
-                        height: '9px',
-                        background: 'radial-gradient(circle at 35% 30%, #6a6a6a, #333)',
-                        boxShadow: 'inset 0 -2px 2px rgba(0,0,0,0.4)',
-                        animation: i === 2 ? 'ember-pulse 1.6s ease-in-out infinite' : undefined,
-                      }}
-                    />
-                  ))}
-                </div>
-                <div
-                  className="pointer-events-none"
-                  style={{
-                    width: '60px',
-                    height: '5px',
-                    marginTop: '-2px',
-                    borderRadius: '50%',
-                    background: 'radial-gradient(ellipse, rgba(255,140,40,0.35), transparent 70%)',
-                  }}
-                />
-              </div>
-
-              <div className="flex-[1] min-h-0" />
+        {/* Fogueira */}
+        <div className="absolute" style={{ left: '73%', bottom: '3.5%', zIndex: 8, transform: `translateY(${parallax(0.2)}px)` }}>
+          <div className="relative flex flex-col items-center">
+            <div className="absolute rounded-full pointer-events-none" style={{
+              width: 'clamp(60px,8vw,90px)', height: 'clamp(60px,8vw,90px)', bottom: '2px',
+              background: 'radial-gradient(circle, rgba(255,120,0,0.15) 0%, transparent 70%)',
+              animation: 'fire-glow 1s ease-in-out infinite',
+            }} />
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="absolute rounded-full pointer-events-none" style={{
+                width: `${6 + i * 3}px`, height: `${6 + i * 3}px`, bottom: '38px',
+                background: 'rgba(150,130,110,0.12)',
+                animation: `smoke-rise ${2 + i * 0.4}s ease-out ${i * 0.35}s infinite`,
+                left: `${(i - 1) * 5}px`,
+              }} />
+            ))}
+            <div className="text-[clamp(22px,3.5vw,34px)] pointer-events-none leading-none"
+              style={{ filter: 'drop-shadow(0 0 18px rgba(255,160,50,0.45))', animation: 'fire-flicker 0.8s ease-in-out infinite' }}>
+              🔥
             </div>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="absolute rounded-full pointer-events-none" style={{
+                width: '2px', height: '2px', bottom: '24px', left: `${(i - 1) * 6}px`,
+                background: '#ffaa33', boxShadow: '0 0 3px 1px rgba(255,170,50,0.5)',
+                animation: `spark-rise ${0.6 + i * 0.15}s ease-out ${i * 0.2}s infinite`,
+              }} />
+            ))}
+            {/* Círculo de pedras */}
+            <div className="flex items-end justify-center" style={{ width: '44px', height: '12px' }}>
+              {[-18, -9, 0, 9, 18].map((x, i) => (
+                <div key={i} className="absolute rounded-full" style={{
+                  left: `calc(50% + ${x}px)`, bottom: 0, width: '11px', height: '8px',
+                  background: 'radial-gradient(circle at 35% 30%, #6a6a6a, #333)',
+                  boxShadow: 'inset 0 -2px 2px rgba(0,0,0,0.4)',
+                }} />
+              ))}
+            </div>
+            <div style={{ width: '50px', height: '4px', marginTop: '-1px', borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(255,140,40,0.35), transparent 70%)' }} />
+          </div>
+        </div>
 
-            {/* ──── RIGHT PANEL: QUICK SETTINGS ──── */}
-            <div
-              className="hidden lg:block w-[180px] sm:w-[210px] flex-shrink-0 self-center rounded-sm overflow-hidden border border-black/40"
-              style={woodPanel}
-            >
-              <div className="relative h-[26px] flex items-center justify-center gap-2 border-b border-black/40"
-                style={{ background: 'linear-gradient(180deg, #4a3420, #2f2010)' }}>
-                <Icon name="gear" size={11} />
-                <h3
-                  className="text-amber-300 font-bold text-[10px] tracking-[0.15em]"
-                  style={{ fontFamily: "'Press Start 2P', monospace", textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}
-                >
-                  CONFIG
-                </h3>
-              </div>
+        {/* Vagalumes */}
+        {[{ l: 20, b: 18 }, { l: 55, b: 22 }, { l: 38, b: 16 }, { l: 80, b: 20 }, { l: 65, b: 14 }].map((f, i) => (
+          <div key={i} className="absolute rounded-full pointer-events-none" style={{
+            left: `${f.l}%`, bottom: `${f.b}%`, width: 3, height: 3,
+            background: '#d9f57a', boxShadow: '0 0 6px 2px rgba(217,245,122,0.6)',
+            animation: `firefly ${3.5 + i}s ease-in-out ${i * 0.6}s infinite`, zIndex: 8,
+          }} />
+        ))}
 
-              <div className="p-2.5 space-y-3 relative" style={woodGrain}>
-                <div className="flex items-center justify-between gap-1">
-                  <span style={{ color: '#e8dcc0', fontSize: '15px' }}>Efeitos (SFX)</span>
-                  <button
-                    onClick={toggleSfx}
-                    className="relative w-[38px] h-[20px] rounded-full transition-all duration-200 cursor-pointer shrink-0"
-                    style={{ background: sfxOn ? '#4d7c45' : '#3a3a3a', border: '2px solid #5a5a5a', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)' }}
-                  >
-                    <div
-                      className="absolute top-[1px] w-[14px] h-[14px] rounded-full transition-all duration-200"
-                      style={{ left: sfxOn ? '19px' : '2px', background: sfxOn ? '#aadd88' : '#888', boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
-                    />
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between" style={{ color: '#b8a888', fontSize: '13px' }}>
-                    <span>Volume</span>
-                    <span>{sfxVolume}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={sfxVolume}
-                    onChange={changeSfxVolume}
-                    className="w-full h-[7px] rounded-full appearance-none cursor-pointer"
-                    style={{ background: `linear-gradient(90deg, #4d7c45 ${sfxVolume}%, #3a3a3a ${sfxVolume}%)`, border: '1px solid #4a4a4a', accentColor: '#6da34d' }}
-                  />
-                </div>
-
-                <div className="h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(180,140,60,0.25), transparent)' }} />
-
-                <div className="flex items-center justify-between gap-1">
-                  <span style={{ color: '#e8dcc0', fontSize: '15px' }}>Música</span>
-                  <button
-                    onClick={toggleMusic}
-                    className="relative w-[38px] h-[20px] rounded-full transition-all duration-200 cursor-pointer shrink-0"
-                    style={{ background: musicOn ? '#4d7c45' : '#3a3a3a', border: '2px solid #5a5a5a', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)' }}
-                  >
-                    <div
-                      className="absolute top-[1px] w-[14px] h-[14px] rounded-full transition-all duration-200"
-                      style={{ left: musicOn ? '19px' : '2px', background: musicOn ? '#aadd88' : '#888', boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
-                    />
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between" style={{ color: '#b8a888', fontSize: '13px' }}>
-                    <span>Volume</span>
-                    <span>{musicVolume}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={musicVolume}
-                    onChange={changeMusicVolume}
-                    className="w-full h-[7px] rounded-full appearance-none cursor-pointer"
-                    style={{ background: `linear-gradient(90deg, #4d7c45 ${musicVolume}%, #3a3a3a ${musicVolume}%)`, border: '1px solid #4a4a4a', accentColor: '#6da34d' }}
-                  />
-                </div>
-              </div>
+        {/* Overlay Hero — título + CTA sobreposto à cena */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none" style={{ transform: `translateY(${parallax(0.3)}px)` }}>
+          <div className="pointer-events-auto" style={{ animation: 'logo-glow 3s ease-in-out infinite' }}>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="h-[2px] flex-1 max-w-[40px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(216,180,74,0.4))' }} />
+              <div className="w-[5px] h-[5px] rotate-45" style={{ background: '#caa04c', boxShadow: '0 0 6px rgba(216,180,74,0.6)' }} />
+              <div className="h-[2px] flex-1 max-w-[40px]" style={{ background: 'linear-gradient(90deg, rgba(216,180,74,0.4), transparent)' }} />
+            </div>
+            <h1 className="text-[clamp(24px,5vw,60px)] font-black tracking-[0.12em] leading-none text-center"
+              style={{ fontFamily: "'Press Start 2P', monospace", color: '#f5c842',
+                textShadow: '2px 2px 0 #8a5a10, 4px 4px 0 #6a4a08, 6px 6px 0 rgba(0,0,0,0.4), 0 0 30px rgba(245,200,66,0.25)' }}>
+              FARM<br />SURVIVAL
+            </h1>
+          </div>
+          <div className="mt-3 px-4 py-1.5 rounded-sm pointer-events-auto" style={{ background: 'rgba(20,10,3,0.6)', border: '1px solid rgba(180,140,60,0.2)' }}>
+            <p className="text-[15px] tracking-[0.2em] font-bold" style={{ color: '#d9c79a' }}>SOBREVIVA · EXPLORE · FORJE · EVOLUA</p>
+          </div>
+          <div className="mt-5 flex gap-4 pointer-events-auto">
+            <button onClick={() => navigate('/auth')}
+              className="group relative px-8 py-3 rounded text-white font-bold transition-all duration-150 active:translate-y-[3px]"
+              style={{ fontFamily: "'Press Start 2P', monospace", background: 'linear-gradient(180deg, #64bb45, #3e9127, #2a6a12)', border: '3px solid #4a8a2a', boxShadow: '0 5px 0 #1a4a08, 0 10px 24px rgba(0,0,0,0.5)', fontSize: 'clamp(10px,1.4vw,13px)' }}>
+              ▶ JOGAR AGORA
+            </button>
+            <button onClick={() => scrollTo('gameplay')}
+              className="px-6 py-3 rounded text-white/80 font-bold transition-all duration-150 hover:text-white"
+              style={{ fontFamily: "'Press Start 2P', monospace", border: '2px solid rgba(180,140,60,0.3)', fontSize: 'clamp(8px,1.2vw,11px)' }}>
+              SAIBA MAIS
+            </button>
+          </div>
+          {/* Scroll indicator */}
+          <div className="absolute bottom-6 pointer-events-auto animate-bounce">
+            <div className="w-5 h-8 rounded-full border-2 border-white/20 flex justify-center pt-1.5">
+              <div className="w-1 h-2 rounded-full bg-white/40" />
             </div>
           </div>
+        </div>
 
-          {/* ──── BOTTOM: Tips Bar ──── */}
-          <div className="w-full px-2 sm:px-4 pb-3 sm:pb-4">
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-sm border border-amber-900/30 max-w-[680px] mx-auto"
-              style={{ background: 'linear-gradient(180deg, rgba(35,18,7,0.85) 0%, rgba(18,8,2,0.85) 100%)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 3px 10px rgba(0,0,0,0.4)' }}
-            >
-              <Icon name="sprout" size={12} />
-              <span
-                className="font-bold tracking-wider whitespace-nowrap shrink-0"
-                style={{ fontFamily: "'Press Start 2P', monospace", color: '#caa04c', fontSize: '9px' }}
-              >
-                DICA
-              </span>
-              <div className="flex-1 min-w-0 h-5 relative overflow-hidden">
-                {tips.map((tip, i) => (
-                  <span
-                    key={i}
-                    className="absolute inset-0 leading-tight truncate flex items-center"
-                    style={{ color: '#d9c79a', fontSize: '15px', animation: `slide-up ${tips.length * 5}s ease-in-out ${i * 5}s infinite`, opacity: 0 }}
-                  >
-                    {tip}
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-1 shrink-0">
-                {tips.map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-[5px] h-[5px] rounded-full transition-all duration-300"
-                    style={{ background: i === 0 ? '#4d7c45' : 'rgba(255,255,255,0.15)', animation: i === 0 ? `tip-dot ${tips.length * 5}s steps(1) infinite` : 'none' }}
-                  />
-                ))}
+        {/* Vignette */}
+        <div className="absolute inset-0 pointer-events-none z-15" style={{ background: 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.4) 100%)' }} />
+      </section>
+
+      {/* ─── GAMEPLAY ──────────────────────────────────────────────── */}
+      <section id="gameplay" className="relative py-24 px-4" style={{ background: 'linear-gradient(180deg, #0d1f0d, #0a150a)', fontFamily: "'VT323', monospace" }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <span className="text-4xl mb-3 block">🎮</span>
+            <h2 className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.gold }}>GAMEPLAY</h2>
+            <div className="w-16 h-1 mx-auto mt-3 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${PALETTE.gold}88, transparent)` }} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <GameplayCard icon="🌾" title="FARM" desc="Cultive alimentos, gerencie plantações e colha os frutos do seu trabalho em 4 estações." color={PALETTE.grass} delay={0} />
+            <GameplayCard icon="⛏️" title="MINING" desc="Explore cavernas geradas proceduralmente em busca de minérios raros e cristais mágicos." color={PALETTE.stone} delay={0.1} />
+            <GameplayCard icon="🎣" title="FISHING" desc="Pesque em rios e lagos. Use iscas especiais para pegar espécies lendárias." color={PALETTE.water} delay={0.2} />
+            <GameplayCard icon="🔨" title="CRAFT" desc="Forje ferramentas, armas, armaduras e itens mágicos na bancada e fornalha." color={PALETTE.fire} delay={0.3} />
+            <GameplayCard icon="🏗️" title="BUILDING" desc="Construa sua casa, celeiro, fornalha e crie sua própria zona segura." color={PALETTE.wood} delay={0.4} />
+            <GameplayCard icon="⚔️" title="COMBAT" desc="Enfrente inimigos e chefes épicos. Evolua suas armas e domine o combate." color="#ff4444" delay={0.5} />
+          </div>
+        </div>
+      </section>
+
+      {/* ─── SOBREVIVÊNCIA ─────────────────────────────────────────── */}
+      <section id="survival" className="relative py-24 px-4" style={{ background: 'linear-gradient(180deg, #0a150a, #0d1a0d)', fontFamily: "'VT323', monospace" }}>
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-12">
+          <div className="flex-1">
+            <span className="text-5xl mb-4 block">🏕️</span>
+            <h2 className="text-lg font-bold tracking-wider mb-4" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.grass }}>SOBREVIVÊNCIA</h2>
+            <p className="text-base leading-relaxed mb-4 opacity-80">Gerencie sua fome, energia e vida enquanto explora um mundo aberto. Cada bioma oferece recursos únicos e desafios diferentes.</p>
+            <div className="space-y-3">
+              {[
+                { icon: '❤️', label: 'Vida & Fome', desc: 'Mantenha seus status para não morrer' },
+                { icon: '🌡️', label: 'Clima & Estações', desc: 'Primavera, verão, outono e inverno afetam o jogo' },
+                { icon: '🌙', label: 'Ciclo Dia/Noite', desc: 'Monstros mais fortes aparecem à noite' },
+                { icon: '🏠', label: 'Zona Segura', desc: 'Sua base é protegida contra inimigos' },
+              ].map((s, i) => (
+                <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg transition-all hover:-translate-y-0.5 cursor-default" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span className="text-xl">{s.icon}</span>
+                  <div><div className="text-sm font-bold" style={{ color: PALETTE.gold }}>{s.label}</div><div className="text-xs opacity-60">{s.desc}</div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="relative w-64 h-64 rounded-2xl overflow-hidden border border-green-900/30" style={{ background: 'linear-gradient(135deg, #1a3a1a, #0d1f0d)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-6xl mb-2">🌙</div>
+                  <div className="text-4xl">☀️</div>
+                  <div className="mt-3 text-xs opacity-60">Ciclo dia/noite dinâmico</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <style>{`
-        @keyframes tip-dot {
-          ${tips.map((_, i) => `
-            ${(i / tips.length) * 100}% { background: rgba(255,255,255,0.15); }
-            ${(i / tips.length) * 100 + 0.1}% { background: #4d7c45; }
-            ${((i + 0.8) / tips.length) * 100}% { background: #4d7c45; }
-            ${((i + 0.85) / tips.length) * 100}% { background: rgba(255,255,255,0.15); }
-          `).join('')}
-        }
-      `}</style>
+      {/* ─── CONSTRUÇÃO ────────────────────────────────────────────── */}
+      <section id="building" className="relative py-24 px-4" style={{ background: 'linear-gradient(180deg, #0d1a0d, #0f1a0a)', fontFamily: "'VT323', monospace" }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <span className="text-4xl mb-3 block">🏗️</span>
+            <h2 className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.wood }}>CONSTRUÇÃO</h2>
+            <div className="w-16 h-1 mx-auto mt-3 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${PALETTE.wood}88, transparent)` }} />
+          </div>
+          {/* Vila em CSS */}
+          <div className="flex flex-wrap items-end justify-center gap-6 mb-12 px-4 py-8 rounded-xl" style={{ background: 'linear-gradient(180deg, rgba(30,20,10,0.5), rgba(10,5,2,0.5))', border: '1px solid rgba(180,140,60,0.15)' }}>
+            <div className="flex flex-col items-center gap-2">
+              <MiniHouse />
+              <span className="text-[10px] opacity-60">Casa</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-10 h-14 rounded-t-lg" style={{ background: 'linear-gradient(180deg, #5D4037, #3E2723)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                <div className="w-full h-3 rounded-t-lg" style={{ background: '#FF7043' }} />
+              </div>
+              <div className="w-12 h-2 rounded" style={{ background: '#4E342E' }} />
+              <span className="text-[10px] opacity-60 mt-1">Fornalha</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-14 h-10 rounded" style={{ background: 'linear-gradient(180deg, #8D6E63, #5D4037)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', borderTop: '3px solid #A1887F' }}>
+                <div className="flex justify-center mt-1 gap-1">
+                  <div className="w-4 h-3 rounded-sm" style={{ background: '#A1887F' }} />
+                  <div className="w-4 h-3 rounded-sm" style={{ background: '#A1887F' }} />
+                </div>
+              </div>
+              <span className="text-[10px] opacity-60 mt-1">Bancada</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-10 h-10 rounded-full" style={{ background: 'radial-gradient(circle at 40% 30%, #8D6E63, #5D4037)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                <div className="w-full h-1 mt-3" style={{ background: '#BCAAA4' }} />
+              </div>
+              <span className="text-[10px] opacity-60 mt-1">Baú</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-10 rounded" style={{ background: '#4CAF50', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                <div className="flex flex-wrap justify-center gap-0.5 mt-1">
+                  {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="w-3 h-3 rounded-sm" style={{ background: i % 2 === 0 ? '#66BB6A' : '#388E3C' }} />)}
+                </div>
+              </div>
+              <span className="text-[10px] opacity-60 mt-1">Plantação</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-6 h-12 rounded-b-full" style={{ background: 'linear-gradient(180deg, #8D6E63, #5D4037)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                <div className="w-full h-2 rounded-full mt-1" style={{ background: '#BCAAA4', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
+              </div>
+              <span className="text-[10px] opacity-60 mt-1">Poço</span>
+            </div>
+          </div>
+          <p className="text-center text-sm opacity-70 max-w-xl mx-auto">Construa, organize e personalize sua base. Cada estrutura tem uma função única no seu progresso.</p>
+        </div>
+      </section>
+
+      {/* ─── EXPLORAÇÃO ────────────────────────────────────────────── */}
+      <section id="exploration" className="relative py-24 px-4" style={{ background: 'linear-gradient(180deg, #0f1a0a, #0a150a)', fontFamily: "'VT323', monospace" }}>
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row-reverse items-center gap-12">
+          <div className="flex-1">
+            <span className="text-5xl mb-4 block">🗺️</span>
+            <h2 className="text-lg font-bold tracking-wider mb-4" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.sky }}>EXPLORAÇÃO</h2>
+            <p className="text-base leading-relaxed mb-4 opacity-80">Descubra 13+ biomas únicos, desde florestas densas até desertos áridos. Encontre cavernas, ruínas e masmorras escondidas.</p>
+            <div className="flex flex-wrap gap-2">
+              {['🌲 Floresta', '🏜️ Deserto', '⛰️ Montanhas', '🌊 Lago', '🏚️ Ruínas', '🏡 Vila', '🧊 Tundra'].map((b, i) => (
+                <span key={i} className="px-2.5 py-1 rounded text-xs" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>{b}</span>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="relative w-64 h-64 rounded-2xl overflow-hidden border border-blue-900/30" style={{ background: 'linear-gradient(135deg, #0d2137, #0a1525)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-7xl mb-2">🏔️</div>
+                  <div className="text-xs opacity-60">Mundo 200×200 tiles</div>
+                  <div className="flex justify-center gap-1 mt-2">
+                    {['🌲', '🏜️', '⛰️', '🌊', '🏚️'].map((e, i) => <span key={i} className="text-lg">{e}</span>)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── CRAFT ─────────────────────────────────────────────────── */}
+      <section id="craft" className="relative py-24 px-4" style={{ background: 'linear-gradient(180deg, #0a150a, #0d1a0d)', fontFamily: "'VT323', monospace" }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <span className="text-4xl mb-3 block">🔨</span>
+            <h2 className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.fire }}>CRAFT</h2>
+            <div className="w-16 h-1 mx-auto mt-3 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${PALETTE.fire}88, transparent)` }} />
+          </div>
+          {/* Árvore tecnológica visual */}
+          <div className="flex flex-col items-center gap-4 max-w-2xl mx-auto">
+            {[
+              { label: '🌲 Madeira → Ferramentas Básicas', color: '#8D6E63', level: 1 },
+              { label: '🪨 Pedra → Ferramentas Reforçadas', color: '#9E9E9E', level: 3 },
+              { label: '⛓️ Ferro → Armaduras & Armas', color: '#B0BEC5', level: 5 },
+              { label: '✨ Ouro → Itens Encantados', color: PALETTE.gold, level: 8 },
+              { label: '💎 Cristal → Equipamentos Mágicos', color: '#CE93D8', level: 12 },
+              { label: '🌑 Vácuo → Arsenal Lendário', color: '#7E57C2', level: 15 },
+            ].map((tier, i) => (
+              <div key={i} className="w-full group">
+                <div className="flex items-center gap-3 p-3 rounded-lg transition-all duration-300 group-hover:-translate-y-0.5 cursor-default" style={{
+                  background: `linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))`,
+                  border: `1px solid ${tier.color}33`, boxShadow: `0 2px 8px rgba(0,0,0,0.2)`,
+                }}>
+                  <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: `${tier.color}22`, border: `2px solid ${tier.color}66`, color: tier.color }}>{tier.level}</div>
+                  <div className="flex-1 text-sm">{tier.label}</div>
+                  <div className="text-[10px] opacity-40">Nv. {tier.level}+</div>
+                </div>
+                {i < 5 && <div className="w-0.5 h-4 mx-auto opacity-20" style={{ background: tier.color }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── GALERIA ───────────────────────────────────────────────── */}
+      <section id="gallery" className="relative py-24 px-4" style={{ background: 'linear-gradient(180deg, #0d1a0d, #0a150a)', fontFamily: "'VT323', monospace" }}>
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-14">
+            <span className="text-4xl mb-3 block">📸</span>
+            <h2 className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.gold }}>GALERIA</h2>
+            <div className="w-16 h-1 mx-auto mt-3 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${PALETTE.gold}88, transparent)` }} />
+          </div>
+          {/* Slider nativo (CSS + React, sem bibliotecas) */}
+          <div className="relative h-72 sm:h-80 overflow-hidden rounded-xl" style={{ background: 'linear-gradient(180deg, rgba(20,15,8,0.8), rgba(10,5,2,0.95))', border: '1px solid rgba(180,140,60,0.15)' }}>
+            {gallerySlides.map((slide, i) => (
+              <GallerySlide key={i} {...slide} active={i === galleryIndex} />
+            ))}
+            {/* Navegação */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+              {gallerySlides.map((_, i) => (
+                <button key={i} onClick={() => setGalleryIndex(i)} className="w-2 h-2 rounded-full transition-all duration-300" style={{
+                  background: i === galleryIndex ? PALETTE.gold : 'rgba(255,255,255,0.15)',
+                  transform: i === galleryIndex ? 'scale(1.3)' : 'scale(1)',
+                }} />
+              ))}
+            </div>
+            {/* Setas */}
+            <button onClick={() => setGalleryIndex((i) => (i - 1 + gallerySlides.length) % gallerySlides.length)}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl z-10 transition-all hover:scale-110 opacity-60 hover:opacity-100" style={{ color: PALETTE.gold }}>
+              ◀
+            </button>
+            <button onClick={() => setGalleryIndex((i) => (i + 1) % gallerySlides.length)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-2xl z-10 transition-all hover:scale-110 opacity-60 hover:opacity-100" style={{ color: PALETTE.gold }}>
+              ▶
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── ROADMAP ───────────────────────────────────────────────── */}
+      <section id="roadmap" className="relative py-24 px-4" style={{ background: 'linear-gradient(180deg, #0a150a, #0d1f0d)', fontFamily: "'VT323', monospace" }}>
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-14">
+            <span className="text-4xl mb-3 block">🗺️</span>
+            <h2 className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.grass }}>ROADMAP</h2>
+            <div className="w-16 h-1 mx-auto mt-3 rounded-full" style={{ background: `linear-gradient(90deg, transparent, ${PALETTE.grass}88, transparent)` }} />
+          </div>
+          <div className="relative">
+            {/* Linha do tempo */}
+            <div className="absolute left-6 top-0 bottom-0 w-0.5 opacity-20" style={{ background: `linear-gradient(180deg, ${PALETTE.grass}, ${PALETTE.gold})` }} />
+            <div className="space-y-8">
+              {roadmapItems.map((item, i) => (
+                <div key={i} className="relative flex items-start gap-5 pl-14">
+                  <div className={`absolute left-4 w-4 h-4 rounded-full border-2 -translate-x-1/2 mt-1 ${item.done ? '' : ''}`} style={{
+                    background: item.done ? PALETTE.grass : 'rgba(255,255,255,0.05)',
+                    borderColor: item.done ? PALETTE.grass : 'rgba(255,255,255,0.15)',
+                    boxShadow: item.done ? `0 0 10px ${PALETTE.grass}44` : 'none',
+                  }} />
+                  <div className="flex-1 p-3 rounded-lg transition-all hover:-translate-y-0.5 cursor-default" style={{
+                    background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+                    opacity: item.done ? 1 : 0.5,
+                  }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: item.done ? `${PALETTE.grass}22` : 'rgba(255,255,255,0.05)', color: item.done ? PALETTE.grass : '#888' }}>{item.phase}</span>
+                      <span className="text-sm font-bold" style={{ color: item.done ? '#fff' : '#888' }}>{item.title}</span>
+                      {item.done && <span className="text-xs">✅</span>}
+                    </div>
+                    <p className="text-xs opacity-60">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── DOWNLOAD CTA ──────────────────────────────────────────── */}
+      <section className="relative py-24 px-4" style={{ background: 'linear-gradient(180deg, #0d1f0d, #0a150a)', fontFamily: "'VT323', monospace" }}>
+        <div className="max-w-3xl mx-auto text-center">
+          <span className="text-5xl mb-4 block">🎮</span>
+          <h2 className="text-xl font-bold tracking-wider mb-4" style={{ fontFamily: "'Press Start 2P', monospace", color: PALETTE.gold }}>PRONTO PARA JOGAR?</h2>
+          <p className="text-base mb-8 opacity-70 max-w-lg mx-auto">Entre no mundo de Farm Survival. Sobreviva, explore, construa e forje seu destino.</p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <button onClick={() => navigate('/auth')}
+              className="group relative px-10 py-4 rounded text-white font-bold transition-all duration-150 active:translate-y-[3px]"
+              style={{ fontFamily: "'Press Start 2P', monospace", background: 'linear-gradient(180deg, #64bb45, #3e9127, #2a6a12)', border: '3px solid #4a8a2a', boxShadow: '0 5px 0 #1a4a08, 0 10px 24px rgba(0,0,0,0.5)', fontSize: 'clamp(11px,1.5vw,14px)' }}>
+              ▶ JOGAR DE GRAÇA
+            </button>
+            <button onClick={() => scrollTo('gameplay')}
+              className="px-8 py-4 rounded text-white/70 font-bold transition-all duration-150 hover:text-white"
+              style={{ fontFamily: "'Press Start 2P', monospace", border: '2px solid rgba(180,140,60,0.2)', fontSize: 'clamp(9px,1.2vw,12px)' }}>
+              VER MAIS
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FOOTER ────────────────────────────────────────────────── */}
+      <footer className="relative py-10 px-4" style={{ background: 'linear-gradient(180deg, #0a150a, #050a05)', borderTop: '1px solid rgba(180,140,60,0.1)', fontFamily: "'Press Start 2P', monospace" }}>
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🌾</span>
+            <span className="text-[10px] tracking-wider" style={{ color: PALETTE.gold }}>FARM SURVIVAL</span>
+          </div>
+          <div className="flex gap-4">
+            {[
+              { icon: '💬', label: 'Discord', href: '#' },
+              { icon: '🐙', label: 'GitHub', href: '#' },
+              { icon: '📷', label: 'Instagram', href: '#' },
+            ].map((s, i) => (
+              <a key={i} href={s.href} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[8px] transition-all hover:-translate-y-0.5"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#c8b89a' }}>
+                <span>{s.icon}</span>
+                <span className="hidden sm:inline">{s.label}</span>
+              </a>
+            ))}
+          </div>
+          <p className="text-[8px] opacity-40">© 2026 Farm Survival. Feito com 🌾 e código.</p>
+        </div>
+      </footer>
     </>
   );
 }
