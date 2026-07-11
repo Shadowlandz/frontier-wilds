@@ -670,6 +670,48 @@ export const RECIPES: CraftingRecipe[] = [
     ingredients: [{ itemId: 'shadow_ingot', count: 3 }, { itemId: 'shadow_fragment', count: 2 }, { itemId: 'enchanted_wood', count: 2 }],
     requiredLevel: 16, craftTime: 11000, station: 'furnace',
   },
+
+  // ── Ice Caves — Smelt frozen_shard into ice_crystal ──
+  {
+    id: 'craft_ice_crystal', name: 'Fundir Cristal de Gelo', category: ItemCategory.Material,
+    result: 'ice_crystal', resultCount: 1,
+    ingredients: [{ itemId: 'frozen_shard', count: 5 }, { itemId: 'crystal', count: 2 }],
+    requiredLevel: 8, craftTime: 4000, station: 'furnace',
+  },
+  {
+    id: 'craft_frozen_ring', name: 'Anel de Gelo', category: ItemCategory.Ring,
+    result: 'frozen_ring', resultCount: 1,
+    ingredients: [{ itemId: 'ice_crystal', count: 2 }, { itemId: 'frozen_shard', count: 5 }, { itemId: 'gold_ingot', count: 2 }],
+    requiredLevel: 10, craftTime: 5000, station: 'furnace',
+  },
+
+  // ── Volcanic Mine — Smelt magma_core into volcanic_glass ──
+  {
+    id: 'craft_volcanic_glass', name: 'Forjar Vidro Vulcânico', category: ItemCategory.Material,
+    result: 'volcanic_glass', resultCount: 1,
+    ingredients: [{ itemId: 'magma_core', count: 5 }, { itemId: 'lava_crystal', count: 2 }],
+    requiredLevel: 10, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'craft_magma_ring', name: 'Anel de Magma', category: ItemCategory.Ring,
+    result: 'magma_ring', resultCount: 1,
+    ingredients: [{ itemId: 'volcanic_glass', count: 2 }, { itemId: 'magma_core', count: 5 }, { itemId: 'gold_ingot', count: 2 }],
+    requiredLevel: 12, craftTime: 6000, station: 'furnace',
+  },
+
+  // ── Crystal Depths — Smelt pure_crystal into radiant_gem ──
+  {
+    id: 'craft_radiant_gem', name: 'Polir Gema Radiante', category: ItemCategory.Material,
+    result: 'radiant_gem', resultCount: 1,
+    ingredients: [{ itemId: 'pure_crystal', count: 5 }, { itemId: 'ruby_ore', count: 2 }],
+    requiredLevel: 12, craftTime: 5000, station: 'furnace',
+  },
+  {
+    id: 'craft_crystal_amulet', name: 'Amuleto de Cristal', category: ItemCategory.Amulet,
+    result: 'crystal_amulet', resultCount: 1,
+    ingredients: [{ itemId: 'radiant_gem', count: 2 }, { itemId: 'pure_crystal', count: 5 }, { itemId: 'mithril_ingot', count: 2 }],
+    requiredLevel: 14, craftTime: 7000, station: 'furnace',
+  },
 ];
 
 export function getRecipesByCategory(category: ItemCategory): CraftingRecipe[] {

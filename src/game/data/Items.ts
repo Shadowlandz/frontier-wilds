@@ -894,6 +894,63 @@ export const ITEMS: Record<string, ItemDefinition> = {
     category: ItemCategory.Quest, rarity: Rarity.Epic, stackSize: 1, weight: 0.1, value: 100,
     icon: '🗺️',
   },
+
+  // ── Ice Caves Items ──
+  frozen_shard: {
+    id: 'frozen_shard', name: 'Fragmento de Gelo', description: 'Estilhaço de gelo eterno das Cavernas de Gelo.',
+    category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 50, weight: 0.3, value: 45,
+    icon: '❄️',
+  },
+  ice_crystal: {
+    id: 'ice_crystal', name: 'Cristal de Gelo', description: 'Cristal puro de energia gelada. Raro e valioso.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 0.5, value: 120,
+    icon: '💎',
+  },
+  frozen_ring: {
+    id: 'frozen_ring', name: 'Anel de Gelo', description: 'Anel forjado com gelo eterno. Protege contra o frio.',
+    category: ItemCategory.Ring, rarity: Rarity.Rare, stackSize: 1, weight: 0.3, value: 280,
+    icon: '💍', armorSlot: ArmorSlot.Ring,
+    defense: 4, durability: 200, maxDurability: 200,
+    bonuses: { maxHp: 15, defense: 3 },
+  },
+
+  // ── Volcanic Mine Items ──
+  magma_core: {
+    id: 'magma_core', name: 'Núcleo de Magma', description: 'Núcleo pulsante de magma das profundezas vulcânicas.',
+    category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 50, weight: 0.8, value: 55,
+    icon: '🌋',
+  },
+  volcanic_glass: {
+    id: 'volcanic_glass', name: 'Vidro Vulcânico', description: 'Obsidiana moldada pelo calor vulcânico. Cortante como navalha.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 0.6, value: 110,
+    icon: '🪨',
+  },
+  magma_ring: {
+    id: 'magma_ring', name: 'Anel de Magma', description: 'Anel pulsando com calor vulcânico. Aumenta força e vitalidade.',
+    category: ItemCategory.Ring, rarity: Rarity.Rare, stackSize: 1, weight: 0.4, value: 320,
+    icon: '💍', armorSlot: ArmorSlot.Ring,
+    defense: 5, durability: 200, maxDurability: 200,
+    bonuses: { strength: 3, maxHp: 20 },
+  },
+
+  // ── Crystal Depths Items ──
+  pure_crystal: {
+    id: 'pure_crystal', name: 'Cristal Puro', description: 'Cristal de pureza absoluta das Profundezas de Cristal.',
+    category: ItemCategory.Material, rarity: Rarity.Rare, stackSize: 50, weight: 0.4, value: 60,
+    icon: '🔮',
+  },
+  radiant_gem: {
+    id: 'radiant_gem', name: 'Gema Radiante', description: 'Gema que emana luz própria. Energia cristalina concentrada.',
+    category: ItemCategory.Material, rarity: Rarity.Epic, stackSize: 20, weight: 0.3, value: 150,
+    icon: '✨',
+  },
+  crystal_amulet: {
+    id: 'crystal_amulet', name: 'Amuleto de Cristal', description: 'Amuleto cristalino que amplifica o poder do portador.',
+    category: ItemCategory.Amulet, rarity: Rarity.Rare, stackSize: 1, weight: 0.2, value: 380,
+    icon: '📿', armorSlot: ArmorSlot.Amulet,
+    defense: 3, durability: 200, maxDurability: 200,
+    bonuses: { maxHp: 25, defense: 2, luck: 3 },
+  },
 };
 
 export function getItem(id: string): ItemDefinition | undefined {

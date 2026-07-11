@@ -325,9 +325,11 @@ export class WorldRegistry {
           minDepthRatio: 0,
           maxDepthRatio: 1.0,
           items: [
-            { itemId: 'crystal', resourceType: 'crystal_node', chance: 0.03 },
+            { itemId: 'frozen_shard', resourceType: 'crystal_node', chance: 0.035 },
+            { itemId: 'ice_crystal', resourceType: 'crystal_node', chance: 0.008 },
+            { itemId: 'crystal', resourceType: 'crystal_node', chance: 0.025 },
             { itemId: 'mithril_ore', resourceType: 'mithril_rock', chance: 0.02 },
-            { itemId: 'coal', resourceType: 'coal_rock', chance: 0.025 },
+            { itemId: 'coal', resourceType: 'coal_rock', chance: 0.02 },
             { itemId: 'iron_ore', resourceType: 'iron_rock', chance: 0.02 },
           ],
           enemies: [
@@ -393,6 +395,8 @@ export class WorldRegistry {
           minDepthRatio: 0,
           maxDepthRatio: 0.5,
           items: [
+            { itemId: 'magma_core', resourceType: 'crystal_node', chance: 0.03 },
+            { itemId: 'volcanic_glass', resourceType: 'crystal_node', chance: 0.007 },
             { itemId: 'lava_crystal', resourceType: 'crystal_node', chance: 0.025 },
             { itemId: 'gold_ore', resourceType: 'gold_rock', chance: 0.02 },
             { itemId: 'coal', resourceType: 'coal_rock', chance: 0.03 },
@@ -407,7 +411,9 @@ export class WorldRegistry {
           minDepthRatio: 0.5,
           maxDepthRatio: 1.0,
           items: [
-            { itemId: 'lava_crystal', resourceType: 'crystal_node', chance: 0.035 },
+            { itemId: 'magma_core', resourceType: 'crystal_node', chance: 0.04 },
+            { itemId: 'volcanic_glass', resourceType: 'crystal_node', chance: 0.015 },
+            { itemId: 'lava_crystal', resourceType: 'crystal_node', chance: 0.03 },
             { itemId: 'ruby_ore', resourceType: 'ruby_rock', chance: 0.025 },
             { itemId: 'gold_ore', resourceType: 'gold_rock', chance: 0.015 },
             { itemId: 'mithril_ore', resourceType: 'mithril_rock', chance: 0.01 },
@@ -479,7 +485,9 @@ export class WorldRegistry {
           minDepthRatio: 0,
           maxDepthRatio: 1.0,
           items: [
-            { itemId: 'crystal', resourceType: 'crystal_node', chance: 0.04 },
+            { itemId: 'pure_crystal', resourceType: 'crystal_node', chance: 0.035 },
+            { itemId: 'radiant_gem', resourceType: 'crystal_node', chance: 0.006 },
+            { itemId: 'crystal', resourceType: 'crystal_node', chance: 0.035 },
             { itemId: 'ruby_ore', resourceType: 'ruby_rock', chance: 0.025 },
             { itemId: 'mithril_ore', resourceType: 'mithril_rock', chance: 0.02 },
             { itemId: 'gold_ore', resourceType: 'gold_rock', chance: 0.015 },
