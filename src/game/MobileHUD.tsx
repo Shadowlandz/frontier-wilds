@@ -1,11 +1,14 @@
 // ═══════════════════════════════════════════════════════════════════
 // Farm Survival - Mobile HUD (Touch Controls)
-// Orientation-Responsive | Safe-Area Aware | Professional Layout
+// Orientation-Responsive | Auto-Target | Long Press Tooltips
+// Professional Touch Interaction System
 // ═══════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Game } from './Game';
-import { GameUIState, RARITY_COLORS } from './core/Types';
+import { Input } from './core/Input';
+import { GameUIState, RARITY_COLORS, Rarity } from './core/Types';
+import { getItem } from './data/Items';
 
 // ── Haptic vibration helper ───────────────────────────────────────
 function vibrate(pattern: number | number[]) {
@@ -18,6 +21,7 @@ const HAPTIC_TAP = 10;
 const HAPTIC_MEDIUM = 20;
 const HAPTIC_STRONG = [15, 30, 15];
 const HAPTIC_DOUBLE = [10, 20, 10];
+const HAPTIC_LONG = 40;
 
 // ── Orientation Hook ──────────────────────────────────────────────
 function useOrientation(): 'portrait' | 'landscape' {
@@ -31,7 +35,6 @@ function useOrientation(): 'portrait' | 'landscape' {
     const handler = (e: MediaQueryListEvent) => {
       setOrientation(e.matches ? 'portrait' : 'landscape');
     };
-    // Also handle resize for desktop-like mobile browsers
     const resizeHandler = () => {
       setOrientation(window.innerHeight > window.innerWidth ? 'portrait' : 'landscape');
     };
@@ -44,6 +47,45 @@ function useOrientation(): 'portrait' | 'landscape' {
   }, []);
 
   return orientation;
+}
+
+// ── Long Press Hook (inline for simplicity) ──────────────────────
+function useLongPress(
+  onLongPress: () => void,
+  duration = 400,
+): {
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchMove: (e: React.TouchEvent) => void;
+  onTouchEnd: (e: React.TouchEvent) => void;
+} {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongRef = useRef(false);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    isLongRef.current = false;
+    timerRef.current = setTimeout(() => {
+      isLongRef.current = true;
+      vibrate(HAPTIC_LONG);
+      onLongPress();
+    }, duration);
+  }, [duration, onLongPress]);
+
+  const onTouchMove = useCallback(() => {
+    // Cancel on move to prevent accidental long-press while scrolling
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  return { onTouchStart, onTouchMove, onTouchEnd };
 }
 
 interface MobileHUDProps {
@@ -59,6 +101,10 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
   const [sprinting, setSprinting] = useState(false);
   const [uiAlpha, setUiAlpha] = useState(1);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Tooltip state ──
+  const [tooltipItem, setTooltipItem] = useState<{ id: string; x: number; y: number } | null>(null);
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const panelOpen = uiState.activePanel !== 'none' && uiState.activePanel !== 'dialogue';
 
@@ -83,7 +129,7 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Direct panel toggles (more reliable than virtual key presses) ──
+  // ── Direct panel toggles ──
   const togglePanel = (panel: string) => {
     game.setActivePanel(uiState.activePanel === panel ? 'none' : panel as any);
     refresh();
@@ -94,18 +140,82 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
     fn();
   };
 
+  // ── Auto-target attack ──
+  const doAutoTargetAttack = useCallback(() => {
+    const player = game.state.player;
+    const px = player.x + 12;
+    const py = player.y + 12;
+
+    // Get current enemies (surface, cave, or cursed lands)
+    let enemies: { x: number; y: number; width: number; height: number; state: string; hp: number }[] = [];
+    if (game.inCave) enemies = game.caveEnemies;
+    else if (game.inCursedLands) enemies = game.cursedLandsEnemies;
+    else enemies = game.enemies;
+
+    const tool = player.hotbar[player.currentTool]?.item;
+    const attackRange = tool?.range ?? 40;
+
+    const nearest = Input.getNearestEnemy(px, py, enemies, attackRange + 60);
+    if (nearest) {
+      // Face the enemy
+      const ex = nearest.x + nearest.width / 2;
+      const ey = nearest.y + nearest.height / 2;
+      const dx = ex - px;
+      const dy = ey - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 0) {
+        player.facing.x = dx / dist;
+        player.facing.y = dy / dist;
+      }
+    }
+
+    vibrate(HAPTIC_STRONG);
+    game.input.triggerVirtualKeyPress('q');
+    refresh();
+  }, [game]);
+
+  // ── Auto-interact (closest NPC, item, resource, crop) ──
+  const doInteract = useCallback(() => {
+    vibrate(HAPTIC_MEDIUM);
+    game.input.triggerVirtualKeyPress('e');
+    refresh();
+  }, [game]);
+
+  // ── Use/food item ──
+  const doUseItem = useCallback(() => {
+    vibrate(HAPTIC_MEDIUM);
+    game.input.triggerVirtualKeyPress('f');
+    refresh();
+  }, [game]);
+
+  // ── Plant action ──
+  const doPlant = useCallback(() => {
+    vibrate(HAPTIC_TAP);
+    game.input.triggerVirtualKeyPress('p');
+    refresh();
+  }, [game]);
+
+  // ── Hotbar tooltip via long press ──
+  const showHotbarTooltip = useCallback((slotIdx: number, e: React.TouchEvent) => {
+    const slot = game.state.player.hotbar[slotIdx];
+    if (!slot?.item) return;
+    const touch = e.changedTouches[0];
+    setTooltipItem({
+      id: slot.item.id,
+      x: touch.clientX,
+      y: touch.clientY - 100,
+    });
+    // Auto-hide after 3s
+    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+    tooltipTimer.current = setTimeout(() => setTooltipItem(null), 3000);
+  }, [game]);
+
   const state = game.state;
   const player = state.player;
   const hotbar = player.hotbar;
   const isPortrait = orientation === 'portrait';
 
   if (panelOpen) return null;
-
-  // Safe area env will be applied via CSS custom property fallback
-  const safeBottom = 'env(safe-area-inset-bottom, 0px)';
-  const safeTop = 'env(safe-area-inset-top, 0px)';
-  const safeLeft = 'env(safe-area-inset-left, 0px)';
-  const safeRight = 'env(safe-area-inset-right, 0px)';
 
   return (
     <div
@@ -116,25 +226,25 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
       style={{
         transition: 'opacity 0.4s ease',
         opacity: uiAlpha,
-        // Prevent accidental zoom / pull-to-refresh
         touchAction: 'manipulation',
         overscrollBehavior: 'none',
         WebkitOverflowScrolling: 'touch',
       }}
     >
       {/* ── Virtual Joystick ── */}
-      <div className={isPortrait ? '' : 'landscape-only'}>
-        <JoystickArea game={game} isPortrait={isPortrait} />
-      </div>
+      <JoystickArea game={game} isPortrait={isPortrait} />
 
       {/* ── Sprint Toggle ── */}
       <button
-        onTouchStart={(e) => { e.preventDefault(); vibrate(HAPTIC_TAP); }}
         onClick={() => { vibrate(HAPTIC_DOUBLE); setSprinting(!sprinting); }}
         style={{
           backdropFilter: 'blur(4px)',
-          bottom: isPortrait ? 'max(144px, calc(144px + env(safe-area-inset-bottom, 0px)))' : 'max(16px, calc(16px + env(safe-area-inset-bottom, 0px)))',
-          left: isPortrait ? 'max(132px, calc(132px + env(safe-area-inset-left, 0px)))' : 'max(208px, calc(208px + env(safe-area-inset-left, 0px)))',
+          bottom: isPortrait
+            ? `max(144px, calc(144px + env(safe-area-inset-bottom, 0px)))`
+            : `max(16px, calc(16px + env(safe-area-inset-bottom, 0px)))`,
+          left: isPortrait
+            ? `max(136px, calc(136px + env(safe-area-inset-left, 0px)))`
+            : `max(196px, calc(196px + env(safe-area-inset-left, 0px)))`,
         }}
         className={`absolute pointer-events-auto w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all text-xs ${
           sprinting
@@ -145,87 +255,96 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
         {sprinting ? '🏃' : '🚶'}
       </button>
 
-      {/* ── Action Buttons (Right Side) ── */}
+      {/* ── Right Action Cluster ── */}
       <div
         style={{
           bottom: isPortrait
-            ? 'max(112px, calc(112px + env(safe-area-inset-bottom, 0px)))'
-            : 'max(16px, calc(16px + env(safe-area-inset-bottom, 0px)))',
-          right: 'max(12px, calc(12px + env(safe-area-inset-right, 0px)))',
-          gap: isPortrait ? '10px' : '8px',
+            ? `max(100px, calc(100px + env(safe-area-inset-bottom, 0px)))`
+            : `max(16px, calc(16px + env(safe-area-inset-bottom, 0px)))`,
+          right: `max(12px, calc(12px + env(safe-area-inset-right, 0px)))`,
         }}
-        className={`absolute flex pointer-events-auto ${isPortrait ? 'flex-col' : 'flex-row-reverse items-end'}`}
+        className={`absolute flex pointer-events-auto ${isPortrait ? 'flex-col gap-2.5 items-end' : 'flex-row-reverse gap-2 items-end'}`}
       >
+        {/* Attack with auto-target */}
         <TouchButton
           icon="⚔️"
           color="red"
           size={isPortrait ? 'normal' : 'small'}
-          onTouchStart={() => game.input.setVirtualKey('q', true)}
-          onTouchEnd={() => game.input.setVirtualKey('q', false)}
-          onClick={() => game.input.triggerVirtualKeyPress('q')}
+          onClick={doAutoTargetAttack}
         />
+
+        {/* Interact */}
         <TouchButton
           icon="🤚"
           color="blue"
           size={isPortrait ? 'normal' : 'small'}
-          onTouchStart={() => game.input.setVirtualKey('e', true)}
-          onTouchEnd={() => game.input.setVirtualKey('e', false)}
-          onClick={() => game.input.triggerVirtualKeyPress('e')}
+          onClick={doInteract}
         />
+
+        {/* Use/Food */}
         <TouchButton
           icon="🍽️"
           color="green"
           size={isPortrait ? 'normal' : 'small'}
-          onClick={() => { game.input.triggerVirtualKeyPress('f'); refresh(); }}
+          onClick={doUseItem}
         />
       </div>
 
-      {/* ── Quick Actions (plant, dodge) ── */}
+      {/* ── Quick Actions ── */}
       <div
         style={{
           bottom: isPortrait
-            ? 'max(112px, calc(112px + env(safe-area-inset-bottom, 0px)))'
-            : 'max(64px, calc(64px + env(safe-area-inset-bottom, 0px)))',
-          right: isPortrait
-            ? 'max(76px, calc(76px + env(safe-area-inset-right, 0px)))'
-            : 'max(12px, calc(12px + env(safe-area-inset-right, 0px)))',
+            ? `max(216px, calc(216px + env(safe-area-inset-bottom, 0px)))`
+            : `max(84px, calc(84px + env(safe-area-inset-bottom, 0px)))`,
+          right: `max(12px, calc(12px + env(safe-area-inset-right, 0px)))`,
           gap: '8px',
         }}
-        className={`absolute flex pointer-events-auto ${isPortrait ? 'flex-col' : 'flex-row'}`}
+        className={`absolute flex pointer-events-auto ${isPortrait ? 'flex-row' : 'flex-row'}`}
       >
-        <TouchButton
-          icon="🌾"
-          color="green"
-          size="small"
-          onClick={() => { game.input.triggerVirtualKeyPress('p'); refresh(); }}
-        />
-        <TouchButton
-          icon="💨"
-          color="yellow"
-          size="small"
-          onClick={() => { game.input.triggerVirtualKeyPress(' '); refresh(); }}
-        />
+        <QuickButton icon="🌾" label="Plantar" onClick={doPlant} />
       </div>
+
+      {/* ── Crosshair / Aim Indicator (when enemies near) ── */}
+      <CrosshairOverlay game={game} />
 
       {/* ── Hotbar ── */}
       <div
         style={{
           bottom: isPortrait
-            ? 'max(12px, calc(12px + env(safe-area-inset-bottom, 0px)))'
-            : 'max(8px, calc(8px + env(safe-area-inset-bottom, 0px)))',
-          left: isPortrait ? '50%' : '50%',
+            ? `max(8px, calc(8px + env(safe-area-inset-bottom, 0px)))`
+            : `max(8px, calc(8px + env(safe-area-inset-bottom, 0px)))`,
+          left: '50%',
           transform: 'translateX(-50%)',
         }}
-        className="absolute pointer-events-auto z-30 max-w-[92vw] overflow-x-auto no-scrollbar"
+        className="absolute pointer-events-auto z-30 max-w-[94vw]"
       >
-        <div className="flex gap-1 px-2">
+        <div className="flex gap-1 px-1 overflow-x-auto no-scrollbar">
           {hotbar.map((slot, i) => {
             const isSelected = player.currentTool === i;
-            const hs = isPortrait ? 'w-11 h-11' : 'w-9 h-9';
+            const hs = isPortrait ? 'w-12 h-12' : 'w-10 h-10';
+            const longPressHandlers = useLongPress(
+              () => {
+                const s = game.state.player.hotbar[i];
+                if (s?.item) {
+                  // Show tooltip
+                  const touch = lastTouchRef.current;
+                  if (touch) {
+                    setTooltipItem({
+                      id: s.item.id,
+                      x: touch.clientX,
+                      y: touch.clientY - 80,
+                    });
+                    if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+                    tooltipTimer.current = setTimeout(() => setTooltipItem(null), 3000);
+                  }
+                }
+              },
+              400
+            );
+
             return (
               <button
                 key={i}
-                onTouchStart={(e) => { e.preventDefault(); }}
                 onClick={() => { vibrate(HAPTIC_TAP); player.currentTool = i; refresh(); }}
                 onContextMenu={(e) => { e.preventDefault(); vibrate(HAPTIC_DOUBLE); game.input.triggerVirtualKeyPress('g'); refresh(); }}
                 className={`${hs} rounded-lg border-2 flex items-center justify-center relative shrink-0 transition-all ${
@@ -247,43 +366,159 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
                     {slot.item.foodValue && (
                       <span className="absolute -top-1 -right-1 text-[6px]">🍖</span>
                     )}
+                    {slot.item.healAmount && (
+                      <span className="absolute -top-1 -left-1 text-[6px]">❤️</span>
+                    )}
                   </>
                 )}
+                {/* Long press handlers */}
+                <span
+                  className="absolute inset-0"
+                  onTouchStart={(e) => { e.preventDefault(); longPressHandlers.onTouchStart(e); }}
+                  onTouchMove={(e) => longPressHandlers.onTouchMove(e)}
+                  onTouchEnd={(e) => { e.preventDefault(); longPressHandlers.onTouchEnd(e); }}
+                />
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* ── Utility Buttons (Top) ── */}
+      {/* ── Utility Buttons (Top Right) ── */}
       <div
         style={{
-          top: 'max(8px, calc(8px + env(safe-area-inset-top, 0px)))',
-          right: 'max(8px, calc(8px + env(safe-area-inset-right, 0px)))',
+          top: `max(8px, calc(8px + env(safe-area-inset-top, 0px)))`,
+          right: `max(8px, calc(8px + env(safe-area-inset-right, 0px)))`,
         }}
         className={`absolute flex pointer-events-auto ${isPortrait ? 'flex-col gap-1.5' : 'flex-row gap-2 items-start'}`}
       >
-        <MiniButton icon="🎒" onClick={() => { togglePanel('inventory'); }} />
-        <MiniButton icon="🔨" onClick={() => { togglePanel('crafting'); }} />
-        <MiniButton icon="🧭" onClick={() => { game.input.triggerVirtualKeyPress('m'); refresh(); }} />
+        <MiniButton icon="🎒" label="Inventário" onClick={() => { togglePanel('inventory'); }} />
+        <MiniButton icon="🔨" label="Craft" onClick={() => { togglePanel('crafting'); }} />
+        <MiniButton icon="🧭" label="Mapa" onClick={() => { game.input.triggerVirtualKeyPress('m'); refresh(); }} />
 
         {showExtra && (
           <div className={`flex ${isPortrait ? 'flex-col' : 'flex-row'} gap-1.5`}>
-            <MiniButton icon="🌟" onClick={() => { handleExtraClick(() => { togglePanel('skills'); }); }} />
-            <MiniButton icon="📜" onClick={() => { handleExtraClick(() => { togglePanel('quests'); }); }} />
-            <MiniButton icon="🏆" onClick={() => { handleExtraClick(() => { togglePanel('achievements'); }); }} />
-            <MiniButton icon="💾" onClick={() => { handleExtraClick(() => { togglePanel('save'); }); }} />
+            <MiniButton icon="🌟" label="Skills" onClick={() => { handleExtraClick(() => { togglePanel('skills'); }); }} />
+            <MiniButton icon="📜" label="Missões" onClick={() => { handleExtraClick(() => { togglePanel('quests'); }); }} />
+            <MiniButton icon="🏆" label="Conquistas" onClick={() => { handleExtraClick(() => { togglePanel('achievements'); }); }} />
+            <MiniButton icon="💾" label="Salvar" onClick={() => { handleExtraClick(() => { togglePanel('save'); }); }} />
           </div>
         )}
 
         <button
-          onTouchStart={(e) => e.preventDefault()}
           onClick={() => { vibrate(HAPTIC_DOUBLE); setShowExtra(!showExtra); }}
           className="w-8 h-8 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white/60 text-[10px] shrink-0"
           style={{ backdropFilter: 'blur(4px)' }}
         >
           {showExtra ? '✕' : '···'}
         </button>
+      </div>
+
+      {/* ── Floating Tooltip ── */}
+      {tooltipItem && (() => {
+        const item = getItem(tooltipItem.id);
+        if (!item) return null;
+        return (
+          <div
+            className="fixed z-[100] pointer-events-none"
+            style={{
+              left: Math.min(tooltipItem.x, window.innerWidth - 180),
+              top: Math.max(tooltipItem.y, 20),
+            }}
+          >
+            <div className="bg-gray-900/95 backdrop-blur-md border border-white/10 rounded-xl p-2.5 w-40 shadow-2xl shadow-black/60">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-lg">{item.icon}</span>
+                <div className="text-xs font-bold truncate" style={{ color: RARITY_COLORS[item.rarity as Rarity] || '#fff' }}>
+                  {item.name}
+                </div>
+              </div>
+              <div className="text-[9px] text-white/50 leading-tight mb-1">{item.description}</div>
+              <div className="text-[8px] text-white/30 flex justify-between">
+                <span>{item.rarity}</span>
+                <span>💰 {item.value}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ── Track last touch position for tooltip positioning ──
+const lastTouchRef = { current: null as { clientX: number; clientY: number } | null };
+
+// ═══════════════════════════════════════════════════════════════════
+// ── Crosshair Overlay ────────────────────────────────────────────
+// Shows nearest enemy direction when attack button is held
+// ═══════════════════════════════════════════════════════════════════
+
+function CrosshairOverlay({ game }: { game: Game }) {
+  const [targetData, setTargetData] = useState<{ dx: number; dy: number; dist: number } | null>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const player = game.state.player;
+      const px = player.x + 12;
+      const py = player.y + 12;
+
+      let enemies: { x: number; y: number; width: number; height: number; state: string; hp: number }[] = [];
+      if (game.inCave) enemies = game.caveEnemies;
+      else if (game.inCursedLands) enemies = game.cursedLandsEnemies;
+      else enemies = game.enemies;
+
+      const tool = player.hotbar[player.currentTool]?.item;
+      const attackRange = tool?.range ?? 40;
+      const nearest = Input.getNearestEnemy(px, py, enemies, attackRange + 80);
+
+      if (nearest) {
+        const ex = nearest.x + nearest.width / 2;
+        const ey = nearest.y + nearest.height / 2;
+        const dx = ex - px;
+        const dy = ey - py;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        setTargetData({ dx, dy, dist });
+      } else {
+        setTargetData(null);
+      }
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [game]);
+
+  if (!targetData || targetData.dist > 250) return null;
+
+  // Position crosshair at enemy direction from center of screen
+  const angle = Math.atan2(targetData.dy, targetData.dx);
+  const screenDist = Math.min(targetData.dist * 2, 120);
+  const cx = window.innerWidth / 2 + Math.cos(angle) * screenDist;
+  const cy = window.innerHeight / 2 + Math.sin(angle) * screenDist;
+
+  return (
+    <div
+      className="absolute pointer-events-none z-10"
+      style={{
+        left: cx - 14,
+        top: cy - 14,
+        width: 28,
+        height: 28,
+      }}
+    >
+      {/* Outer ring */}
+      <div className="absolute inset-0 rounded-full border-2 border-red-500/50 animate-pulse" />
+      {/* Inner dot */}
+      <div className="absolute inset-[6px] rounded-full bg-red-500/70 shadow-lg shadow-red-500/40" />
+      {/* Direction lines */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-2.5 bg-red-400/60 rounded" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-2.5 bg-red-400/60 rounded" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2.5 h-0.5 bg-red-400/60 rounded" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-0.5 bg-red-400/60 rounded" />
+      </div>
+      {/* Distance label */}
+      <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[7px] text-red-400/70 whitespace-nowrap">
+        {Math.round(targetData.dist)}px
       </div>
     </div>
   );
@@ -299,7 +534,6 @@ function JoystickArea({ game, isPortrait }: { game: Game; isPortrait: boolean })
   const [knobOffset, setKnobOffset] = useState({ x: 0, y: 0 });
   const touchIdRef = useRef<number | null>(null);
 
-  // Bigger joystick in portrait, more compact in landscape
   const TOUCH_SIZE = isPortrait ? 160 : 120;
   const VISUAL_SIZE = isPortrait ? 110 : 90;
   const KNOB_SIZE = isPortrait ? 42 : 36;
@@ -362,19 +596,30 @@ function JoystickArea({ game, isPortrait }: { game: Game; isPortrait: boolean })
     }
   }, [game]);
 
+  // Track last touch for tooltip
+  const handleTouchMoveTrack = useCallback((e: React.TouchEvent) => {
+    const touch = e.changedTouches[0];
+    lastTouchRef.current = { clientX: touch.clientX, clientY: touch.clientY };
+    handleTouchMove(e);
+  }, [handleTouchMove]);
+
+  const handleTouchStartTrack = useCallback((e: React.TouchEvent) => {
+    const touch = e.changedTouches[0];
+    lastTouchRef.current = { clientX: touch.clientX, clientY: touch.clientY };
+    handleTouchStart(e);
+  }, [handleTouchStart]);
+
   const visualOffset = (TOUCH_SIZE - VISUAL_SIZE) / 2;
 
-  // Bottom position: portrait = bottom-left thumb zone; landscape = left center
   const bottomPos = isPortrait ? 112 : 'auto';
   const leftPos = isPortrait ? 12 : 8;
   const topPos = isPortrait ? 'auto' : '50%';
-  const translateY = isPortrait ? undefined : '-50%';
 
   return (
     <div
       ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
+      onTouchStart={handleTouchStartTrack}
+      onTouchMove={handleTouchMoveTrack}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
       className="absolute pointer-events-auto"
@@ -384,7 +629,6 @@ function JoystickArea({ game, isPortrait }: { game: Game; isPortrait: boolean })
         bottom: typeof bottomPos === 'number' ? `max(${bottomPos}px, calc(${bottomPos}px + env(safe-area-inset-bottom, 0px)))` : bottomPos,
         left: `max(${leftPos}px, calc(${leftPos}px + env(safe-area-inset-left, 0px)))`,
         top: topPos !== 'auto' ? topPos : undefined,
-        transform: translateY ? `translateY(${translateY})` : undefined,
       }}
     >
       {/* Visual ring */}
@@ -401,7 +645,6 @@ function JoystickArea({ game, isPortrait }: { game: Game; isPortrait: boolean })
           WebkitBackdropFilter: 'blur(4px)',
         }}
       >
-        {/* Direction indicators */}
         <div className="absolute top-1.5 left-1/2 -translate-x-1/2 text-white/20 text-[9px]">▲</div>
         <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-white/20 text-[9px]">▼</div>
         <div className="absolute left-1.5 top-1/2 -translate-y-1/2 text-white/20 text-[9px]">◄</div>
@@ -435,12 +678,11 @@ function JoystickArea({ game, isPortrait }: { game: Game; isPortrait: boolean })
 // ═══════════════════════════════════════════════════════════════════
 
 function TouchButton({
-  icon, color, size = 'normal',
-  onTouchStart, onTouchEnd, onClick,
+  icon, color, size = 'normal', onClick,
 }: {
   icon: string; color: string;
   size?: 'normal' | 'small';
-  onTouchStart?: () => void; onTouchEnd?: () => void; onClick?: () => void;
+  onClick?: () => void;
 }) {
   const [pressed, setPressed] = useState(false);
 
@@ -450,7 +692,7 @@ function TouchButton({
     green:  { ring: 'border-green-500/60', bg: 'bg-green-900/25', activeBg: 'bg-green-500/45' },
     purple: { ring: 'border-purple-500/60', bg: 'bg-purple-900/25', activeBg: 'bg-purple-500/45' },
     orange: { ring: 'border-orange-500/60', bg: 'bg-orange-900/25', activeBg: 'bg-orange-500/45' },
-    teal:   { ring: 'border-cyan-500/60', bg: 'bg-cyan-900/25', activeBg: 'bg-cyan-500/45' },
+    cyan:   { ring: 'border-cyan-500/60', bg: 'bg-cyan-900/25', activeBg: 'bg-cyan-500/45' },
     amber:  { ring: 'border-amber-500/60', bg: 'bg-amber-900/25', activeBg: 'bg-amber-500/45' },
     yellow: { ring: 'border-yellow-500/60', bg: 'bg-yellow-900/25', activeBg: 'bg-yellow-500/45' },
     gray:   { ring: 'border-gray-500/60', bg: 'bg-gray-800/30', activeBg: 'bg-gray-500/40' },
@@ -465,9 +707,8 @@ function TouchButton({
 
   return (
     <button
-      onTouchStart={(e) => { e.preventDefault(); setPressed(true); vibrate(hapticPattern); onTouchStart?.(); }}
-      onTouchEnd={(e) => { e.preventDefault(); setPressed(false); onTouchEnd?.(); onClick?.(); }}
-      onClick={(e) => { if (e.detail === 0) return; vibrate(hapticPattern); onClick?.(); }}
+      onTouchStart={(e) => { e.preventDefault(); setPressed(true); vibrate(hapticPattern); }}
+      onTouchEnd={(e) => { e.preventDefault(); setPressed(false); onClick?.(); }}
       className={`${btnSize} rounded-full border-2 ${c.ring} ${
         pressed ? `${c.activeBg} scale-90 shadow-2xl` : c.bg
       } transition-all duration-75 flex items-center justify-center relative`}
@@ -475,20 +716,39 @@ function TouchButton({
         backdropFilter: 'blur(4px)',
         WebkitBackdropFilter: 'blur(4px)',
         WebkitTapHighlightColor: 'transparent',
-        // Enable pointer events inside a pointer-events-none parent
       }}
     >
       <span className={`${iconSize} ${pressed ? 'scale-110' : ''} transition-transform leading-none`}>{icon}</span>
-      {/* Glow ring on press */}
       {pressed && (
         <div
           className="absolute inset-0 rounded-full animate-ping opacity-30"
-          style={{
-            borderWidth: 2,
-            borderColor: c.ring.replace('border-', '').replace('/60', '/40'),
-          }}
+          style={{ borderWidth: 2, borderColor: c.ring.replace('border-', '').replace('/60', '/40') }}
         />
       )}
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ── Quick Action Button ───────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+
+function QuickButton({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <button
+      onTouchStart={(e) => { e.preventDefault(); setPressed(true); vibrate(HAPTIC_TAP); }}
+      onTouchEnd={(e) => { e.preventDefault(); setPressed(false); onClick(); }}
+      className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-black/60 border border-white/15 text-white/80 text-xs transition-all"
+      style={{
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        WebkitTapHighlightColor: 'transparent',
+        transform: pressed ? 'scale(0.92)' : 'scale(1)',
+      }}
+    >
+      <span>{icon}</span>
+      <span className="text-[10px]">{label}</span>
     </button>
   );
 }
@@ -497,21 +757,22 @@ function TouchButton({
 // ── Mini Button (Utility) ─────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
 
-function MiniButton({ icon, onClick }: { icon: string; onClick: () => void }) {
+function MiniButton({ icon, label, onClick }: { icon: string; label?: string; onClick: () => void }) {
   const [p, setP] = useState(false);
   return (
     <button
       onTouchStart={(e) => { e.preventDefault(); setP(true); vibrate(HAPTIC_TAP); }}
       onTouchEnd={(e) => { e.preventDefault(); setP(false); }}
       onClick={() => { vibrate(HAPTIC_TAP); onClick(); }}
-      className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-sm transition-all bg-black/50 hover:bg-white/10 active:scale-90"
+      className="w-9 h-9 rounded-full border border-white/15 flex items-center justify-center text-sm transition-all bg-black/50 active:scale-90"
       style={{
         backdropFilter: 'blur(4px)',
         WebkitBackdropFilter: 'blur(4px)',
         WebkitTapHighlightColor: 'transparent',
+        transform: p ? 'scale(0.9)' : undefined,
       }}
     >
-      <span className={`${p ? 'scale-90' : ''} transition-transform`}>{icon}</span>
+      <span>{icon}</span>
     </button>
   );
 }

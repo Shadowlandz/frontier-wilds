@@ -185,6 +185,33 @@ export class Input {
       /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   }
 
+  /** Find the nearest enemy (for auto-target on mobile).
+   *  enemies: array of enemy objects with x, y, width, height, state, hp
+   *  Returns the closest enemy within maxRange or null.
+   */
+  static getNearestEnemy(
+    playerX: number,
+    playerY: number,
+    enemies: { x: number; y: number; width: number; height: number; state: string; hp: number }[],
+    maxRange: number = 120
+  ): { x: number; y: number; width: number; height: number } | null {
+    let nearest: { x: number; y: number; width: number; height: number } | null = null;
+    let minDist = maxRange;
+    for (const enemy of enemies) {
+      if (enemy.state === 'dead' || enemy.hp <= 0) continue;
+      const ex = enemy.x + enemy.width / 2;
+      const ey = enemy.y + enemy.height / 2;
+      const dx = ex - playerX;
+      const dy = ey - playerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = { x: enemy.x, y: enemy.y, width: enemy.width, height: enemy.height };
+      }
+    }
+    return nearest;
+  }
+
   destroy(): void {
     // Listeners are cleaned up when canvas is removed
     this.keys.clear();

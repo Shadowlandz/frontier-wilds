@@ -809,6 +809,51 @@ function InventoryPanel({ game }: { game: Game }) {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [dragSource, setDragSource] = useState<{ pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number } | null>(null);
   const refresh = () => forceUpdate(n => n + 1);
+  // Mobile touch: single timer ref for long-press detection
+  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchSlotRef = useRef<{ pool: 'inventory' | 'hotbar' | 'equipment'; index: string | number } | null>(null);
+
+  const handleTouchStart = (pool: 'inventory' | 'hotbar' | 'equipment', index: string | number) => {
+    touchSlotRef.current = { pool, index };
+    touchTimerRef.current = setTimeout(() => {
+      // Long press → show tooltip
+      setHoveredSlot(touchSlotRef.current);
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate(15); } catch {}
+      }
+    }, 400);
+  };
+
+  const handleTouchMove = () => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+  };
+
+  const handleTouchEnd = (pool: 'inventory' | 'hotbar' | 'equipment', index: string | number) => {
+    if (touchTimerRef.current) {
+      // Short tap: perform default action
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+      handleShortTap(pool, index);
+    } else {
+      setHoveredSlot(null);
+    }
+  };
+
+  const handleShortTap = (pool: 'inventory' | 'hotbar' | 'equipment', index: string | number) => {
+    if (pool === 'hotbar') {
+      state.player.currentTool = index as number;
+      refresh();
+    } else if (pool === 'inventory') {
+      const slot = state.player.inventory[index as number];
+      if (!slot?.item) return;
+      const vs = game.getValidEquipSlot(slot.item);
+      if (vs) { game.equipFromInventory(index as number, vs); refresh(); }
+      else { game.moveToHotbar(index as number, state.player.currentTool); refresh(); }
+    }
+  };
 
   const handleDragStart = (pool: 'inventory' | 'hotbar' | 'equipment', index: string | number) => setDragSource({ pool, index });
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
@@ -825,6 +870,10 @@ function InventoryPanel({ game }: { game: Game }) {
 
   return (
     <Panel title="🎒 Inventario" onClose={() => game.setActivePanel('none')}>
+      {/* Mobile touch info */}
+      {Input.isMobileDevice() && (
+        <div className="text-[9px] text-white/30 mb-2 text-center">Toque = mover | Toque longo = info | Toque em slot vazio para equipar/guardar</div>
+      )}
       <div className="mb-3">
         <div className="text-white/60 text-xs mb-1">Equipamento</div>
         <div className="grid grid-cols-4 gap-1">
@@ -839,7 +888,9 @@ function InventoryPanel({ game }: { game: Game }) {
                 onMouseEnter={(e) => { if (equipped?.item) { setHoveredSlot({ pool: 'equipment', index: equipSlot }); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
                 onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
                 onMouseLeave={() => setHoveredSlot(null)}
-                className={`w-12 h-12 rounded border flex items-center justify-center relative cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/20 bg-black/40'} hover:border-white/40`}
+                onTouchStart={() => { if (equipped?.item) { setHoveredSlot({ pool: 'equipment', index: equipSlot }); } }}
+                onTouchEnd={() => { if (equipped?.item) { setHoveredSlot(null); /* unequip on tap */ game.unequipItem(equipSlot); refresh(); } }}
+                className={`w-full aspect-square rounded border flex items-center justify-center relative cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/20 bg-black/40'} hover:border-white/40`}
               >
                 {equipped?.item ? (
                   <><span className="text-lg" style={{ color: RARITY_COLORS[equipped.item.rarity] }}>{equipped.unidentified ? '❓' : equipped.item.icon}</span>{equipped.unidentified && <span className="absolute -top-1 left-0.5 text-[7px] text-cyan-400 font-bold">?</span>}<span className="absolute -top-1 -right-1 text-[7px] bg-white/20 rounded px-0.5">{equipLabels[equipSlot]?.split(' ')[0] || equipSlot.slice(0, 3)}</span></>
@@ -848,10 +899,13 @@ function InventoryPanel({ game }: { game: Game }) {
             );
           })}
         </div>
+        {Input.isMobileDevice() && (
+          <div className="text-[8px] text-white/20 mt-1">Toque para remover equipamento</div>
+        )}
       </div>
 
       <div className="text-white/60 text-xs mb-1">Hotbar</div>
-      <div className="flex gap-1 mb-3">
+      <div className="flex gap-1 mb-3 flex-wrap">
         {state.player.hotbar.map((slot, i) => {
           const isDrop = dragSource && dragSource.pool !== 'hotbar';
           const isDrag = dragSource?.pool === 'hotbar' && dragSource.index === i;
@@ -864,7 +918,10 @@ function InventoryPanel({ game }: { game: Game }) {
               onMouseEnter={(e) => { if (slot?.item) { setHoveredSlot({ pool: 'hotbar', index: i }); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
               onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
               onMouseLeave={() => setHoveredSlot(null)}
-              className={`w-10 h-10 rounded border-2 flex items-center justify-center relative cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isSelected ? 'border-yellow-400 bg-yellow-400/15' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'} hover:border-white/40`}
+              onTouchStart={() => handleTouchStart('hotbar', i)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={() => handleTouchEnd('hotbar', i)}
+              className={`w-12 h-full aspect-square rounded border-2 flex items-center justify-center relative cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isSelected ? 'border-yellow-400 bg-yellow-400/15' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'} hover:border-white/40`}
             >
               {slot?.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.unidentified ? '❓' : slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}{slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold">?</span>}</>}
               <span className="absolute top-0 left-0.5 text-[7px] text-white/40">{i + 1}</span>
@@ -874,7 +931,7 @@ function InventoryPanel({ game }: { game: Game }) {
       </div>
 
       <div className="text-white/60 text-xs mb-1">Mochila</div>
-      <div className="grid grid-cols-9 gap-1 mb-3">
+      <div className="grid grid-cols-8 sm:grid-cols-9 gap-1 mb-3">
         {state.player.inventory.map((slot, i) => {
           const isDrop = dragSource && dragSource.pool !== 'inventory';
           const isDrag = dragSource?.pool === 'inventory' && dragSource.index === i;
@@ -886,7 +943,10 @@ function InventoryPanel({ game }: { game: Game }) {
               onMouseEnter={(e) => { if (slot?.item) { setHoveredSlot({ pool: 'inventory', index: i }); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
               onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
               onMouseLeave={() => setHoveredSlot(null)}
-              className={`w-10 h-10 rounded border flex items-center justify-center cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'} hover:border-white/30 hover:bg-white/10`}
+              onTouchStart={() => handleTouchStart('inventory', i)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={() => handleTouchEnd('inventory', i)}
+              className={`w-full aspect-square rounded border flex items-center justify-center cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'} hover:border-white/30 hover:bg-white/10`}
             >
               {slot?.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.unidentified ? '❓' : slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}{slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold">?</span>}</>}
             </div>
@@ -895,7 +955,11 @@ function InventoryPanel({ game }: { game: Game }) {
       </div>
 
       <div className="text-yellow-400 text-sm">🪙 {state.player.stats.gold} ouro</div>
-      <div className="text-white/30 text-[9px] mt-1">Clique duplo = equipar | Arrastar = reorganizar</div>
+      {Input.isMobileDevice() ? (
+        <div className="text-white/30 text-[9px] mt-1">Toque = equipar/usar | Toque longo = info</div>
+      ) : (
+        <div className="text-white/30 text-[9px] mt-1">Clique duplo = equipar | Arrastar = reorganizar</div>
+      )}
 
       {hoveredSlot && (() => {
         const getSlot = () => {
@@ -1704,28 +1768,40 @@ function StoragePanel({ game }: { game: Game }) {
   const chest = chestId ? game.state.storageChests.find(c => c.id === chestId) : null;
   if (!chest || !chestId) return null;
 
+  const isMobile = Input.isMobileDevice();
+
   return (
-    <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 pointer-events-auto">
-      <div className="bg-gray-900/95 backdrop-blur-md rounded-2xl border border-amber-800/40 p-3 w-64 shadow-2xl shadow-black/60">
+    <div className={`z-50 pointer-events-auto ${isMobile ? 'absolute inset-0 flex items-center justify-center bg-black/50' : 'absolute right-4 top-1/2 -translate-y-1/2'}`}>
+      <div className={`bg-gray-900/95 backdrop-blur-md rounded-2xl border border-amber-800/40 shadow-2xl shadow-black/60 ${
+        isMobile ? 'w-[85vw] max-h-[75vh] p-3 overflow-y-auto' : 'p-3 w-64'
+      }`}>
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-white font-bold text-sm">🗄️ {chest.name}</h3>
-          <button onClick={() => { game.state.activeStorageChestId = null; game.ui.activePanel = 'none'; refresh(); }} className="text-white/40 hover:text-white text-sm">✕</button>
+          <button onClick={() => { game.state.activeStorageChestId = null; game.ui.activePanel = 'none'; refresh(); }} className="text-white/40 hover:text-white text-sm active:scale-90">✕</button>
         </div>
         <div className="text-white/40 text-[10px] mb-2">{chest.slots.filter(s => s.item).length}/{chest.maxSlots} slots usados</div>
-        <div className="grid grid-cols-5 gap-1">
+        {isMobile && <div className="text-[8px] text-white/30 mb-1">Toque para pegar item</div>}
+        <div className={`grid gap-1 ${isMobile ? 'grid-cols-6' : 'grid-cols-5'}`}>
           {chest.slots.map((slot, i) => (
-            <div key={i} onDoubleClick={() => { if (slot.item) { game.takeFromStorage(i, chestId!, slot.count); refresh(); } }}
-              className="w-10 h-10 rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-pointer hover:border-white/30 group">
+            <div key={i}
+              onDoubleClick={() => { if (slot.item) { game.takeFromStorage(i, chestId!, slot.count); refresh(); } }}
+              onClick={() => { if (isMobile && slot.item) { game.takeFromStorage(i, chestId!, slot.count); refresh(); } }}
+              className={`${isMobile ? 'w-full aspect-square' : 'w-10 h-10'} rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-pointer hover:border-white/30 group active:scale-90 transition-transform`}
+            >
               {slot.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>{slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
             </div>
           ))}
         </div>
         <div className="border-t border-white/10 mt-2 pt-2">
           <div className="text-white/40 text-[10px] mb-1">Seu inventario:</div>
-          <div className="grid grid-cols-5 gap-1">
-            {game.state.player.inventory.slice(0, 15).map((slot, i) => (
-              <div key={i} onDoubleClick={() => { if (slot.item) { game.moveToStorage(i, chestId!, slot.count); refresh(); } }}
-                className="w-10 h-10 rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-pointer hover:border-green-400/50 group">
+          {isMobile && <div className="text-[8px] text-white/30 mb-1">Toque para guardar item</div>}
+          <div className={`grid gap-1 ${isMobile ? 'grid-cols-6' : 'grid-cols-5'}`}>
+            {game.state.player.inventory.slice(0, isMobile ? 24 : 15).map((slot, i) => (
+              <div key={i}
+                onDoubleClick={() => { if (slot.item) { game.moveToStorage(i, chestId!, slot.count); refresh(); } }}
+                onClick={() => { if (isMobile && slot.item) { game.moveToStorage(i, chestId!, slot.count); refresh(); } }}
+                className={`${isMobile ? 'w-full aspect-square' : 'w-10 h-10'} rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-pointer hover:border-green-400/50 group active:scale-90 transition-transform`}
+              >
                 {slot.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>{slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
               </div>
             ))}
