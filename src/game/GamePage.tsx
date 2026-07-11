@@ -1542,15 +1542,27 @@ function ForgePanel({ game }: { game: Game }) {
 
 // ── Panel ─────────────────────────────────────────────────────────
 function Panel({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const isMobile = Input.isMobileDevice();
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-auto z-50">
-      <div className="bg-gray-900/95 backdrop-blur-md rounded-2xl border border-white/10 p-4 w-[520px] max-w-[95vw] max-h-[85vh] flex flex-col">
-        <div className="flex justify-between items-center mb-3">
+    <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-auto z-50" style={{touchAction: 'manipulation'}}>
+      <div className={`bg-gray-900/95 backdrop-blur-md border border-white/10 flex flex-col ${
+        isMobile
+          ? 'w-full h-full rounded-none p-3 pt-safe overflow-y-auto'
+          : 'rounded-2xl p-4 w-[520px] max-w-[95vw] max-h-[85vh]'
+      }`}
+        style={isMobile ? {
+          paddingTop: 'max(12px, env(safe-area-inset-top, 12px))',
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))',
+          paddingLeft: 'max(12px, env(safe-area-inset-left, 12px))',
+          paddingRight: 'max(12px, env(safe-area-inset-right, 12px))',
+        } : {}}
+      >
+        <div className="flex justify-between items-center mb-3 shrink-0">
           <h2 className="text-white font-bold text-lg">{title}</h2>
-          <button onClick={onClose} className="text-white/40 hover:text-white text-xl leading-none">✕</button>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-xl leading-none w-10 h-10 flex items-center justify-center active:scale-90 transition-transform" style={{ WebkitTapHighlightColor: 'transparent' }}>✕</button>
         </div>
-        <div className="flex-1 overflow-y-auto">{children}</div>
-        <div className="text-white/20 text-[10px] text-center mt-2">Pressione ESC ou I/C/K/J para fechar</div>
+        <div className={`flex-1 ${isMobile ? 'overflow-y-auto overscroll-behavior-contain' : 'overflow-y-auto'}`} style={isMobile ? { WebkitOverflowScrolling: 'touch' } : {}}>{children}</div>
+        <div className="text-white/20 text-[10px] text-center mt-2 shrink-0">Pressione ESC ou I/C/K/J para fechar</div>
       </div>
     </div>
   );
