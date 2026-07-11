@@ -226,14 +226,14 @@ function HUD({ stats, gameTime, selectedTool, hotbar, notifications, player }: {
         <BarBar label="❤️ Vida" current={stats.hp} max={stats.maxHp} color="#e53935" />
         <BarBar label="🍖 Fome" current={stats.hunger} max={stats.maxHunger} color="#ff9800" />
         <BarBar label="⚡ Stamina" current={player?.stamina ?? 0} max={player?.maxStamina ?? 100} color="#2196f3" />
-        <div className="flex gap-3 text-xs text-white/70 mt-1">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] sm:text-xs text-white/70 mt-1">
           <span>⚔️ {stats.strength}</span>
           <span>🛡️ {stats.defense}</span>
           <span>🍀 {stats.luck}</span>
           <span>🪙 {stats.gold}</span>
         </div>
-        <div className="text-xs text-yellow-400">Lv.{stats.level}</div>
-        <div className="w-52">
+        <div className="text-[10px] sm:text-xs text-yellow-400">Lv.{stats.level}</div>
+        <div className="w-36 sm:w-52">
           <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
             <span>XP</span>
             <span>{stats.xp}/{stats.xpToNext}</span>
@@ -277,12 +277,12 @@ function HUD({ stats, gameTime, selectedTool, hotbar, notifications, player }: {
 function BarBar({ label, current, max, color }: { label: string; current: number; max: number; color: string }) {
   const pct = Math.max(0, Math.min(100, (current / max) * 100));
   return (
-    <div className="bg-black/60 backdrop-blur-sm rounded px-2 py-1 w-52">
-      <div className="flex justify-between text-[10px] text-white/80 mb-0.5">
+    <div className="bg-black/60 backdrop-blur-sm rounded px-2 py-1 w-36 sm:w-52">
+      <div className="flex justify-between text-[9px] sm:text-[10px] text-white/80 mb-0.5">
         <span>{label}</span>
-        <span>{Math.ceil(current)}/{max}</span>
+        <span className="text-[8px] sm:text-[10px]">{Math.ceil(current)}/{max}</span>
       </div>
-      <div className="h-2 bg-black/50 rounded-full overflow-hidden">
+      <div className="h-1.5 sm:h-2 bg-black/50 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
