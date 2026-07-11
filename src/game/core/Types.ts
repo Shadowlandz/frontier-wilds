@@ -329,6 +329,8 @@ export interface NpcDefinition {
   name: string;
   dialogue: string[];
   shopItems?: string[];
+  /** Items this NPC buys from the player — mapped to buy price per item */
+  buysItems?: Record<string, number>;
   questIds?: string[];
   color: string;
   icon: string;

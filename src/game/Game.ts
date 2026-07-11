@@ -2544,6 +2544,34 @@ export class Game {
     return false;
   }
 
+  /** Sell items to the active NPC (Farmer buys crops at premium prices) */
+  sellToNpc(itemId: string): boolean {
+    const npc = this.ui.activeShopNpc;
+    if (!npc) {
+      // Fallback: basic sell
+      return this.sellItem(itemId);
+    }
+
+    const npcDef = npc.definition;
+    const buyPrices = npcDef.buysItems;
+
+    if (buyPrices && buyPrices[itemId] !== undefined) {
+      // NPC has a special buy price for this item
+      const price = buyPrices[itemId];
+      if (this.removeFromInventory(itemId, 1)) {
+        this.state.player.stats.gold += price;
+        this.achievementStats.goldEarned += price;
+        const item = getItem(itemId);
+        this.addNotification(`Vendeu ${item?.name || itemId} por ${price} 🪙`, 'item');
+        return true;
+      }
+      return false;
+    }
+
+    // No special price, use default sell
+    return this.sellItem(itemId);
+  }
+
   // ── Forge (Upgrade System) ────────────────────────────────────────
   /** Open the forge/upgrade panel (only for blacksmith NPC) */
   openForge(): void {

@@ -1328,30 +1328,95 @@ function QuestsPanel({ game }: { game: Game }) {
 function ShopPanel({ game, uiState }: { game: Game; uiState: GameUIState }) {
   const [, forceUpdate] = useState(0);
   const refresh = () => forceUpdate(n => n + 1);
+  const [shopTab, setShopTab] = useState<'buy' | 'sell'>('buy');
   const state = game.state;
   const npc = uiState.activeShopNpc;
   if (!npc) return null;
   const shopItems = (npc.definition.shopItems || []).map(id => getItem(id)).filter(Boolean) as any[];
+  const buyPrices = npc.definition.buysItems as Record<string, number> | undefined;
+  const hasSellTab = buyPrices && Object.keys(buyPrices).length > 0;
+
+  // Collect player items that the NPC buys
+  const sellableItems = hasSellTab
+    ? ([] as { item: any; count: number; price: number }[]).concat(
+        state.player.inventory
+          .filter(s => s.item && s.count > 0 && buyPrices![s.item.id] !== undefined)
+          .map(s => ({ item: s.item!, count: s.count, price: buyPrices![s.item!.id] })),
+        state.player.hotbar
+          .filter(s => s.item && s.count > 0 && buyPrices![s.item.id] !== undefined)
+          .map(s => ({ item: s.item!, count: s.count, price: buyPrices![s.item!.id] }))
+      )
+        .filter((entry, index, self) => self.findIndex(e => e.item.id === entry.item.id) === index)
+        .sort((a, b) => b.price - a.price)
+    : [];
 
   return (
     <Panel title={`🏪 ${npc.definition.name}`} onClose={() => game.setActivePanel('none')}>
       <div className="text-yellow-400 text-xs mb-2">Seu ouro: {state.player.stats.gold} 🪙</div>
-      <div className="space-y-1 max-h-80 overflow-y-auto">
-        {shopItems.map((item: any) => {
-          const price = Math.floor(item.value * 1.5);
-          const canBuy = state.player.stats.gold >= price;
-          return (
-            <div key={item.id} className="flex items-center gap-2 p-2 rounded border border-white/10 bg-white/5">
-              <span className="text-lg">{item.icon}</span>
-              <div className="flex-1"><div className="text-white text-xs">{item.name}</div><div className="text-white/40 text-[10px]">{item.description}</div></div>
-              <div className="text-right"><div className="text-yellow-400 text-xs">{price} 🪙</div>
-                <button disabled={!canBuy} onClick={() => { game.buyItem(item.id); refresh(); }}
-                  className={`px-2 py-0.5 rounded text-[10px] ${canBuy ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-white/10 text-white/30'}`}>Comprar</button>
+
+      {hasSellTab && (
+        <div className="flex gap-1 mb-2">
+          <button onClick={() => setShopTab('buy')}
+            className={`flex-1 py-1 rounded text-[10px] font-bold transition-all ${shopTab === 'buy' ? 'bg-green-700 text-white' : 'bg-white/10 text-white/50 hover:bg-white/20'}`}>
+            🛒 Comprar
+          </button>
+          <button onClick={() => setShopTab('sell')}
+            className={`flex-1 py-1 rounded text-[10px] font-bold transition-all ${shopTab === 'sell' ? 'bg-amber-700 text-white' : 'bg-white/10 text-white/50 hover:bg-white/20'}`}>
+            💰 Vender Colheitas
+          </button>
+        </div>
+      )}
+
+      {shopTab === 'buy' && (
+        <div className="space-y-1 max-h-80 overflow-y-auto">
+          {shopItems.map((item: any) => {
+            const price = Math.floor(item.value * 1.5);
+            const canBuy = state.player.stats.gold >= price;
+            return (
+              <div key={item.id} className="flex items-center gap-2 p-2 rounded border border-white/10 bg-white/5">
+                <span className="text-lg">{item.icon}</span>
+                <div className="flex-1"><div className="text-white text-xs">{item.name}</div><div className="text-white/40 text-[10px]">{item.description}</div></div>
+                <div className="text-right"><div className="text-yellow-400 text-xs">{price} 🪙</div>
+                  <button disabled={!canBuy} onClick={() => { game.buyItem(item.id); refresh(); }}
+                    className={`px-2 py-0.5 rounded text-[10px] ${canBuy ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-white/10 text-white/30'}`}>Comprar</button>
+                </div>
               </div>
+            );
+          })}
+          {shopItems.length === 0 && (
+            <div className="text-center text-white/30 text-xs py-4">Nenhum item à venda.</div>
+          )}
+        </div>
+      )}
+
+      {shopTab === 'sell' && (
+        <div className="space-y-1 max-h-80 overflow-y-auto">
+          {sellableItems.length === 0 ? (
+            <div className="text-center text-white/30 text-xs py-4">
+              Nenhuma colheita ou item para vender.
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            sellableItems.map((entry: any) => {
+              const playerCount = game.countInInventory(entry.item.id);
+              const price = entry.price;
+              return (
+                <div key={entry.item.id} className="flex items-center gap-2 p-2 rounded border border-amber-700/30 bg-amber-900/20">
+                  <span className="text-lg">{entry.item.icon}</span>
+                  <div className="flex-1">
+                    <div className="text-white text-xs">{entry.item.name} <span className="text-white/40">x{playerCount}</span></div>
+                    <div className="text-white/40 text-[10px]">{entry.item.description}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-amber-400 text-xs">{price} 🪙</div>
+                    <button onClick={() => { game.sellToNpc(entry.item.id); refresh(); }}
+                      className="px-2 py-0.5 rounded text-[10px] bg-amber-600 hover:bg-amber-500 text-white">Vender</button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </Panel>
   );
 }

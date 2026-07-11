@@ -432,6 +432,53 @@ export const ITEMS: Record<string, ItemDefinition> = {
     icon: '🛏️', placeable: true,
   },
 
+  // ── New Crops ────────────────────────────────────────────────
+  corn_seed: {
+    id: 'corn_seed', name: 'Semente de Milho', description: 'Plante para cultivar milho.',
+    category: ItemCategory.Seed, rarity: Rarity.Common, stackSize: 50, weight: 0.1, value: 3,
+    icon: '🌽',
+  },
+  corn: {
+    id: 'corn', name: 'Milho', description: 'Milho fresco e dourado.',
+    category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 50, weight: 0.5, value: 4,
+    icon: '🌽', foodValue: 15, healAmount: 3, effects: [{ type: 'hunger', value: 15 }],
+  },
+  tomato_seed: {
+    id: 'tomato_seed', name: 'Semente de Tomate', description: 'Plante para cultivar tomates.',
+    category: ItemCategory.Seed, rarity: Rarity.Common, stackSize: 50, weight: 0.1, value: 3,
+    icon: '🍅',
+  },
+  tomato: {
+    id: 'tomato', name: 'Tomate', description: 'Tomate vermelho e suculento.',
+    category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 50, weight: 0.4, value: 4,
+    icon: '🍅', foodValue: 10, healAmount: 5, effects: [{ type: 'hunger', value: 10 }, { type: 'heal', value: 5 }],
+  },
+  magic_bean_seed: {
+    id: 'magic_bean_seed', name: 'Semente de Feijão Mágico', description: 'Uma semente mágica lendária!',
+    category: ItemCategory.Seed, rarity: Rarity.Rare, stackSize: 10, weight: 0.1, value: 40,
+    icon: '🫘',
+  },
+  magic_bean: {
+    id: 'magic_bean', name: 'Feijão Mágico', description: 'Feijão pulsando com energia arcana. Valioso e poderoso!',
+    category: ItemCategory.Consumable, rarity: Rarity.Rare, stackSize: 20, weight: 0.3, value: 35,
+    icon: '🫘', foodValue: 20, healAmount: 20, effects: [{ type: 'hunger', value: 20 }, { type: 'heal', value: 20 }, { type: 'xp', value: 15 }],
+  },
+  cornbread: {
+    id: 'cornbread', name: 'Pão de Milho', description: 'Pão caseiro feito com milho fresco.',
+    category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 20, weight: 0.5, value: 12,
+    icon: '🍞', foodValue: 30, healAmount: 12, effects: [{ type: 'hunger', value: 30 }, { type: 'heal', value: 12 }, { type: 'energy', value: 10 }],
+  },
+  tomato_soup: {
+    id: 'tomato_soup', name: 'Sopa de Tomate', description: 'Sopa quente e reconfortante de tomate.',
+    category: ItemCategory.Consumable, rarity: Rarity.Common, stackSize: 10, weight: 1, value: 15,
+    icon: '🍲', foodValue: 25, healAmount: 18, effects: [{ type: 'hunger', value: 25 }, { type: 'heal', value: 18 }, { type: 'energy', value: 12 }],
+  },
+  magic_stew: {
+    id: 'magic_stew', name: 'Caldo Mágico', description: 'Caldo arcano que rejuvenece o corpo e a mente.',
+    category: ItemCategory.Consumable, rarity: Rarity.Rare, stackSize: 5, weight: 1, value: 50,
+    icon: '🥣', foodValue: 40, healAmount: 40, effects: [{ type: 'hunger', value: 40 }, { type: 'heal', value: 40 }, { type: 'energy', value: 30 }, { type: 'xp', value: 25 }],
+  },
+
   // ── Quest Items ───────────────────────────────────────────────
   ancient_key: {
     id: 'ancient_key', name: 'Chave Antiga', description: 'Uma chave misteriosa e antiga.',

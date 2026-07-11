@@ -587,6 +587,26 @@ export const RECIPES: CraftingRecipe[] = [
     requiredLevel: 14, craftTime: 8000, station: 'furnace',
   },
 
+  // ── New Crop Recipes ───────────────────────────────────────
+  {
+    id: 'cook_cornbread', name: 'Pão de Milho 🍞', category: ItemCategory.Consumable,
+    result: 'cornbread', resultCount: 2,
+    ingredients: [{ itemId: 'corn', count: 3 }, { itemId: 'wheat', count: 1 }],
+    requiredLevel: 2, craftTime: 3000, station: 'furnace',
+  },
+  {
+    id: 'cook_tomato_soup', name: 'Sopa de Tomate 🍲', category: ItemCategory.Consumable,
+    result: 'tomato_soup', resultCount: 2,
+    ingredients: [{ itemId: 'tomato', count: 3 }, { itemId: 'potato', count: 1 }, { itemId: 'coal', count: 1 }],
+    requiredLevel: 3, craftTime: 3500, station: 'furnace',
+  },
+  {
+    id: 'cook_magic_stew', name: 'Caldo Mágico 🥣', category: ItemCategory.Consumable,
+    result: 'magic_stew', resultCount: 1,
+    ingredients: [{ itemId: 'magic_bean', count: 2 }, { itemId: 'magic_dust', count: 2 }, { itemId: 'carrot', count: 2 }],
+    requiredLevel: 8, craftTime: 6000, station: 'furnace',
+  },
+
   // ── Fishing Recipes ────────────────────────────────────────
   {
     id: 'craft_iron_fishing_rod', name: 'Vara de Pesca de Ferro', category: ItemCategory.Tool,
