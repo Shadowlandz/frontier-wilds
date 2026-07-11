@@ -882,12 +882,14 @@ export class Game {
 
   // ══ Cave Entry / Exit ═══════════════════════════════════════
   private enterCave(entranceX: number, entranceY: number): void {
-    if (!this.caveData) return;
+    // ── Generate a NEW random cave map every time the player enters ──
+    const generator = new WorldGenerator(Math.floor(Math.random() * 999999));
+    const caveSeed = Math.floor(Math.random() * 999999);
+    this.caveData = generator.generateCaveData(caveSeed);
 
     // Save surface position
     this.surfacePosition = { x: this.state.player.x, y: this.state.player.y };
 
-    // Swap surface data out, cave data in
     // Move player to cave entrance
     const cd = this.caveData;
     this.state.player.x = cd.entranceX + TILE_SIZE / 2;
@@ -925,7 +927,7 @@ export class Game {
     this.inCave = true;
     this.achievementStats.hasEnteredCave = true;
     this.addNotification('Você entrou na caverna...', 'info');
-    this.addNotification('Pressione [E] perto da entrada para sair.', 'info');
+    this.addNotification('Pressione [E] perto da entrada para sair ou encontre o portal 🌌 no fundo da caverna!', 'info');
   }
 
   private exitCave(): void {

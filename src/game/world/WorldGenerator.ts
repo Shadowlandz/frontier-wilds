@@ -305,19 +305,27 @@ export class WorldGenerator {
 
   /**
    * Generate the underground cave layer with exclusive enemies and resources
+   * @param randomSeed - Optional random seed. If provided, each call produces a different cave layout.
+   *                     Used by enterCave() to create a unique cave every time the player enters.
    */
-  generateCaveData(): CaveData {
-    const caveW = 80; // Smaller than surface — feels like a dungeon
+  generateCaveData(randomSeed?: number): CaveData {
+    const caveW = 80;
     const caveH = 80;
-    const caveRng = new SeededRandom(this.seed + 55555);
+    // Use randomSeed if provided (for dynamically generating a new cave each entry),
+    // otherwise fall back to the deterministic instance seed (for init-time generation)
+    const seedBase = randomSeed ?? (this.seed + 55555);
+    const caveRng = new SeededRandom(seedBase);
 
     // Generate cave tiles — rooms and corridors using simple noise
     const caveTileMap: TileType[][] = Array.from({ length: caveH }, () => Array(caveW).fill(TileType.CaveWall));
 
+    // Use different noise seed offset for random caves
+    const noiseSeedOffset = randomSeed ? (randomSeed + 77777) : (this.seed + 77777);
+
     // Carve out open areas
     for (let y = 0; y < caveH; y++) {
       for (let x = 0; x < caveW; x++) {
-        const noise = fractalNoise(x, y, this.seed + 77777, 4, 16, 0.6);
+        const noise = fractalNoise(x, y, noiseSeedOffset, 4, 16, 0.6);
         if (noise > 0.35) {
           caveTileMap[y][x] = TileType.CaveFloor;
         }
@@ -354,9 +362,10 @@ export class WorldGenerator {
     }
 
     // Add lava pools in deeper areas (y > 50)
+    const lavaSeedOffset = randomSeed ? (randomSeed + 88888) : (this.seed + 88888);
     for (let y = 50; y < caveH; y++) {
       for (let x = 0; x < caveW; x++) {
-        const noise = fractalNoise(x, y, this.seed + 88888, 2, 40);
+        const noise = fractalNoise(x, y, lavaSeedOffset, 2, 40);
         if (noise > 0.45 && caveTileMap[y][x] === TileType.CaveFloor) {
           // Check surroundings
           let floorNeighbors = 0;
@@ -458,8 +467,32 @@ export class WorldGenerator {
       }
     }
 
-    // Place the Shadow Lord boss in deep cave
-    caveEnemies.push({ x: 60 * TILE_SIZE, y: 70 * TILE_SIZE, type: EnemyType.ShadowLord });
+    // Place the Shadow Lord boss in deep cave (slightly random position)
+    const bossX = 58 + Math.floor(Math.abs(fractalNoise(0, 0, seedBase + 12345, 1, 10)) * 10);
+    const bossY = 65 + Math.floor(Math.abs(fractalNoise(1, 0, seedBase + 12345, 1, 10)) * 10);
+    caveEnemies.push({ x: bossX * TILE_SIZE, y: bossY * TILE_SIZE, type: EnemyType.ShadowLord });
+
+    // ── Portal to Cursed Lands inside the deep cave ──
+    // Place it in a large open area at the bottom of the cave
+    const portalTileX = 40;
+    const portalTileY = 72;
+    // Carve a guaranteed open area for the portal
+    for (let dy = -3; dy <= 3; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        const px = portalTileX + dx;
+        const py = portalTileY + dy;
+        if (px >= 0 && px < caveW && py >= 0 && py < caveH) {
+          caveTileMap[py][px] = TileType.CaveFloor;
+        }
+      }
+    }
+    // Add the portal resource
+    caveResources.push({
+      x: portalTileX * TILE_SIZE + TILE_SIZE / 2,
+      y: portalTileY * TILE_SIZE + TILE_SIZE / 2,
+      type: 'portal',
+      itemId: 'portal',
+    });
 
     return {
       tileMap: caveTileMap,
