@@ -28,6 +28,8 @@ export const Biome = {
   Village: 'village',
   Lake: 'lake',
   River: 'river',
+  Coast: 'coast',
+  Volcanic: 'volcanic',
 } as const;
 export type Biome = typeof Biome[keyof typeof Biome];
 

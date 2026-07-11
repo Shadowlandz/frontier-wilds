@@ -52,6 +52,14 @@ export const BIOME_DETAIL_COLORS: Partial<Record<Biome, { color: string; type: s
   [Biome.Mountains]: [
     { color: '#8a8a8a', type: 'gravel', chance: 0.04 },
   ],
+  [Biome.Coast]: [
+    { color: '#c8d0b0', type: 'shell', chance: 0.04 },
+    { color: '#b0a878', type: 'driftwood', chance: 0.02 },
+  ],
+  [Biome.Volcanic]: [
+    { color: '#3a2a1a', type: 'ash', chance: 0.05 },
+    { color: '#6a3a1a', type: 'lava_crack', chance: 0.03 },
+  ],
 };
 
 // ── Biome Map Colors (for terrain variation) ──────────────────────
@@ -67,6 +75,8 @@ const BIOME_GRASS_COLORS: Record<Biome, string> = {
   [Biome.Village]: '#6a9a5a',      // Healthy farmland
   [Biome.Lake]: '#2a7aa8',         // Blue water
   [Biome.River]: '#3a88b8',        // River blue
+  [Biome.Coast]: '#e8d09a',        // Sandy coast
+  [Biome.Volcanic]: '#5a3a1a',     // Dark volcanic ash
 };
 
 // ── Decorative Element Types ──────────────────────────────────────
@@ -161,10 +171,14 @@ export class WorldGenerator {
     const height = this.heightMap[y][x];
     const moisture = this.moistureMap[y][x];
 
+    // Coast: transition zone between water and land
     if (height < 0.28) return Biome.Lake;
+    if (height < 0.32) return Biome.Coast;
     if (height < 0.35) {
       return moisture > 0.6 ? Biome.Swamp : Biome.Plains;
     }
+    // Volcanic: rare high-heat biome — extreme conditions (low moisture, high elevation)
+    if (height > 0.85 && moisture < 0.25) return Biome.Volcanic;
     if (height > 0.78) return Biome.Mountains;
     if (height > 0.7) return Biome.Ruins;
     if (moisture > 0.65) return Biome.Forest;
@@ -176,9 +190,11 @@ export class WorldGenerator {
     const noise = fractalNoise(x, y, this.seed + 1000, 2, 20);
 
     if (biome === Biome.Lake) return noise > 0.4 ? TileType.Water : TileType.DeepWater;
+    if (biome === Biome.Coast) return noise > 0.6 ? TileType.Sand : TileType.Dirt;
     if (biome === Biome.River) return TileType.Water;
     if (biome === Biome.Desert) return noise > 0.7 ? TileType.Stone : TileType.Sand;
     if (biome === Biome.Mountains) return noise > 0.5 ? TileType.Stone : TileType.Snow;
+    if (biome === Biome.Volcanic) return noise > 0.5 ? TileType.Stone : TileType.Dirt;
     if (biome === Biome.Swamp) return noise > 0.6 ? TileType.SwampWater : TileType.Grass;
     if (biome === Biome.Cave) return TileType.CaveFloor;
     if (biome === Biome.Ruins) return noise > 0.4 ? TileType.Floor : TileType.Stone;
@@ -283,6 +299,26 @@ export class WorldGenerator {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'snowy_rock' });
           } else if (n < 0.04) {
             decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
+          }
+        }
+
+        // Coast: shells, driftwood, tall grass
+        if (biome === Biome.Coast) {
+          if (n < 0.04) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'small_rock' });
+          } else if (n < 0.06) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'tall_grass' });
+          } else if (n < 0.07) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'flower' });
+          }
+        }
+
+        // Volcanic: ash piles, lava cracks, rare crystals
+        if (biome === Biome.Volcanic) {
+          if (n < 0.04) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'small_rock' });
+          } else if (n < 0.055) {
+            decorations.push({ x: x * TILE_SIZE + rng.range(4, TILE_SIZE - 4), y: y * TILE_SIZE + rng.range(4, TILE_SIZE - 4), type: 'mushroom' });
           }
         }
 
@@ -689,6 +725,30 @@ export class WorldGenerator {
           }
         }
 
+        // Coast: clay, stone, fishing resources
+        if (biome === Biome.Coast) {
+          if (n < 0.03) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'rock', itemId: 'clay' });
+          } else if (n < 0.045) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'rock', itemId: 'stone' });
+          } else if (n < 0.055) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'bush', itemId: 'berry' });
+          }
+        }
+
+        // Volcanic: iron, gold, crystal, coal (rich mining zone)
+        if (biome === Biome.Volcanic) {
+          if (n < 0.04) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'iron_rock', itemId: 'iron_ore' });
+          } else if (n < 0.055) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'gold_rock', itemId: 'gold_ore' });
+          } else if (n < 0.065) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'crystal_node', itemId: 'crystal' });
+          } else if (n < 0.08) {
+            resources.push({ x: x * TILE_SIZE + rng.range(0, TILE_SIZE), y: y * TILE_SIZE + rng.range(0, TILE_SIZE), type: 'coal_rock', itemId: 'coal' });
+          }
+        }
+
         // Ruins: gold, crystal
         if (biome === Biome.Ruins) {
           if (n < 0.025) {
@@ -863,6 +923,8 @@ export class WorldGenerator {
           case Biome.Desert: spawnRate = 0.003; break;
           case Biome.Ruins: spawnRate = 0.005; break;
           case Biome.Cave: spawnRate = 0.006; break;
+          case Biome.Coast: spawnRate = 0.004; break;
+          case Biome.Volcanic: spawnRate = 0.005; break;
           case Biome.Village: case Biome.Lake: spawnRate = 0.0005; break;
           default: spawnRate = 0.003;
         }
@@ -909,6 +971,18 @@ export class WorldGenerator {
             enemyType = rng.chance(0.3) ? EnemyType.Bat :
               rng.chance(0.4) ? EnemyType.Skeleton :
               rng.chance(0.5) ? EnemyType.Spider : EnemyType.DarkKnight;
+            break;
+          case Biome.Coast:
+            enemyType = rng.chance(0.5) ? EnemyType.Spider :
+              rng.chance(0.5) ? EnemyType.Slime : EnemyType.Bat;
+            break;
+          case Biome.Volcanic:
+            if (distFromVillage > 40 && rng.chance(0.02)) {
+              enemyType = EnemyType.Dragon;
+            } else {
+              enemyType = rng.chance(0.4) ? EnemyType.Golem :
+                rng.chance(0.5) ? EnemyType.CaveTroll : EnemyType.LavaSpider;
+            }
             break;
           case Biome.Ruins:
             if (distFromVillage > 35 && rng.chance(0.15)) {
