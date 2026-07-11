@@ -19,8 +19,9 @@ import {
   clamp, distance, normalize, scaleVec, generateId,
   SeededRandom, fractalNoise, darkenColor,
 } from './core/Utils';
-import { WorldGenerator, TILE_COLORS, BIOME_DETAIL_COLORS, getSkyColor, getSeasonTint, getSeasonForDay, getCaveSkyColor } from './world/WorldGenerator';
-import type { CaveData, CursedLandsData, DecorationDef } from './world/WorldGenerator';
+import { WorldGenerator, TILE_COLORS, BIOME_DETAIL_COLORS, getSkyColor, getSeasonTint, getSeasonForDay, getCaveSkyColor, DecorationDef } from './world/WorldGenerator';
+import type { GeneratedLevel } from './core/Types';
+import { worldRegistry } from './world/WorldRegistry';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
 import { ENEMIES } from './data/Enemies';
@@ -89,10 +90,12 @@ export class Game {
   resources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
   resourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
   private gatherCooldown = 0;
+  /** World seed used for deterministic generation */
+  private worldSeed = 0;
 
   // ── Cave System ─────────────────────────────────────────────────
   inCave = false;
-  caveData: CaveData | null = null;
+  caveData: GeneratedLevel | null = null;
   caveEnemies: EnemyEntity[] = [];
   caveResources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
   caveResourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
@@ -101,7 +104,7 @@ export class Game {
 
   // ── Cursed Lands (Portal) System ────────────────────────────────
   inCursedLands = false;
-  cursedLandsData: CursedLandsData | null = null;
+  cursedLandsData: GeneratedLevel | null = null;
   cursedLandsEnemies: EnemyEntity[] = [];
   cursedLandsResources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
   cursedLandsResourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
@@ -201,7 +204,8 @@ export class Game {
     window.addEventListener('resize', () => this.resize());
 
     // Generate world
-    const seed = Math.floor(Math.random() * 999999);
+    this.worldSeed = Math.floor(Math.random() * 999999);
+    const seed = this.worldSeed;
     const generator = new WorldGenerator(seed);
     const { biomeMap, tileMap, heightMap } = generator.generate();
 
@@ -212,12 +216,12 @@ export class Game {
     // Generate decorations (purely visual)
     this.decorations = generator.generateDecorations(biomeMap);
 
-    // Generate cave data (underground layer)
-    this.caveData = generator.generateCaveData();
+    // Generate cave data (underground layer) via WorldRegistry
+    this.caveData = worldRegistry.generateLevel('cave', this.worldSeed);
     this.inCave = false;
 
-    // Generate cursed lands data (portal dimension)
-    this.cursedLandsData = generator.generateCursedLands();
+    // Generate cursed lands data (portal dimension) via WorldRegistry
+    this.cursedLandsData = worldRegistry.generateLevel('cursed_lands', this.worldSeed);
     this.inCursedLands = false;
 
     // Generate surface resources
@@ -883,9 +887,9 @@ export class Game {
   // ══ Cave Entry / Exit ═══════════════════════════════════════
   private enterCave(entranceX: number, entranceY: number): void {
     // ── Generate a NEW random cave map every time the player enters ──
-    const generator = new WorldGenerator(Math.floor(Math.random() * 999999));
-    const caveSeed = Math.floor(Math.random() * 999999);
-    this.caveData = generator.generateCaveData(caveSeed);
+    const generated = worldRegistry.generateLevel('cave', this.worldSeed, true);
+    if (!generated) return;
+    this.caveData = generated;
 
     // Save surface position
     this.surfacePosition = { x: this.state.player.x, y: this.state.player.y };
@@ -948,14 +952,17 @@ export class Game {
 
   // ══ Cursed Lands Entry / Exit ════════════════════════════════
   private enterCursedLands(portalX: number, portalY: number): void {
-    if (!this.cursedLandsData) return;
+    // Generate cursed lands via WorldRegistry (always deterministic based on seed)
+    const generated = worldRegistry.generateLevel('cursed_lands', this.worldSeed);
+    if (!generated) return;
+    this.cursedLandsData = generated;
 
     // Save surface position
     this.surfacePosition = { x: this.state.player.x, y: this.state.player.y };
 
     const cd = this.cursedLandsData;
-    this.state.player.x = cd.entranceX * TILE_SIZE + TILE_SIZE / 2;
-    this.state.player.y = cd.entranceY * TILE_SIZE + TILE_SIZE;
+    this.state.player.x = cd.entranceX + TILE_SIZE / 2;
+    this.state.player.y = cd.entranceY + TILE_SIZE + TILE_SIZE;
 
     // Initialize cursed lands enemies
     this.cursedLandsEnemies = cd.enemies.map(e => {
