@@ -83,6 +83,12 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
     return () => clearInterval(interval);
   }, []);
 
+  // ── Direct panel toggles (more reliable than virtual key presses) ──
+  const togglePanel = (panel: string) => {
+    game.setActivePanel(uiState.activePanel === panel ? 'none' : panel as any);
+    refresh();
+  };
+
   const handleExtraClick = (fn: () => void) => {
     setShowExtra(false);
     fn();
@@ -257,16 +263,16 @@ export default function MobileHUD({ game, uiState }: MobileHUDProps) {
         }}
         className={`absolute flex pointer-events-auto ${isPortrait ? 'flex-col gap-1.5' : 'flex-row gap-2 items-start'}`}
       >
-        <MiniButton icon="🎒" onClick={() => { game.input.triggerVirtualKeyPress('i'); refresh(); }} />
-        <MiniButton icon="🔨" onClick={() => { game.input.triggerVirtualKeyPress('c'); refresh(); }} />
+        <MiniButton icon="🎒" onClick={() => { togglePanel('inventory'); }} />
+        <MiniButton icon="🔨" onClick={() => { togglePanel('crafting'); }} />
         <MiniButton icon="🧭" onClick={() => { game.input.triggerVirtualKeyPress('m'); refresh(); }} />
 
         {showExtra && (
           <div className={`flex ${isPortrait ? 'flex-col' : 'flex-row'} gap-1.5`}>
-            <MiniButton icon="🌟" onClick={() => { handleExtraClick(() => { game.input.triggerVirtualKeyPress('k'); refresh(); }); }} />
-            <MiniButton icon="📜" onClick={() => { handleExtraClick(() => { game.input.triggerVirtualKeyPress('j'); refresh(); }); }} />
-            <MiniButton icon="🏆" onClick={() => { handleExtraClick(() => { game.input.triggerVirtualKeyPress('l'); refresh(); }); }} />
-            <MiniButton icon="💾" onClick={() => { handleExtraClick(() => { game.input.triggerVirtualKeyPress('h'); refresh(); }); }} />
+            <MiniButton icon="🌟" onClick={() => { handleExtraClick(() => { togglePanel('skills'); }); }} />
+            <MiniButton icon="📜" onClick={() => { handleExtraClick(() => { togglePanel('quests'); }); }} />
+            <MiniButton icon="🏆" onClick={() => { handleExtraClick(() => { togglePanel('achievements'); }); }} />
+            <MiniButton icon="💾" onClick={() => { handleExtraClick(() => { togglePanel('save'); }); }} />
           </div>
         )}
 

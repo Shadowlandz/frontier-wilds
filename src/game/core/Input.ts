@@ -22,6 +22,8 @@ export class Input {
   private virtualKeys: Set<string> = new Set();
   /** Virtual keys that were just pressed this frame */
   private virtualKeysPressed: Set<string> = new Set();
+  /** Queue of virtual key presses that persist across frames until consumed */
+  private virtualKeyQueue: string[] = [];
 
   init(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
@@ -68,7 +70,13 @@ export class Input {
     this.mouseClicked.clear();
     this.mouseReleased.clear();
     this.scrollDelta = 0;
+    // Refill virtualKeysPressed from the persistent queue,
+    // ensuring triggerVirtualKeyPress() calls are never missed
     this.virtualKeysPressed.clear();
+    for (const k of this.virtualKeyQueue) {
+      this.virtualKeysPressed.add(k);
+    }
+    this.virtualKeyQueue.length = 0;
   }
 
   isKeyDown(key: string): boolean {
@@ -164,9 +172,11 @@ export class Input {
   /** Trigger a single press-release of a virtual key (for taps) */
   triggerVirtualKeyPress(key: string): void {
     const k = key.toLowerCase();
+    // Add to both immediate set (for same-frame checks)
+    // and persistent queue (survives update() clear cycle)
     this.virtualKeysPressed.add(k);
     this.virtualKeys.add(k);
-    // Will be cleared on next update() cycle
+    this.virtualKeyQueue.push(k);
   }
 
   /** Check if this is a touch-enabled device */

@@ -120,12 +120,14 @@ export default function GamePage() {
             <AchievementPopup game={game} achievementId={game.achievementQueue[game.achievementQueue.length - 1]} />
           )}
 
-          <Hotbar
-            hotbar={player!.hotbar}
-            selected={player!.currentTool}
-            onSelect={(i) => { player!.currentTool = i; setSelectedHotbar(i); }}
-            game={game!}
-          />
+          {!Input.isMobileDevice() && (
+            <Hotbar
+              hotbar={player!.hotbar}
+              selected={player!.currentTool}
+              onSelect={(i) => { player!.currentTool = i; setSelectedHotbar(i); }}
+              game={game!}
+            />
+          )}
 
           <BottomBar stats={stats!} />
 
@@ -168,8 +170,12 @@ export default function GamePage() {
             <StoragePanel game={game!} />
           )}
 
-          <FarmingBar game={game!} />
-          <FishingBar game={game!} />
+          {!Input.isMobileDevice() && (
+            <>
+              <FarmingBar game={game!} />
+              <FishingBar game={game!} />
+            </>
+          )}
 
           {Input.isMobileDevice() ? (
             <MobileHUD game={game!} uiState={uiState} />
