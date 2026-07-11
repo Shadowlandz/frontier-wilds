@@ -9,25 +9,25 @@ export const ITEMS: Record<string, ItemDefinition> = {
   wood_axe: {
     id: 'wood_axe', name: 'Machado de Madeira', description: 'Um machado básico para cortar árvores.',
     category: ItemCategory.Tool, rarity: Rarity.Common, stackSize: 1, weight: 2, value: 10,
-    icon: '🪓', toolType: ToolType.Axe, damage: 5, durability: 100, maxDurability: 100,
+    icon: '🪓', toolType: ToolType.Axe, damage: 5, durability: 500, maxDurability: 999,
     speed: 1, range: 32, miningPower: 1, choppingPower: 3,
   },
   stone_axe: {
     id: 'stone_axe', name: 'Machado de Pedra', description: 'Um machado resistente de pedra.',
     category: ItemCategory.Tool, rarity: Rarity.Common, stackSize: 1, weight: 3, value: 25,
-    icon: '🪓', toolType: ToolType.Axe, damage: 8, durability: 200, maxDurability: 200,
+    icon: '🪓', toolType: ToolType.Axe, damage: 8, durability: 500, maxDurability: 999,
     speed: 1.1, range: 34, miningPower: 1, choppingPower: 5,
   },
   iron_axe: {
     id: 'iron_axe', name: 'Machado de Ferro', description: 'Um machado forte de ferro.',
     category: ItemCategory.Tool, rarity: Rarity.Uncommon, stackSize: 1, weight: 3, value: 60,
-    icon: '🪓', toolType: ToolType.Axe, damage: 12, durability: 400, maxDurability: 400,
+    icon: '🪓', toolType: ToolType.Axe, damage: 12, durability: 500, maxDurability: 999,
     speed: 1.2, range: 36, miningPower: 2, choppingPower: 8,
   },
   wood_pickaxe: {
     id: 'wood_pickaxe', name: 'Picareta de Madeira', description: 'Uma picareta básica para minerar.',
     category: ItemCategory.Tool, rarity: Rarity.Common, stackSize: 1, weight: 2, value: 10,
-    icon: '⛏️', toolType: ToolType.Pickaxe, damage: 4, durability: 100, maxDurability: 100,
+    icon: '⛏️', toolType: ToolType.Pickaxe, damage: 4, durability: 300, maxDurability: 600,
     speed: 1, range: 32, miningPower: 3, choppingPower: 1,
   },
   stone_pickaxe: {
@@ -57,7 +57,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   iron_sword: {
     id: 'iron_sword', name: 'Espada de Ferro', description: 'Uma espada forte de ferro.',
     category: ItemCategory.Weapon, rarity: Rarity.Uncommon, stackSize: 1, weight: 4, value: 80,
-    icon: '⚔️', toolType: ToolType.Sword, damage: 18, durability: 320, maxDurability: 320,
+    icon: '⚔️', toolType: ToolType.Sword, damage: 18, durability: 520, maxDurability: 520,
     speed: 1.1, range: 40,
   },
   gold_sword: {
