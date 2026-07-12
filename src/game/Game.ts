@@ -5179,6 +5179,34 @@ export class Game {
     const bushSway = Math.sin(windPhase + res.x * 0.12 + res.y * 0.07) * 3.0 +
                      Math.sin(performance.now() / 1500 + res.x * 0.15) * 1.0;
 
+    // Pulsating glow on rare ores inside cave
+    if (this.inCave) {
+      const oreTypes = ['rock', 'iron_rock', 'gold_rock', 'coal_rock', 'crystal_node', 'mithril_rock', 'ruby_rock'];
+      if (oreTypes.includes(res.type)) {
+        const oreColors: Record<string, string> = {
+          rock: '40, 40, 40',
+          iron_rock: '180, 120, 60',
+          gold_rock: '255, 200, 50',
+          coal_rock: '80, 80, 100',
+          crystal_node: '100, 200, 255',
+          mithril_rock: '80, 220, 200',
+          ruby_rock: '255, 50, 80',
+        };
+        const rgb = oreColors[res.type] || '100, 200, 255';
+        const pulse = 0.3 + 0.2 * Math.sin(performance.now() * 0.002 + res.x * 0.1 + res.y * 0.13);
+        const glowRadius = 20 + 5 * Math.sin(performance.now() * 0.0015 + res.x * 0.07);
+        const grad = ctx.createRadialGradient(
+          pos.x + 12, pos.y + 12, 0,
+          pos.x + 12, pos.y + 12, glowRadius
+        );
+        grad.addColorStop(0, `rgba(${rgb}, ${pulse * 0.5})`);
+        grad.addColorStop(0.5, `rgba(${rgb}, ${pulse * 0.25})`);
+        grad.addColorStop(1, `rgba(${rgb}, 0)`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(pos.x - glowRadius + 12, pos.y - glowRadius + 12, glowRadius * 2, glowRadius * 2);
+      }
+    }
+
     switch (res.type) {
       case 'tree': {
         // Tree shadow
