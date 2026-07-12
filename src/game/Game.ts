@@ -104,6 +104,9 @@ export class Game {
   surfacePosition: { x: number; y: number } = { x: 0, y: 0 };
   /** Portal spawned inside cave after boss killed */
   cavePortalSpawned = false;
+  /** Tile coordinates of spawned cave portal (for minimap) */
+  cavePortalTileX = 0;
+  cavePortalTileY = 0;
   /** Cave boss has been defeated this session */
   caveBossDead = false;
   /** Timer for the entrance warning overlay (seconds) */
@@ -1649,6 +1652,10 @@ export class Game {
         // Place portal near the bottom-center of the cave
         const portalX = Math.floor(caveW / 2) * TILE_SIZE + TILE_SIZE / 2 - 16;
         const portalY = (caveH - 4) * TILE_SIZE + TILE_SIZE / 2 - 16;
+
+        // Store portal position for minimap
+        this.cavePortalTileX = Math.floor(portalX / TILE_SIZE);
+        this.cavePortalTileY = Math.floor(portalY / TILE_SIZE);
 
         this.caveResources.push({
           x: portalX, y: portalY,

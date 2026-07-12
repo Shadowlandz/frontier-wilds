@@ -478,6 +478,47 @@ function Minmap({ game }: { game: Game }) {
       }
     }
 
+    // ── Cave Minimap Markers ──
+    if (game.inCave && game.caveData) {
+      // 1) Exit beacon (green) at cave entrance
+      const entranceTx = Math.floor(game.caveData.entranceX / TILE_SIZE);
+      const entranceTy = Math.floor(game.caveData.entranceY / TILE_SIZE);
+      const bex = cx + (entranceTx - playerTx);
+      const bey = cy + (entranceTy - playerTy);
+      if (bex > 0 && bex < MINIMAP_SIZE && bey > 0 && bey < MINIMAP_SIZE) {
+        const beaconPulse = Math.sin(performance.now() / 400) * 0.3 + 0.7;
+        ctx.shadowColor = 'rgba(0, 255, 100, 0.8)'; ctx.shadowBlur = 10;
+        ctx.fillStyle = `rgba(0, 255, 100, ${beaconPulse * 0.9})`;
+        ctx.beginPath(); ctx.arc(bex, bey, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+        // Inner bright core
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(bex, bey, 1.5, 0, Math.PI * 2); ctx.fill();
+        // Label
+        ctx.fillStyle = 'rgba(0, 255, 100, 0.5)'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('SAIDA', bex, bey + 8);
+      }
+
+      // 2) Portal marker (purple) when boss is defeated
+      if (game.cavePortalSpawned && game.cavePortalTileX > 0) {
+        const ptx = cx + (game.cavePortalTileX - playerTx);
+        const pty = cy + (game.cavePortalTileY - playerTy);
+        if (ptx > 0 && ptx < MINIMAP_SIZE && pty > 0 && pty < MINIMAP_SIZE) {
+          const portalPulse = Math.sin(performance.now() / 300) * 0.3 + 0.7;
+          ctx.shadowColor = 'rgba(170, 60, 255, 0.9)'; ctx.shadowBlur = 12;
+          ctx.fillStyle = `rgba(170, 60, 255, ${portalPulse * 0.9})`;
+          ctx.beginPath(); ctx.arc(ptx, pty, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.shadowBlur = 0;
+          // Inner bright core
+          ctx.fillStyle = '#d4a0ff';
+          ctx.beginPath(); ctx.arc(ptx, pty, 1.5, 0, Math.PI * 2); ctx.fill();
+          // Label
+          ctx.fillStyle = 'rgba(170, 60, 255, 0.5)'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('PORTAL', ptx, pty + 8);
+        }
+      }
+    }
+
     // Camera viewport
     const rectX = cx + (Math.floor(camera.x / TILE_SIZE) - playerTx);
     const rectY = cy + (Math.floor(camera.y / TILE_SIZE) - playerTy);
