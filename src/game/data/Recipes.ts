@@ -509,6 +509,62 @@ export const RECIPES: CraftingRecipe[] = [
     requiredLevel: 12, craftTime: 8000, station: 'furnace',
   },
 
+  // ── Spell Tome Crafting ──────────────────────────────────────
+  {
+    id: 'craft_magic_missile_tome', name: '📕 Tomo: Míssil Mágico', category: ItemCategory.Quest,
+    result: 'magic_missile_tome', resultCount: 1,
+    ingredients: [
+      { itemId: 'magic_dust', count: 5 },
+      { itemId: 'crystal', count: 3 },
+      { itemId: 'gold_ingot', count: 2 },
+    ],
+    requiredLevel: 5, craftTime: 4000, station: 'workbench',
+  },
+  {
+    id: 'craft_fireball_tome', name: '📕 Tomo: Bola de Fogo 🔥', category: ItemCategory.Quest,
+    result: 'fireball_tome', resultCount: 1,
+    ingredients: [
+      { itemId: 'volcanic_glass', count: 3 },
+      { itemId: 'lava_crystal', count: 2 },
+      { itemId: 'magic_dust', count: 5 },
+      { itemId: 'coal', count: 5 },
+    ],
+    requiredLevel: 8, craftTime: 6000, station: 'furnace',
+  },
+  {
+    id: 'craft_ice_blast_tome', name: '📕 Tomo: Explosão de Gelo ❄️', category: ItemCategory.Quest,
+    result: 'ice_blast_tome', resultCount: 1,
+    ingredients: [
+      { itemId: 'ice_crystal', count: 3 },
+      { itemId: 'frozen_shard', count: 3 },
+      { itemId: 'magic_dust', count: 5 },
+      { itemId: 'crystal', count: 3 },
+    ],
+    requiredLevel: 8, craftTime: 6000, station: 'furnace',
+  },
+  {
+    id: 'craft_lightning_tome', name: '📗 Tomo: Relâmpago ⚡', category: ItemCategory.Quest,
+    result: 'lightning_tome', resultCount: 1,
+    ingredients: [
+      { itemId: 'enchanted_ingot', count: 2 },
+      { itemId: 'phoenix_feather', count: 2 },
+      { itemId: 'magic_dust', count: 8 },
+      { itemId: 'crystal', count: 5 },
+    ],
+    requiredLevel: 12, craftTime: 8000, station: 'furnace',
+  },
+  {
+    id: 'craft_heal_tome', name: '📗 Tomo: Cura Arcana 💚', category: ItemCategory.Quest,
+    result: 'heal_tome', resultCount: 1,
+    ingredients: [
+      { itemId: 'crystal', count: 5 },
+      { itemId: 'gold_ingot', count: 3 },
+      { itemId: 'magic_dust', count: 5 },
+      { itemId: 'diamond', count: 1 },
+    ],
+    requiredLevel: 6, craftTime: 5000, station: 'workbench',
+  },
+
   // ── Rare Materials (Materiais Raros) ──────────────────────────
   {
     id: 'forge_enchanted_ingot', name: 'Lingote Encantado', category: ItemCategory.Material,
