@@ -530,6 +530,40 @@ export class WorldGenerator {
       itemId: 'portal',
     });
 
+    // ── Place wall torches on cave walls adjacent to open floor ──
+    for (let y = 1; y < caveH - 1; y++) {
+      for (let x = 1; x < caveW - 1; x++) {
+        // Only place on CaveWall tiles
+        if (caveTileMap[y][x] !== TileType.CaveWall) continue;
+        // Check if this wall is adjacent to floor (in any direction)
+        const hasAdjacentFloor =
+          caveTileMap[y - 1][x] === TileType.CaveFloor ||
+          caveTileMap[y + 1][x] === TileType.CaveFloor ||
+          caveTileMap[y][x - 1] === TileType.CaveFloor ||
+          caveTileMap[y][x + 1] === TileType.CaveFloor;
+        if (!hasAdjacentFloor) continue;
+        // Deterministic spacing: use noise to decide if this wall gets a torch
+        // Higher density near entrance (y < 30), lower in deep cave
+        const torchNoise = fractalNoise(x, y, noiseSeedOffset + 33333, 1, 8);
+        const torchChance = y < 30 ? 0.12 : y < 55 ? 0.08 : 0.05;
+        if (torchNoise > 1.0 - torchChance) {
+          // Position the torch at the wall center, but slightly offset toward the floor
+          // Offset toward adjacent floor direction for better visual
+          let offX = 0, offY = 0;
+          if (caveTileMap[y - 1][x] === TileType.CaveFloor) offY = -4;
+          else if (caveTileMap[y + 1][x] === TileType.CaveFloor) offY = 4;
+          else if (caveTileMap[y][x - 1] === TileType.CaveFloor) offX = -4;
+          else if (caveTileMap[y][x + 1] === TileType.CaveFloor) offX = 4;
+          caveResources.push({
+            x: x * TILE_SIZE + offX,
+            y: y * TILE_SIZE + offY,
+            type: 'cave_wall_torch',
+            itemId: 'cave_wall_torch',
+          });
+        }
+      }
+    }
+
     return {
       tileMap: caveTileMap,
       resources: caveResources,

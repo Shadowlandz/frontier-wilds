@@ -183,6 +183,7 @@ export class Game {
   portal_volcanic: { w: 32, h: 32, hp: 99999 },
   portal_crystal: { w: 32, h: 32, hp: 99999 },
   fishing_spot: { w: 24, h: 24, hp: 99999 },
+  cave_wall_torch: { w: 16, h: 32, hp: 99999 },
   };
 
   /** Procedural audio engine */
@@ -6209,6 +6210,78 @@ export class Game {
         ctx.font = '8px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('🎣', pos.x + 12, pos.y - 6);
+        break;
+      }
+      case 'cave_wall_torch': {
+        const tNow = performance.now() / 1000;
+        // Warm glow behind torch
+        const glowPulse = 0.55 + 0.2 * Math.sin(tNow * 5 + res.x * 0.1) + 0.1 * Math.sin(tNow * 13 + res.y);
+        const glowR = ctx.createRadialGradient(pos.x + 8, pos.y + 6, 0, pos.x + 8, pos.y + 6, 50);
+        glowR.addColorStop(0, `rgba(255, 180, 60, ${glowPulse * 0.5})`);
+        glowR.addColorStop(0.3, `rgba(255, 140, 30, ${glowPulse * 0.2})`);
+        glowR.addColorStop(1, 'rgba(255, 120, 20, 0)');
+        ctx.fillStyle = glowR;
+        ctx.fillRect(pos.x - 42, pos.y - 44, 100, 100);
+        // Second inner glow layer
+        const innerGlow = ctx.createRadialGradient(pos.x + 8, pos.y + 4, 0, pos.x + 8, pos.y + 4, 20);
+        innerGlow.addColorStop(0, `rgba(255, 220, 140, ${glowPulse * 0.7})`);
+        innerGlow.addColorStop(0.5, `rgba(255, 180, 60, ${glowPulse * 0.3})`);
+        innerGlow.addColorStop(1, 'rgba(255, 160, 40, 0)');
+        ctx.fillStyle = innerGlow;
+        ctx.fillRect(pos.x - 12, pos.y - 16, 40, 40);
+        // Torch mount (bracket on wall)
+        ctx.fillStyle = '#3a3a3a';
+        ctx.fillRect(pos.x, pos.y + 4, 16, 4);
+        ctx.fillStyle = '#4a4a4a';
+        ctx.fillRect(pos.x + 2, pos.y + 8, 12, 3);
+        // Wooden handle
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(pos.x + 5, pos.y + 10, 6, 22);
+        ctx.fillStyle = '#4a2a0a';
+        ctx.fillRect(pos.x + 6, pos.y + 12, 2, 18);
+        // Wrapped cloth/charred top
+        ctx.fillStyle = '#6a5a3a';
+        ctx.fillRect(pos.x + 3, pos.y + 4, 10, 8);
+        ctx.fillStyle = '#5a4a2a';
+        ctx.fillRect(pos.x + 4, pos.y + 6, 2, 4);
+        ctx.fillRect(pos.x + 10, pos.y + 5, 2, 5);
+        // Flame (animated)
+        const flameHeight = 10 + 3 * Math.sin(tNow * 8 + res.x * 0.3) + 2 * Math.sin(tNow * 17 + res.y * 0.5);
+        const flameWidth = 6 + 1.5 * Math.sin(tNow * 9 + res.x * 0.7);
+        // Flame gradient
+        const flameGrad = ctx.createRadialGradient(pos.x + 8, pos.y - 2, 0, pos.x + 8, pos.y - 2 + flameHeight * 0.3, flameHeight);
+        flameGrad.addColorStop(0, '#ffffff');
+        flameGrad.addColorStop(0.15, '#ffffaa');
+        flameGrad.addColorStop(0.4, '#ffaa44');
+        flameGrad.addColorStop(0.7, '#ff6600');
+        flameGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+        ctx.fillStyle = flameGrad;
+        // Draw flame teardrop shape
+        ctx.beginPath();
+        ctx.moveTo(pos.x + 8, pos.y - flameHeight - 2);
+        ctx.quadraticCurveTo(pos.x + 8 + flameWidth, pos.y + 2, pos.x + 8, pos.y + 4);
+        ctx.quadraticCurveTo(pos.x + 8 - flameWidth, pos.y + 2, pos.x + 8, pos.y - flameHeight - 2);
+        ctx.fill();
+        // Inner flame (brighter)
+        ctx.fillStyle = `rgba(255, 255, 200, ${glowPulse * 0.6})`;
+        const innerH = flameHeight * 0.5;
+        const innerW = flameWidth * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(pos.x + 8, pos.y - innerH - 1);
+        ctx.quadraticCurveTo(pos.x + 8 + innerW, pos.y + 2, pos.x + 8, pos.y + 2);
+        ctx.quadraticCurveTo(pos.x + 8 - innerW, pos.y + 2, pos.x + 8, pos.y - innerH - 1);
+        ctx.fill();
+        // Sparks
+        if (Math.random() < 0.4) {
+          const sx = pos.x + 8 + (Math.random() - 0.5) * 8;
+          const sy = pos.y - flameHeight - 2 + Math.random() * -4;
+          const sparkSize = 1 + Math.random() * 1.5;
+          const sparkAlpha = 0.6 + Math.random() * 0.4;
+          ctx.fillStyle = `rgba(255, 200, 100, ${sparkAlpha})`;
+          ctx.beginPath();
+          ctx.arc(sx, sy, sparkSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
         break;
       }
 
