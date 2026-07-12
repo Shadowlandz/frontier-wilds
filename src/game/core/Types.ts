@@ -181,6 +181,33 @@ export const SkillTree = {
 } as const;
 export type SkillTree = typeof SkillTree[keyof typeof SkillTree];
 
+export const StatusEffectType = {
+  Burn: 'burn',
+  Slow: 'slow',
+  Stun: 'stun',
+  Poison: 'poison',
+  Freeze: 'freeze',
+} as const;
+export type StatusEffectType = typeof StatusEffectType[keyof typeof StatusEffectType];
+
+export interface StatusEffect {
+  type: StatusEffectType;
+  /** Total duration in seconds */
+  duration: number;
+  /** Remaining time in seconds */
+  remaining: number;
+  /** Damage per tick (for DOT effects) */
+  damagePerTick?: number;
+  /** Tick interval in seconds */
+  tickInterval?: number;
+  /** Accumulator for next tick */
+  tickAccumulator?: number;
+  /** Slow multiplier (0-1, e.g. 0.5 = 50% speed) */
+  slowAmount?: number;
+  /** Source identifier */
+  source: string;
+}
+
 export const AttackType = {
   Light: 'light',
   Heavy: 'heavy',
@@ -531,6 +558,8 @@ export interface PlayerState {
   selectedSpell: number;
   /** Spell casting cooldown timer */
   spellCooldown: number;
+  /** Active status effects on the player */
+  statusEffects: StatusEffect[];
 }
 
 export interface WorldState {
@@ -583,6 +612,8 @@ export interface EnemyEntity extends WorldEntity {
   patrolDirection: Vec2;
   knockback: Vec2;
   deathTimer: number;
+  /** Active status effects on this enemy */
+  statusEffects: StatusEffect[];
 }
 
 export interface NpcEntity extends WorldEntity {

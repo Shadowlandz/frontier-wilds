@@ -21,6 +21,16 @@ export interface SpellDefinition {
   particleColor2?: string;
   /** Id of the item (tome) that unlocks this spell */
   tomeId: string;
+  /** Status effect type applied on hit */
+  statusEffect?: string;
+  /** Duration of the status effect in seconds */
+  statusDuration?: number;
+  /** Damage per tick for DoT effects */
+  statusDamagePerTick?: number;
+  /** Slow multiplier for slow effects (0-1) */
+  statusSlowAmount?: number;
+  /** Chance to apply the status effect (0-1) */
+  statusChance?: number;
 }
 
 export const SPELLS: Record<string, SpellDefinition> = {
@@ -54,6 +64,10 @@ export const SPELLS: Record<string, SpellDefinition> = {
     particleColor: '#ff4400',
     particleColor2: '#ffaa00',
     tomeId: 'fireball_tome',
+    statusEffect: 'burn',
+    statusDuration: 4,
+    statusDamagePerTick: 3,
+    statusChance: 0.7,
   },
   ice_blast: {
     id: 'ice_blast',
@@ -69,6 +83,10 @@ export const SPELLS: Record<string, SpellDefinition> = {
     particleColor: '#66ddff',
     particleColor2: '#cceeff',
     tomeId: 'ice_blast_tome',
+    statusEffect: 'slow',
+    statusDuration: 3,
+    statusSlowAmount: 0.5,
+    statusChance: 0.9,
   },
   lightning: {
     id: 'lightning',
@@ -83,6 +101,9 @@ export const SPELLS: Record<string, SpellDefinition> = {
     particleColor: '#ffee44',
     particleColor2: '#ffffff',
     tomeId: 'lightning_tome',
+    statusEffect: 'stun',
+    statusDuration: 0.5,
+    statusChance: 0.6,
   },
   heal: {
     id: 'heal',

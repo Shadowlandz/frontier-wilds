@@ -126,6 +126,7 @@ function deserializeState(data: SerializedGameState): Partial<GameState> {
       maxMana: data.player.maxMana ?? 100,
       selectedSpell: data.player.selectedSpell ?? 0,
       spellCooldown: data.player.spellCooldown ?? 0,
+      statusEffects: (data.player as any).statusEffects || [],
       inventory: data.player.inventory.map(deserializeSlot),
       hotbar: data.player.hotbar.map(deserializeSlot),
       equipment: {

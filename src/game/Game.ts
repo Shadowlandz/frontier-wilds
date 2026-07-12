@@ -289,6 +289,7 @@ export class Game {
         patrolDirection: { x: Math.random() - 0.5, y: Math.random() - 0.5 },
         knockback: { x: 0, y: 0 },
         deathTimer: 0,
+        statusEffects: [],
       };
     });
 
@@ -340,6 +341,7 @@ export class Game {
         maxMana: 100,
         selectedSpell: 0,
         spellCooldown: 0,
+        statusEffects: [],
       },
       world: { seed, chunks: new Map(), resources: [], enemies: [], npcs: [], droppedItems: [] },
       quests: [],
@@ -464,6 +466,7 @@ export class Game {
     this.updateWeather(dt);
     this.updateSurvival(dt);
     this.updateRegeneration(dt);
+    this.updateStatusEffects(dt);
     this.updateNotifications(dt);
     this.updateFarming(dt);
     this.checkAchievements();
@@ -1076,6 +1079,7 @@ export class Game {
         patrolDirection: { x: Math.random() - 0.5, y: Math.random() - 0.5 },
         knockback: { x: 0, y: 0 },
         deathTimer: 0,
+        statusEffects: [],
       };
     });
 
@@ -1153,6 +1157,7 @@ export class Game {
         patrolDirection: { x: Math.random() - 0.5, y: Math.random() - 0.5 },
         knockback: { x: 0, y: 0 },
         deathTimer: 0,
+        statusEffects: [],
       };
     }).filter(Boolean) as EnemyEntity[];
 
@@ -1221,6 +1226,7 @@ export class Game {
         patrolDirection: { x: Math.random() - 0.5, y: Math.random() - 0.5 },
         knockback: { x: 0, y: 0 },
         deathTimer: 0,
+        statusEffects: [],
       };
     }).filter(Boolean) as EnemyEntity[];
 
@@ -1707,6 +1713,11 @@ export class Game {
           nearest.hp -= mitigated;
           nearest.state = 'hurt';
           nearest.knockback = scaleVec(player.facing, 80);
+
+          // Apply status effect from spell
+          if (spell.statusEffect && Math.random() < (spell.statusChance ?? 1)) {
+            this.applyStatusEffectToEnemy(nearest, spell.statusEffect, spell.statusDuration ?? 3, spell.id, spell.statusDamagePerTick, spell.statusSlowAmount);
+          }
 
           // Lightning bolt visual effect
           const ex2 = nearest.x + nearest.width / 2;
@@ -2742,6 +2753,12 @@ export class Game {
           const knockDir = normalize({ x: p.vx, y: p.vy });
           enemy.knockback = scaleVec(knockDir, 80);
 
+          // Apply spell status effect on hit
+          const hitSpell = getSpell(p.spellId);
+          if (hitSpell && hitSpell.statusEffect && Math.random() < (hitSpell.statusChance ?? 1)) {
+            this.applyStatusEffectToEnemy(enemy, hitSpell.statusEffect, hitSpell.statusDuration ?? 3, p.spellId, hitSpell.statusDamagePerTick, hitSpell.statusSlowAmount);
+          }
+
           // Enhanced impact particles by spell type
           const impactCount = aoeRadius > 10 ? 25 : 12;
           const impactSpread = aoeRadius > 10 ? 200 : 120;
@@ -2804,6 +2821,74 @@ export class Game {
       }
     }
   }
+
+  // ── Status Effects System ────────────────────────────────────────
+  /** Apply a status effect to an enemy */
+  private applyStatusEffectToEnemy(enemy: EnemyEntity, effectType: string, duration: number, source: string, damagePerTick?: number, slowAmount?: number): void {
+    const existing = enemy.statusEffects.find(s => s.type === effectType);
+    if (existing) {
+      existing.remaining = Math.max(existing.remaining, duration);
+      existing.duration = Math.max(existing.duration, duration);
+      return;
+    }
+    enemy.statusEffects.push({
+      type: effectType as any,
+      duration,
+      remaining: duration,
+      damagePerTick,
+      tickInterval: 1.0,
+      tickAccumulator: 0,
+      slowAmount,
+      source,
+    });
+  }
+
+  /** Tick all active status effects on enemies */
+  private updateStatusEffects(dt: number): void {
+    const enemies = this.inCave ? this.caveEnemies : this.inCursedLands ? this.cursedLandsEnemies : this.enemies;
+
+    for (const enemy of enemies) {
+      if (enemy.state === 'dead') continue;
+
+      for (let i = enemy.statusEffects.length - 1; i >= 0; i--) {
+        const se = enemy.statusEffects[i];
+        se.remaining -= dt;
+
+        if (se.damagePerTick && se.damagePerTick > 0) {
+          se.tickAccumulator = (se.tickAccumulator ?? 0) + dt;
+          const tickInterval = se.tickInterval ?? 1.0;
+          while (se.tickAccumulator >= tickInterval) {
+            se.tickAccumulator -= tickInterval;
+            enemy.hp -= se.damagePerTick;
+            enemy.state = 'hurt';
+            this.damageNumbers.push({
+              x: enemy.x + enemy.width / 2,
+              y: enemy.y - 10,
+              value: se.damagePerTick,
+              isCrit: false,
+              isHeal: false,
+              timer: 0.5,
+              velocity: { x: (Math.random() - 0.5) * 15, y: -30 },
+            });
+            if (se.type === 'burn') {
+              this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ff4400', 2, 'ember', { spread: 40, speed: 30, sizeRange: [2, 4], lifeRange: [0.3, 0.6] });
+            } else if (se.type === 'poison') {
+              this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#44ff44', 2, 'dust', { spread: 40, speed: 20, sizeRange: [2, 4], lifeRange: [0.3, 0.6] });
+            }
+            if (enemy.hp <= 0) {
+              this.killEnemy(enemy);
+              break;
+            }
+          }
+        }
+
+        if (se.remaining <= 0) {
+          enemy.statusEffects.splice(i, 1);
+        }
+      }
+    }
+  }
+
 
   private updateProjectiles(dt: number): void {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
