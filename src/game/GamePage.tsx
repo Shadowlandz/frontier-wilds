@@ -270,10 +270,48 @@ function HUD({ game, stats, gameTime, selectedTool, hotbar, notifications, playe
                   style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #666, #aaa, #fff)' }}
                 />
               </div>
-              <div className="text-[8px] text-white/40">
+              {/* ── Compass: direction to exit ── */}
+              {(() => {
+                const playerX = game.state.player.x;
+                const playerY = game.state.player.y;
+                const ex = game.caveData!.entranceX + 16;
+                const ey = game.caveData!.entranceY + 16;
+                const dx = ex - playerX;
+                const dy = ey - playerY;
+                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const distTiles = Math.floor(dist / 32);
+                return (
+                  <div className="flex items-center gap-2 my-1">
+                    {/* Compass arrow */}
+                    <div className="relative w-6 h-6 shrink-0">
+                      {/* Outer ring */}
+                      <svg viewBox="0 0 24 24" className="w-6 h-6">
+                        <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                        {/* Needle */}
+                        <polygon
+                          points="12,3 8,12 12,10 16,12"
+                          fill="#44ff88"
+                          transform={`rotate(${angle}, 12, 12)`}
+                          style={{ filter: 'drop-shadow(0 0 2px rgba(68,255,136,0.6))' }}
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0 leading-tight">
+                      <div className="text-[9px] text-green-300 font-bold">
+                        🟢 Saída {distTiles}m
+                      </div>
+                      <div className="text-[7px] text-white/30">
+                        {distTiles < 5 ? '⚠️ Muito perto!' : ''}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+              <div className="text-[7px] text-white/40 border-t border-white/10 pt-1 mt-0.5">
                 {isPortalSpawned
-                  ? '✅ Portal ativo nas profundezas'
-                  : '💀 Derrote o Shadow Lord para abrir o portal'}
+                  ? '✅ Portal aberto nas profundezas'
+                  : '💀 Derrote o Shadow Lord para progredir'}
               </div>
             </div>
           );
