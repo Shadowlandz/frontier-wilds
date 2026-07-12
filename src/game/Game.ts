@@ -5001,6 +5001,33 @@ export class Game {
         ctx.beginPath();
         ctx.arc(beaconPos.x, beaconPos.y - 8, 3, 0, Math.PI * 2);
         ctx.fill();
+
+        // ── Ground Glow: pulsating light on the floor around entrance ──
+        const groundPulse = Math.sin(performance.now() / 600) * 0.25 + 0.75;
+        const ringExpand = (Math.sin(performance.now() / 900) * 0.5 + 0.5) * 35;
+        // Wide soft ground glow
+        const groundGrad = ctx.createRadialGradient(
+          beaconPos.x, beaconPos.y + 10, 0,
+          beaconPos.x, beaconPos.y + 10, 90 + ringExpand
+        );
+        groundGrad.addColorStop(0, 'rgba(80, 255, 150, ' + (0.15 * groundPulse) + ')');
+        groundGrad.addColorStop(0.3, 'rgba(40, 220, 120, ' + (0.08 * groundPulse) + ')');
+        groundGrad.addColorStop(0.6, 'rgba(20, 180, 100, ' + (0.04 * groundPulse) + ')');
+        groundGrad.addColorStop(1, 'rgba(0, 100, 60, 0)');
+        ctx.fillStyle = groundGrad;
+        ctx.fillRect(beaconPos.x - 90 - ringExpand, beaconPos.y - 40, 180 + ringExpand * 2, 80 + ringExpand);
+        // Pulsating ring on the ground
+        ctx.strokeStyle = 'rgba(100, 255, 180, ' + (0.12 * groundPulse) + ')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(beaconPos.x, beaconPos.y + 12, 20 + ringExpand * 0.4, 8 + ringExpand * 0.15, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        // Second ring (inner, brighter)
+        ctx.strokeStyle = 'rgba(180, 255, 220, ' + (0.2 * groundPulse) + ')';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(beaconPos.x, beaconPos.y + 10, 10 + ringExpand * 0.2, 4 + ringExpand * 0.08, 0, 0, Math.PI * 2);
+        ctx.stroke();
       }
 
       // ── Portal Glow (if spawned after boss kill) ──
