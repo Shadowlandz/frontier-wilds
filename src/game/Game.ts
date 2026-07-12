@@ -2691,6 +2691,33 @@ export class Game {
       p.y += p.vy * dt;
       p.lifetime -= dt;
 
+      // ── Trail particles during flight ──
+      if (Math.random() < 0.4) {
+        const trailColor = p.spellId === 'fireball' ? '#ff6600' :
+          p.spellId === 'ice_blast' ? '#66ddff' :
+          p.spellId === 'lightning' ? '#ffdd44' :
+          p.color;
+        const trailColor2 = p.spellId === 'fireball' ? '#ffcc00' :
+          p.spellId === 'ice_blast' ? '#ffffff' :
+          p.spellId === 'lightning' ? '#aa66ff' :
+          p.color2;
+        this.spawnParticles(p.x, p.y, trailColor, 1, 'magic',
+          { spread: 15, speed: 20, sizeRange: [2, 5], lifeRange: [0.2, 0.5], color2: trailColor2 });
+
+        if (p.spellId === 'fireball' && Math.random() < 0.3) {
+          this.spawnParticles(p.x, p.y, '#ff4400', 1, 'ember',
+            { spread: 8, speed: 15, sizeRange: [2, 4], lifeRange: [0.15, 0.35], color2: '#ffaa00' });
+        }
+        if (p.spellId === 'ice_blast' && Math.random() < 0.3) {
+          this.spawnParticles(p.x, p.y, '#aaffff', 1, 'spark',
+            { spread: 10, speed: 10, sizeRange: [1, 3], lifeRange: [0.2, 0.4], color2: '#ffffff' });
+        }
+        if (p.spellId === 'lightning' && Math.random() < 0.2) {
+          this.spawnParticles(p.x, p.y, '#ffff44', 1, 'spark',
+            { spread: 30, speed: 40, sizeRange: [1, 2], lifeRange: [0.1, 0.3], color2: '#aa44ff' });
+        }
+      }
+
       // Check enemy collision
       const magicEnemies = this.inCave ? this.caveEnemies : this.inCursedLands ? this.cursedLandsEnemies : this.enemies;
       const worldW = this.inCave && this.caveData ? this.caveData.tileMap[0].length * TILE_SIZE : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap[0].length * TILE_SIZE : WORLD_WIDTH * TILE_SIZE;
@@ -2715,6 +2742,43 @@ export class Game {
           const knockDir = normalize({ x: p.vx, y: p.vy });
           enemy.knockback = scaleVec(knockDir, 80);
 
+          // Enhanced impact particles by spell type
+          const impactCount = aoeRadius > 10 ? 25 : 12;
+          const impactSpread = aoeRadius > 10 ? 200 : 120;
+          const impactSize: [number, number] = aoeRadius > 10 ? [3, 8] : [2, 6];
+
+          if (p.spellId === 'fireball') {
+            this.spawnParticles(p.x, p.y, '#ff4400', impactCount, 'spark',
+              { spread: impactSpread, speed: 120, sizeRange: impactSize, lifeRange: [0.4, 0.9], color2: '#ffcc00' });
+            this.spawnParticles(p.x, p.y, '#ff6600', 10, 'ember',
+              { spread: impactSpread, speed: 80, sizeRange: [3, 7], lifeRange: [0.6, 1.2], color2: '#ffaa00' });
+            this.spawnParticles(p.x, p.y, 'rgba(255,100,0,0.3)', 8, 'smoke',
+              { spread: impactSpread * 0.8, speed: 40, sizeRange: [8, 15], lifeRange: [0.8, 1.5] });
+            this.camera.shake(8, 0.2);
+          } else if (p.spellId === 'ice_blast') {
+            this.spawnParticles(p.x, p.y, '#66ddff', impactCount, 'spark',
+              { spread: impactSpread, speed: 100, sizeRange: impactSize, lifeRange: [0.4, 0.9], color2: '#ffffff' });
+            this.spawnParticles(p.x, p.y, '#aaddff', 8, 'debris',
+              { spread: impactSpread, speed: 60, sizeRange: [4, 8], lifeRange: [0.5, 1.0], color2: '#88eeff' });
+            this.spawnParticles(p.x, p.y, '#cceeff', 12, 'magic',
+              { spread: 250, speed: 70, sizeRange: [3, 6], lifeRange: [0.3, 0.7], color2: '#ffffff' });
+            this.camera.shake(5, 0.12);
+          } else if (p.spellId === 'lightning') {
+            this.spawnParticles(p.x, p.y, '#ffdd44', impactCount, 'spark',
+              { spread: impactSpread, speed: 140, sizeRange: impactSize, lifeRange: [0.3, 0.7], color2: '#ffffff' });
+            this.spawnParticles(p.x, p.y, '#aa44ff', 8, 'magic',
+              { spread: impactSpread * 0.6, speed: 100, sizeRange: [2, 5], lifeRange: [0.2, 0.5], color2: '#dd88ff' });
+            this.spawnParticles(p.x, p.y, 'rgba(255,255,200,0.6)', 5, 'hit_flash',
+              { spread: 50, speed: 30, sizeRange: [6, 12], lifeRange: [0.1, 0.2] });
+            this.camera.shake(7, 0.18);
+          } else {
+            this.spawnParticles(p.x, p.y, p.color, impactCount, 'magic',
+              { spread: impactSpread, speed: 100, sizeRange: impactSize, lifeRange: [0.4, 0.8], color2: p.color2 });
+            this.spawnParticles(p.x, p.y, '#ffffff', 5, 'hit_flash',
+              { spread: 60, speed: 50, sizeRange: [3, 6], lifeRange: [0.15, 0.3] });
+            this.camera.shake(3, 0.08);
+          }
+
           this.damageNumbers.push({
             x: enemy.x + enemy.width / 2,
             y: enemy.y - 10,
@@ -2725,22 +2789,16 @@ export class Game {
             velocity: { x: (Math.random() - 0.5) * 30, y: -60 },
           });
 
-          this.spawnParticles(p.x, p.y, p.color, 8, 'magic',
-            { spread: 100, speed: 80, sizeRange: [3, 6], lifeRange: [0.4, 0.8], color2: p.color2 });
-          this.camera.shake(3, 0.08);
-
           if (enemy.hp <= 0) this.killEnemy(enemy);
           hit = true;
-          if (aoeRadius <= 10) break; // Single target
+          if (aoeRadius <= 10) break;
         }
       }
 
       if (hit || p.lifetime <= 0 || p.x < 0 || p.x > worldW || p.y < 0 || p.y > worldH) {
-        // Hit particles for AOE
-        if (hit && aoeRadius > 10) {
-          this.spawnParticles(p.x, p.y, p.color, 15, 'magic',
-            { spread: 150, speed: 100, sizeRange: [4, 8], lifeRange: [0.5, 1.0], color2: p.color2 });
-          this.camera.shake(6, 0.15);
+        if (!hit && p.lifetime <= 0 && Math.random() < 0.3) {
+          this.spawnParticles(p.x, p.y, p.color, 5, 'magic',
+            { spread: 60, speed: 50, sizeRange: [2, 4], lifeRange: [0.2, 0.4], color2: p.color2 });
         }
         this.magicProjectiles.splice(i, 1);
       }
@@ -4918,6 +4976,85 @@ export class Game {
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // ── Magic Projectiles (glowing orbs) ──
+    for (const mp of this.magicProjectiles) {
+      const mpos = this.camera.worldToScreen(mp.x, mp.y);
+      const mtime = performance.now() * 0.001;
+      const mpulse = 0.7 + 0.3 * Math.sin(mtime * 4 + mp.x * 0.01 + mp.y * 0.01);
+      const msize = (mp.size || 4) * (0.9 + 0.2 * Math.sin(mtime * 3 + mp.x));
+      const glowR = msize * 4 * mpulse;
+
+      // Outer glow (radial gradient)
+      const mgrad = ctx.createRadialGradient(mpos.x, mpos.y, 0, mpos.x, mpos.y, glowR);
+      mgrad.addColorStop(0, 'rgba(255,255,255,0.35)');
+      mgrad.addColorStop(0.15, mp.color.replace(')', ',0.25)'));
+      mgrad.addColorStop(0.4, mp.color2.replace(')', ',0.12)'));
+      mgrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = mgrad;
+      ctx.beginPath();
+      ctx.arc(mpos.x, mpos.y, glowR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner bright core
+      const innerGrad = ctx.createRadialGradient(mpos.x, mpos.y, 0, mpos.x, mpos.y, msize);
+      innerGrad.addColorStop(0, '#ffffff');
+      innerGrad.addColorStop(0.3, mp.color);
+      innerGrad.addColorStop(1, mp.color2 || mp.color);
+      ctx.fillStyle = innerGrad;
+      ctx.beginPath();
+      ctx.arc(mpos.x, mpos.y, msize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ── Element-specific decorative auras ──
+      if (mp.spellId === 'fireball') {
+        ctx.save();
+        ctx.globalAlpha = 0.15 * mpulse;
+        for (let a = 0; a < 4; a++) {
+          const ang = mtime * 2 + a * Math.PI / 2;
+          const ox = Math.cos(ang) * msize * 1.5;
+          const oy = Math.sin(ang) * msize * 1.5;
+          const fg = ctx.createRadialGradient(mpos.x + ox, mpos.y + oy, 0, mpos.x + ox, mpos.y + oy, msize);
+          fg.addColorStop(0, '#ff6600');
+          fg.addColorStop(1, 'rgba(255,100,0,0)');
+          ctx.fillStyle = fg;
+          ctx.beginPath();
+          ctx.arc(mpos.x + ox, mpos.y + oy, msize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else if (mp.spellId === 'ice_blast') {
+        ctx.save();
+        ctx.globalAlpha = 0.25 * mpulse;
+        ctx.fillStyle = '#aaddff';
+        for (let a = 0; a < 6; a++) {
+          const ang = mtime * 1.5 + a * Math.PI / 3;
+          const ox = Math.cos(ang) * msize * 2;
+          const oy = Math.sin(ang) * msize * 2;
+          ctx.beginPath();
+          ctx.arc(mpos.x + ox, mpos.y + oy, msize * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else if (mp.spellId === 'lightning') {
+        ctx.save();
+        ctx.globalAlpha = 0.12 * mpulse;
+        ctx.strokeStyle = '#ffdd44';
+        ctx.lineWidth = 1.5;
+        for (let a = 0; a < 3; a++) {
+          const ang = mtime * 3 + a * Math.PI * 2 / 3;
+          ctx.beginPath();
+          ctx.moveTo(mpos.x, mpos.y);
+          for (let j = 0; j < 4; j++) {
+            const jx = Math.cos(ang + j * 0.5) * msize * (0.5 + j * 0.6);
+            const jy = Math.sin(ang + j * 0.5) * msize * (0.5 + j * 0.6);
+            ctx.lineTo(mpos.x + jx, mpos.y + jy);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
 
     // Draw particles
