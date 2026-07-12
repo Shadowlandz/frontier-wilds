@@ -17,6 +17,7 @@ import { formatTime } from './core/Utils';
 import { getAllSaveSlots, formatSaveDate, getMaxSaveSlots, type SaveSlotInfo } from './systems/SaveSystem';
 import MobileHUD from './MobileHUD';
 import { AssetLoader } from './core/AssetLoader';
+import { ItemIcon } from './core/ItemIcon';
 
 // ── Time helpers for HUD ────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ export default function GamePage() {
   const [uiState, setUiState] = useState<GameUIState | null>(null);    const [selectedHotbar, setSelectedHotbar] = useState(0);
 
     useEffect(() => {
+      AssetLoader.preloadAll();
     if (!canvasRef.current) return;
 
     const game = new Game(getAudioEngine());
@@ -443,20 +445,7 @@ function Hotbar({ hotbar, selected, onSelect, game }: {
           >
             {slot?.item && (
               <>
-                {slot.unidentified ? (
-          <span className="text-xl" style={{ color: RARITY_COLORS[slot.item.rarity] }}>❓</span>
-        ) : assetsReady && AssetLoader.hasSprite(slot.item.id) ? (
-          <img
-            src={AssetLoader.getSprite(slot.item.id)!}
-            alt={slot.item.name}
-            className="w-10 h-10 object-contain drop-shadow-lg"
-            style={{
-              filter: `drop-shadow(0 0 3px ${RARITY_COLORS[slot.item.rarity]}40)`,
-            }}
-          />
-        ) : (
-          <span className="text-xl" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.item.icon}</span>
-        )}
+                          <ItemIcon item={slot.item} size="2xl" unidentified={slot.unidentified} />
                 {slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[9px] text-white font-bold drop-shadow">{slot.count}</span>}
                 {slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold drop-shadow">?</span>}
                 {slot.durability !== undefined && slot.item.maxDurability && (
