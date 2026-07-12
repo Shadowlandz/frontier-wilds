@@ -1123,34 +1123,23 @@ const LandingPage: React.FC = () => {
         }}>
           Cultivate. Explore. Survive.
         </p>
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <a href="/auth" style={{
-            padding: '12px 32px',
-            background: 'linear-gradient(135deg, #4CAF50, #2E7D32)',
-            color: '#fff',
-            textDecoration: 'none',
-            borderRadius: '8px',
-            fontSize: 'clamp(0.7rem, 1.5vw, 1rem)',
-            border: '2px solid rgba(255,255,255,0.2)',
-            transition: 'all 0.3s',
-            cursor: 'pointer',
-          }}>
-            Start Farming
-          </a>
-          <a href="/game" style={{
-            padding: '12px 32px',
-            background: 'linear-gradient(135deg, #FF7043, #E64A19)',
-            color: '#fff',
-            textDecoration: 'none',
-            borderRadius: '8px',
-            fontSize: 'clamp(0.7rem, 1.5vw, 1rem)',
-            border: '2px solid rgba(255,255,255,0.2)',
-            transition: 'all 0.3s',
-            cursor: 'pointer',
-          }}>
-            Play Now
-          </a>
-        </div>
+        <a href="/game" style={{
+          display: 'inline-block',
+          padding: '14px 48px',
+          background: 'linear-gradient(135deg, #4CAF50, #2E7D32)',
+          color: '#fff',
+          textDecoration: 'none',
+          borderRadius: '12px',
+          fontSize: 'clamp(0.9rem, 2vw, 1.3rem)',
+          fontWeight: 'bold',
+          border: '2px solid rgba(255,255,255,0.3)',
+          boxShadow: '0 4px 20px rgba(76, 175, 80, 0.4)',
+          transition: 'all 0.3s',
+          cursor: 'pointer',
+          letterSpacing: '2px',
+        }}>
+          ▶ Jogar
+        </a>
       </div>
       
       {/* Decorative trees */}
