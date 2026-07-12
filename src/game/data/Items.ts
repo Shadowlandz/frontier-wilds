@@ -313,7 +313,7 @@ export const ITEMS: Record<string, ItemDefinition> = {
   antidote: {
     id: 'antidote', name: 'Antídoto', description: 'Cura veneno e envenenamento.',
     category: ItemCategory.Consumable, rarity: Rarity.Uncommon, stackSize: 10, weight: 0.3, value: 20,
-    icon: '💊',
+    icon: '💊', effects: [{ type: 'cure', value: 1 }],
   },
 
   // ── Seeds ─────────────────────────────────────────────────────

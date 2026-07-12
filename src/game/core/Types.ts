@@ -261,7 +261,7 @@ export interface ItemDefinition {
 }
 
 export interface ItemEffect {
-  type: 'heal' | 'buff' | 'damage' | 'speed' | 'hunger' | 'energy' | 'xp';
+  type: 'heal' | 'buff' | 'damage' | 'speed' | 'hunger' | 'energy' | 'xp' | 'cure';
   value: number;
   duration?: number;
 }

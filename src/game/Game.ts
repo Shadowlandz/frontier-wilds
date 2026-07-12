@@ -1921,6 +1921,17 @@ export class Game {
           case 'xp':
             this.gainXp(effect.value);
             break;
+          case 'cure': {
+            // Remove all poison/freeze/burn status effects from player
+            const removed = this.state.player.statusEffects.filter(s => s.type === 'poison' || s.type === 'burn' || s.type === 'freeze');
+            this.state.player.statusEffects = this.state.player.statusEffects.filter(s => s.type !== 'poison' && s.type !== 'burn' && s.type !== 'freeze');
+            if (removed.length > 0) {
+              this.spawnParticles(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y, '#44ff88', 8, 'heal',
+                { spread: 80, speed: 60, sizeRange: [3, 5], lifeRange: [0.4, 0.8] });
+              this.addNotification('💊 Efeitos de status removidos!', 'success');
+            }
+            break;
+          }
         }
       }
 
@@ -2140,6 +2151,18 @@ export class Game {
     player.stats.hp -= damage;
     player.invincibleTimer = 0.5;
 
+    // Apply enemy-specific status effects on hit
+    const enemyStatusEffects: Record<string, { type: string; duration: number; damagePerTick?: number; chance: number }> = {
+      lavaSpider: { type: 'burn', duration: 3, damagePerTick: 2, chance: 0.5 },
+      spider: { type: 'poison', duration: 4, damagePerTick: 2, chance: 0.3 },
+      giantBat: { type: 'poison', duration: 3, damagePerTick: 1, chance: 0.2 },
+      slime: { type: 'poison', duration: 2, damagePerTick: 1, chance: 0.1 },
+    };
+    const enemyStatus = enemyStatusEffects[enemy.definition.type];
+    if (enemyStatus && Math.random() < enemyStatus.chance) {
+      this.applyStatusEffectToPlayer(enemyStatus.type, enemyStatus.duration, enemy.definition.type, enemyStatus.damagePerTick);
+    }
+
     this.audio.playPlayerHurt();
     this.damageNumbers.push({
       x: player.x + PLAYER_SIZE / 2,
@@ -2324,6 +2347,42 @@ export class Game {
         this.state.player.maxMana,
         this.state.player.mana + manaRegenRate * dt
       );
+    }
+
+    // ── Player Status Effects ──
+    const pEffects = this.state.player.statusEffects;
+    for (let i = pEffects.length - 1; i >= 0; i--) {
+      const se = pEffects[i];
+      se.remaining -= dt;
+
+      // Apply tick damage for DoT effects
+      if (se.damagePerTick && se.damagePerTick > 0) {
+        se.tickAccumulator = (se.tickAccumulator ?? 0) + dt;
+        const tickInterval = se.tickInterval ?? 1.0;
+        while (se.tickAccumulator >= tickInterval) {
+          se.tickAccumulator -= tickInterval;
+          this.state.player.stats.hp -= se.damagePerTick;
+          this.damageNumbers.push({
+            x: this.state.player.x + PLAYER_SIZE / 2,
+            y: this.state.player.y - 10,
+            value: se.damagePerTick,
+            isCrit: false,
+            isHeal: false,
+            timer: 0.5,
+            velocity: { x: (Math.random() - 0.5) * 15, y: -30 },
+          });
+          // Visual feedback
+          const dotColor = se.type === 'burn' ? '#ff4400' : se.type === 'poison' ? '#44ff44' : '#ff8844';
+          this.spawnParticles(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y, dotColor, 3, 'hit_flash',
+            { spread: 40, speed: 30, sizeRange: [2, 4], lifeRange: [0.3, 0.6] });
+          this.camera.shake(1.5, 0.05);
+          if (this.state.player.stats.hp <= 0) this.playerDeath();
+        }
+      }
+
+      if (se.remaining <= 0) {
+        pEffects.splice(i, 1);
+      }
     }
   }
 
@@ -2871,10 +2930,7 @@ export class Game {
               velocity: { x: (Math.random() - 0.5) * 15, y: -30 },
             });
             if (se.type === 'burn') {
-              this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ff4400', 2, 'ember', { spread: 40, speed: 30, sizeRange: [2, 4], lifeRange: [0.3, 0.6] });
-            } else if (se.type === 'poison') {
-              this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#44ff44', 2, 'dust', { spread: 40, speed: 20, sizeRange: [2, 4], lifeRange: [0.3, 0.6] });
-            }
+              this.spawnParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ff4400', 2, 'ember', { spread: 40, speed: 30, sizeRange: [2, 4], lifeRange: [0.3, 0.6] });            }
             if (enemy.hp <= 0) {
               this.killEnemy(enemy);
               break;
@@ -2889,6 +2945,27 @@ export class Game {
     }
   }
 
+  private applyStatusEffectToPlayer(effectType: string, duration: number, source: string, damagePerTick?: number, slowAmount?: number): void {
+    const existing = this.state.player.statusEffects.find(s => s.type === effectType);
+    if (existing) {
+      existing.remaining = Math.max(existing.remaining, duration);
+      existing.duration = Math.max(existing.duration, duration);
+      return;
+    }
+    this.state.player.statusEffects.push({
+      type: effectType as any,
+      duration,
+      remaining: duration,
+      damagePerTick,
+      tickInterval: 1.0,
+      tickAccumulator: 0,
+      slowAmount,
+      source,
+    });
+    // Notification when player is affected
+    const effectNames: Record<string, string> = { burn: '🔥 Queimadura', slow: '❄️ Lentidão', stun: '⚡ Stun', poison: '☠️ Veneno', freeze: '🧊 Congelamento' };
+    this.addNotification(`${effectNames[effectType] || effectType} aplicado!`, 'warning');
+  }
 
   private updateProjectiles(dt: number): void {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {

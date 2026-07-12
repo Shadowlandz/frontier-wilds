@@ -239,6 +239,40 @@ function HUD({ game, stats, gameTime, selectedTool, hotbar, notifications, playe
         <BarBar label="🍖 Fome" current={stats.hunger} max={stats.maxHunger} color="#ff9800" />
         <BarBar label="⚡ Stamina" current={player?.stamina ?? 0} max={player?.maxStamina ?? 100} color="#2196f3" />
         <BarBar label="💧 Mana" current={player?.mana ?? 0} max={player?.maxMana ?? 100} color="#9c27b0" />
+        
+        {/* ── Player Status Effects ── */}
+        {player?.statusEffects && player.statusEffects.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-0.5 mb-1">
+            {player.statusEffects.map((se: any, si: number) => {
+              const statusConfig: Record<string, { icon: string; color: string; label: string }> = {
+                burn: { icon: '🔥', color: '#ff4400', label: 'Queimadura' },
+                slow: { icon: '❄️', color: '#66ddff', label: 'Lentidão' },
+                stun: { icon: '⚡', color: '#ffee44', label: 'Stun' },
+                poison: { icon: '☠️', color: '#44ff44', label: 'Veneno' },
+                freeze: { icon: '🧊', color: '#aaffff', label: 'Congelamento' },
+              };
+              const cfg = statusConfig[se.type] || { icon: '?', color: '#fff', label: se.type };
+              return (
+                <div
+                  key={si}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px]"
+                  style={{
+                    borderColor: cfg.color + '40',
+                    backgroundColor: cfg.color + '15',
+                    color: cfg.color,
+                  }}
+                  title={`${cfg.label} - ${Math.ceil(se.remaining)}s restantes`}
+                >
+                  <span className="text-xs">{cfg.icon}</span>
+                  <span className="font-bold" style={{ opacity: 0.5 + 0.5 * Math.sin(Date.now() * 0.005 + si) }}>
+                    {Math.ceil(se.remaining)}s
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] sm:text-xs text-white/70 mt-1">
           <span>⚔️ {stats.strength}</span>
           <span>🛡️ {stats.defense}</span>
