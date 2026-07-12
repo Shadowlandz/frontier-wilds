@@ -22,8 +22,8 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.Path]: '#b09a7a',
   [TileType.Wall]: '#5a5a5a',
   [TileType.Floor]: '#a08060',
-  [TileType.CaveFloor]: '#3a3a3a',
-  [TileType.CaveWall]: '#1a1a2a',
+  [TileType.CaveFloor]: '#5a4a3a',
+  [TileType.CaveWall]: '#2a2a3a',
   [TileType.Lava]: '#e44400',
 };
 
