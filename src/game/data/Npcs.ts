@@ -104,6 +104,32 @@ export const NPCS: Record<string, NpcDefinition> = {
     questIds: ['tutorial_first_steps', 'quest_wolf_hunt', 'quest_cave_exploration', 'quest_slime_king', 'quest_ruins', 'quest_dragon', 'quest_cursed_portal'],
     color: '#f57f17', icon: '👴',
   },
+  mage: {
+    type: NpcType.Mage, name: 'Mago Arcângelo',
+    dialogue: [
+      'Ah, um aventureiro interessado em magia! Sinto uma centelha em você.',
+      'O conhecimento arcano não é para qualquer um. Mas vejo potencial!',
+      'Tenho tomos raros à venda. Compre um e estude em seu grimório.',
+      'Pressione T para abrir seu Grimório e aprender as magias dos tomos!',
+      'Que a luz arcana ilumine seu caminho, jovem mago.',
+    ],
+    shopItems: [
+      'magic_missile_tome', 'heal_tome', 'ice_blast_tome',
+      'fireball_tome', 'lightning_tome',
+      'potion_hp', 'potion_energy', 'magic_dust', 'crystal',
+    ],
+    buysItems: {
+      'crystal': 60,
+      'magic_dust': 30,
+      'enchanted_wood': 45,
+      'polished_ruby': 300,
+      'polished_sapphire': 300,
+      'polished_emerald': 300,
+      'diamond': 700,
+      'shadow_fragment': 80,
+    },
+    color: '#5e35b1', icon: '🔮',
+  },
   identifier: {
     type: NpcType.Identifier, name: 'Sábio Eron',
     dialogue: [

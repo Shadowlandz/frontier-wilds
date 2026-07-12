@@ -167,6 +167,7 @@ export const NpcType = {
   Hunter: 'hunter',
   QuestGiver: 'questGiver',
   Identifier: 'identifier',
+  Mage: 'mage',
 } as const;
 export type NpcType = typeof NpcType[keyof typeof NpcType];
 

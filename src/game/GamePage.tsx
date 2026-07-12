@@ -1651,6 +1651,9 @@ function DialoguePanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
           {isLastDialogue && npc.definition.type === 'identifier' && (
             <button onClick={() => { game.ui.showIdentify = true; game.ui.activePanel = 'crafting'; }} className="px-4 py-1.5 rounded bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold">🔍 Identificar Itens</button>
           )}
+          {isLastDialogue && npc.definition.type === 'mage' && (
+            <button onClick={() => { game.ui.activePanel = 'spellbook'; }} className="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold">📖 Abrir Grimório</button>
+          )}
           <button onClick={handleNext} className="px-4 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold">{isLastDialogue ? 'Fechar' : 'Proximo'}</button>
         </div>
       </div>
