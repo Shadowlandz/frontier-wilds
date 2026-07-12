@@ -28,6 +28,7 @@ import { ENEMIES } from './data/Enemies';
 import { NPCS } from './data/Npcs';
 import { getQuestById } from './data/Quests';
 import { SKILLS } from './data/Skills';
+import { SPELLS, getSpell, getSpellByTomeId } from './data/Spells';
 import { saveGame, loadGame, loadAutoSave, autoSave } from './systems/SaveSystem';
 import { AudioEngine } from './core/AudioEngine';
 import { TimeSystem, TimeSpeedMode, TimePeriod, PERIOD_LABELS, PERIOD_ICONS,
@@ -82,6 +83,10 @@ export class Game {
   };
   achievementQueue: string[] = []; // IDs of newly unlocked achievements to show as popups
   projectiles: { x: number; y: number; vx: number; vy: number; damage: number; lifetime: number; speed: number }[] = [];
+  /** Magic projectiles with visual effects */
+  magicProjectiles: { x: number; y: number; vx: number; vy: number; damage: number; lifetime: number; speed: number; color: string; color2: string; size: number; spellId: string }[] = [];
+  /** Unlocked spell IDs */
+  unlockedSpells: string[] = [];
 
   // World data
   biomeMap: Biome[][] = [];
@@ -311,6 +316,7 @@ export class Game {
         stats: {
           level: 1, xp: 0, xpToNext: 100,
           hp: 100, hunger: 100,
+          mana: 100, maxMana: 100,
           maxHp: 100, maxHunger: 100,
           strength: 5, defense: 2, speed: PLAYER_SPEED,
           mining: 1, woodcutting: 1, farming: 1, fishing: 1,
@@ -330,6 +336,10 @@ export class Game {
         maxStamina: 100,
         exhaustionTimer: 0,
         isExhausted: false,
+        mana: 100,
+        maxMana: 100,
+        selectedSpell: 0,
+        spellCooldown: 0,
       },
       world: { seed, chunks: new Map(), resources: [], enemies: [], npcs: [], droppedItems: [] },
       quests: [],
@@ -436,7 +446,12 @@ export class Game {
       this.updateAmbientParticles(dt);
       this.updateDamageNumbers(dt);
       this.updateProjectiles(dt);
+      this.updateMagicProjectiles(dt);
       this.updateFishing(dt);
+      // Reduce spell cooldown
+      if (this.state.player.spellCooldown > 0) {
+        this.state.player.spellCooldown -= dt;
+      }
       this.handleInput();
     } else {
       this.handleUIInput();
@@ -600,6 +615,26 @@ export class Game {
     // G to drop item
     if (input.isKeyPressed('g')) {
       this.dropHotbarItem();
+    }
+
+    // R: Cast selected spell or toggle spellbook
+    if (input.isKeyPressed('r')) {
+      if (this.ui.activePanel === 'spellbook') {
+        this.ui.activePanel = 'none';
+      } else if (this.unlockedSpells.length > 0) {
+        this.tryCastSpell();
+      } else {
+        this.addNotification('🔮 Nenhuma magia aprendida! Encontre tomos de magia.', 'info');
+      }
+    }
+
+    // T: open spellbook
+    if (input.isKeyPressed('t')) {
+      if (this.ui.activePanel === 'spellbook') {
+        this.ui.activePanel = 'none';
+      } else {
+        this.ui.activePanel = 'spellbook';
+      }
     }
   }
 
@@ -1595,6 +1630,139 @@ export class Game {
     this.tryAttack();
   }
 
+  // ══ Spell Casting System ══════════════════════════════════
+  private tryCastSpell(): void {
+    const { player } = this.state;
+    if (this.unlockedSpells.length === 0) {
+      this.addNotification('🔮 Nenhuma magia aprendida!', 'info');
+      return;
+    }
+
+    const spellIdx = player.selectedSpell % this.unlockedSpells.length;
+    const spellId = this.unlockedSpells[spellIdx];
+    const spell = getSpell(spellId);
+    if (!spell) return;
+
+    // Check cooldown
+    if (player.spellCooldown > 0) return;
+
+    // Calculate mana cost with arcane_mastery reduction
+    let manaCost = spell.manaCost;
+    const arcaneLevel = this.state.skills['arcane_mastery'] || 0;
+    manaCost = Math.max(1, Math.floor(manaCost * (1 - arcaneLevel * 0.1)));
+
+    // Check mana
+    if (player.mana < manaCost) {
+      this.addNotification('💧 Mana insuficiente!', 'warning');
+      return;
+    }
+    player.mana -= manaCost;
+
+    // Calculate cooldown with quick_cast reduction
+    let cooldown = spell.cooldown;
+    const quickCastLevel = this.state.skills['quick_cast'] || 0;
+    cooldown = cooldown * (1 - quickCastLevel * 0.08);
+    player.spellCooldown = Math.max(0.3, cooldown);
+
+    // Calculate damage with spell_power bonus
+    const spellPowerLevel = this.state.skills['spell_power'] || 0;
+    const damageMult = 1 + spellPowerLevel * 0.1;
+
+    const px = player.x + PLAYER_SIZE / 2;
+    const py = player.y + PLAYER_SIZE / 2;
+
+    switch (spell.effectType) {
+      case 'heal': {
+        const healAmount = (spell.healAmount || 30) * damageMult;
+        player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + Math.floor(healAmount));
+        this.spawnParticles(px, py, spell.particleColor, 10, 'heal',
+          { spread: 100, speed: 60, sizeRange: [3, 6], lifeRange: [0.5, 1.0], color2: spell.particleColor2 });
+        this.damageNumbers.push({
+          x: px, y: py - 20, value: Math.floor(healAmount),
+          isCrit: false, isHeal: true, timer: 1,
+          velocity: { x: 0, y: -50 },
+        });
+        this.camera.shake(1, 0.05);
+        this.addNotification(`💚 Cura Arcana: +${Math.floor(healAmount)} HP`, 'item');
+        break;
+      }
+      case 'instant_damage': {
+        // Lightning-style: find nearest enemy
+        const enemies = this.inCave ? this.caveEnemies : this.inCursedLands ? this.cursedLandsEnemies : this.enemies;
+        let nearest: EnemyEntity | null = null;
+        let nearDist = spell.range;
+        for (const enemy of enemies) {
+          if (enemy.state === 'dead') continue;
+          const ex = enemy.x + enemy.width / 2;
+          const ey = enemy.y + enemy.height / 2;
+          const d = distance({ x: px, y: py }, { x: ex, y: ey });
+          if (d < nearDist) {
+            nearDist = d;
+            nearest = enemy;
+          }
+        }
+        if (nearest) {
+          const finalDmg = Math.floor(spell.damage * damageMult);
+          const mitigated = Math.max(1, finalDmg - nearest.definition.defense);
+          nearest.hp -= mitigated;
+          nearest.state = 'hurt';
+          nearest.knockback = scaleVec(player.facing, 80);
+
+          // Lightning bolt visual effect
+          const ex2 = nearest.x + nearest.width / 2;
+          const ey2 = nearest.y + nearest.height / 2;
+          this.spawnParticles(ex2, ey2, spell.particleColor, 12, 'spark',
+            { spread: 150, speed: 120, sizeRange: [3, 6], lifeRange: [0.3, 0.6], color2: spell.particleColor2 });
+          this.camera.shake(5, 0.1);
+          this.damageNumbers.push({
+            x: ex2, y: ey2 - 10, value: mitigated,
+            isCrit: true, isHeal: false, timer: 1,
+            velocity: { x: (Math.random() - 0.5) * 30, y: -60 },
+          });
+          if (nearest.hp <= 0) this.killEnemy(nearest);
+        } else {
+          this.addNotification('⚡ Nenhum inimigo alcance!', 'info');
+        }
+        break;
+      }
+      case 'projectile':
+      case 'aoe_damage': {
+        const projSpeed = spell.projectileSpeed || 300;
+        this.magicProjectiles.push({
+          x: px + player.facing.x * 16,
+          y: py + player.facing.y * 16,
+          vx: player.facing.x * projSpeed,
+          vy: player.facing.y * projSpeed,
+          damage: Math.floor(spell.damage * damageMult),
+          lifetime: 2.0,
+          speed: projSpeed,
+          color: spell.particleColor,
+          color2: spell.particleColor2 || '#ffffff',
+          size: spell.effectType === 'aoe_damage' ? 6 : 4,
+          spellId: spell.id,
+        });
+        this.spawnParticles(px + player.facing.x * 20, py + player.facing.y * 20, spell.particleColor, 5, 'magic',
+          { spread: 40, speed: 50, sizeRange: [3, 5], lifeRange: [0.3, 0.6], color2: spell.particleColor2 });
+        break;
+      }
+    }
+  }
+
+  /** Learn a spell from a tome item (called when interacting with spell tomes in inventory) */
+  learnSpell(tomeId: string): boolean {
+    const spell = getSpellByTomeId(tomeId);
+    if (!spell) return false;
+    if (this.unlockedSpells.includes(spell.id)) {
+      this.addNotification(`🔮 Você já conhece ${spell.name}!`, 'info');
+      return false;
+    }
+    this.unlockedSpells.push(spell.id);
+    this.addNotification(`🔮 Aprendeu ${spell.name}! Pressione [R] para conjurar.`, 'success');
+    this.spawnParticles(this.state.player.x + PLAYER_SIZE / 2, this.state.player.y, spell.particleColor, 15, 'magic',
+      { spread: 150, speed: 100, sizeRange: [3, 7], lifeRange: [0.6, 1.2], color2: spell.particleColor2 });
+    return true;
+  }
+
   private killEnemy(enemy: EnemyEntity): void {
     enemy.state = 'dead';
     enemy.deathTimer = 0.5;
@@ -2137,6 +2305,15 @@ export class Game {
         );
       }
     }
+    // ── Mana regen ──
+    const manaRegenLevel = this.state.skills['mana_regen'] || 0;
+    const manaRegenRate = 5 * (1 + manaRegenLevel * 0.15);
+    if (this.state.player.mana < this.state.player.maxMana) {
+      this.state.player.mana = Math.min(
+        this.state.player.maxMana,
+        this.state.player.mana + manaRegenRate * dt
+      );
+    }
   }
 
   private updateTime(dt: number): void {
@@ -2505,6 +2682,69 @@ export class Game {
       dn.velocity.y += 20 * dt;
     }
     this.damageNumbers = this.damageNumbers.filter(dn => dn.timer > 0);
+  }
+
+  private updateMagicProjectiles(dt: number): void {
+    for (let i = this.magicProjectiles.length - 1; i >= 0; i--) {
+      const p = this.magicProjectiles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.lifetime -= dt;
+
+      // Check enemy collision
+      const magicEnemies = this.inCave ? this.caveEnemies : this.inCursedLands ? this.cursedLandsEnemies : this.enemies;
+      const worldW = this.inCave && this.caveData ? this.caveData.tileMap[0].length * TILE_SIZE : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap[0].length * TILE_SIZE : WORLD_WIDTH * TILE_SIZE;
+      const worldH = this.inCave && this.caveData ? this.caveData.tileMap.length * TILE_SIZE : this.inCursedLands && this.cursedLandsData ? this.cursedLandsData.tileMap.length * TILE_SIZE : WORLD_HEIGHT * TILE_SIZE;
+      let hit = false;
+
+      // AOE check for fireball-style
+      const spell = getSpell(p.spellId);
+      const aoeRadius = spell?.effectType === 'aoe_damage' ? (this.state.skills['spell_power'] || 0) * 2 + 40 : 10;
+
+      for (const enemy of magicEnemies) {
+        if (enemy.state === 'dead') continue;
+        const dist = distance(
+          { x: p.x, y: p.y },
+          { x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2 }
+        );
+        const hitRadius = aoeRadius > 10 ? aoeRadius : enemy.width / 2 + 6;
+        if (dist < hitRadius) {
+          const mitigated = Math.max(1, p.damage - enemy.definition.defense);
+          enemy.hp -= mitigated;
+          enemy.state = 'hurt';
+          const knockDir = normalize({ x: p.vx, y: p.vy });
+          enemy.knockback = scaleVec(knockDir, 80);
+
+          this.damageNumbers.push({
+            x: enemy.x + enemy.width / 2,
+            y: enemy.y - 10,
+            value: mitigated,
+            isCrit: false,
+            isHeal: false,
+            timer: 1,
+            velocity: { x: (Math.random() - 0.5) * 30, y: -60 },
+          });
+
+          this.spawnParticles(p.x, p.y, p.color, 8, 'magic',
+            { spread: 100, speed: 80, sizeRange: [3, 6], lifeRange: [0.4, 0.8], color2: p.color2 });
+          this.camera.shake(3, 0.08);
+
+          if (enemy.hp <= 0) this.killEnemy(enemy);
+          hit = true;
+          if (aoeRadius <= 10) break; // Single target
+        }
+      }
+
+      if (hit || p.lifetime <= 0 || p.x < 0 || p.x > worldW || p.y < 0 || p.y > worldH) {
+        // Hit particles for AOE
+        if (hit && aoeRadius > 10) {
+          this.spawnParticles(p.x, p.y, p.color, 15, 'magic',
+            { spread: 150, speed: 100, sizeRange: [4, 8], lifeRange: [0.5, 1.0], color2: p.color2 });
+          this.camera.shake(6, 0.15);
+        }
+        this.magicProjectiles.splice(i, 1);
+      }
+    }
   }
 
   private updateProjectiles(dt: number): void {

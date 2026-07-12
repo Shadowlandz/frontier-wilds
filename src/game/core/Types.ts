@@ -176,6 +176,7 @@ export const SkillTree = {
   Gathering: 'gathering',
   Crafting: 'crafting',
   Exploration: 'exploration',
+  Magic: 'magic',
 } as const;
 export type SkillTree = typeof SkillTree[keyof typeof SkillTree];
 
@@ -241,6 +242,7 @@ export interface PlayerAttributes {
   maxHp: number;
   maxHunger: number;
   maxStamina: number;
+  maxMana: number;
   strength: number;
   defense: number;
   speed: number;
@@ -257,6 +259,8 @@ export interface PlayerStats {
   xpToNext: number;
   hp: number;
   hunger: number;
+  mana: number;
+  maxMana: number;
   maxHp: number;
   maxHunger: number;
   strength: number;
@@ -518,6 +522,14 @@ export interface PlayerState {
   maxStamina: number;
   exhaustionTimer: number;
   isExhausted: boolean;
+  /** Current mana pool */
+  mana: number;
+  /** Maximum mana pool */
+  maxMana: number;
+  /** Currently selected spell index */
+  selectedSpell: number;
+  /** Spell casting cooldown timer */
+  spellCooldown: number;
 }
 
 export interface WorldState {
@@ -660,7 +672,7 @@ export function getInteriorLight(): string {
 }
 
 // ── UI State ──────────────────────────────────────────────────────
-export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'forge' | 'save' | 'achievements' | 'furnace' | 'sleep' | 'none';
+export type PanelType = 'inventory' | 'crafting' | 'skills' | 'quests' | 'shop' | 'dialogue' | 'forge' | 'save' | 'achievements' | 'furnace' | 'sleep' | 'spellbook' | 'none';
 
 export interface GameUIState {
   activePanel: PanelType;

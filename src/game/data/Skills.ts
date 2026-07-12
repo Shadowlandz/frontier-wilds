@@ -146,6 +146,38 @@ export const SKILLS: Record<string, SkillDefinition> = {
     effect: (l) => ({ fishing: l * 2 }),
     icon: '🎣',
   },
+
+  // ── Magic Tree ────────────────────────────────────────────────
+  mana_pool: {
+    id: 'mana_pool', name: 'Poço de Mana', description: 'Aumenta mana máxima em 20 por nível.',
+    tree: SkillTree.Magic, maxLevel: 5, cost: 1,
+    effect: (l) => ({ maxMana: l * 20 }),
+    icon: '💧',
+  },
+  mana_regen: {
+    id: 'mana_regen', name: 'Regeneração Arcana', description: 'Recupera mana 15% mais rápido por nível.',
+    tree: SkillTree.Magic, maxLevel: 5, cost: 1,
+    effect: () => ({}),
+    icon: '🌀',
+  },
+  spell_power: {
+    id: 'spell_power', name: 'Poder Mágico', description: 'Aumenta dano de magias em 10% por nível.',
+    tree: SkillTree.Magic, maxLevel: 5, cost: 2,
+    effect: () => ({}),
+    icon: '🔮',
+  },
+  arcane_mastery: {
+    id: 'arcane_mastery', name: 'Maestria Arcana', description: 'Reduz custo de mana das magias em 10% por nível.',
+    tree: SkillTree.Magic, maxLevel: 3, cost: 3,
+    effect: () => ({}),
+    icon: '✨',
+  },
+  quick_cast: {
+    id: 'quick_cast', name: 'Conjuração Rápida', description: 'Reduz o cooldown das magias em 8% por nível.',
+    tree: SkillTree.Magic, maxLevel: 3, cost: 2,
+    effect: () => ({}),
+    icon: '⚡',
+  },
 };
 
 export function getSkillsByTree(tree: SkillTree): SkillDefinition[] {

@@ -27,6 +27,10 @@ interface SerializedGameState {
     currentTool: number;
     stamina: number;
     maxStamina: number;
+    mana: number;
+    maxMana: number;
+    selectedSpell: number;
+    spellCooldown: number;
   };
   quests: GameState['quests'];
   skills: GameState['skills'];
@@ -89,6 +93,10 @@ function serializeState(state: GameState): SerializedGameState {
       currentTool: state.player.currentTool,
       stamina: state.player.stamina,
       maxStamina: state.player.maxStamina,
+      mana: state.player.mana,
+      maxMana: state.player.maxMana,
+      selectedSpell: state.player.selectedSpell,
+      spellCooldown: state.player.spellCooldown,
     },
     quests: state.quests.map(q => ({
       ...q,
@@ -114,6 +122,10 @@ function deserializeState(data: SerializedGameState): Partial<GameState> {
       y: data.player.y,
       facing: data.player.facing,
       stats: data.player.stats,
+      mana: data.player.mana ?? 100,
+      maxMana: data.player.maxMana ?? 100,
+      selectedSpell: data.player.selectedSpell ?? 0,
+      spellCooldown: data.player.spellCooldown ?? 0,
       inventory: data.player.inventory.map(deserializeSlot),
       hotbar: data.player.hotbar.map(deserializeSlot),
       equipment: {

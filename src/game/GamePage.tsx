@@ -9,6 +9,7 @@ import { getAudioEngine } from './core/AudioEngine';
 import { GameState, GameUIState, PanelType, ItemCategory, RARITY_COLORS, Rarity, InventorySlot, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT, ACHIEVEMENTS, AchievementProgress } from './core/Types';
 import { getItem } from './data/Items';
 import { RECIPES } from './data/Recipes';
+import { getSpell } from './data/Spells';
 import { SKILLS, getSkillsByTree } from './data/Skills';
 import { QUESTS } from './data/Quests';
 import { NPCS } from './data/Npcs';
@@ -166,6 +167,9 @@ export default function GamePage() {
           {uiState.activePanel === 'sleep' && (
             <SleepPanel game={game!} />
           )}
+          {uiState.activePanel === 'spellbook' && (
+            <SpellbookPanel game={game!} />
+          )}
 
           {uiState.activePanel === 'inventory' && game.state.activeStorageChestId && (
             <StoragePanel game={game!} />
@@ -182,7 +186,7 @@ export default function GamePage() {
             <MobileHUD game={game!} uiState={uiState} />
           ) : (
             <div className="absolute bottom-16 left-4 text-white/30 text-[10px] pointer-events-none">
-              WASD=Mover | E=Coletar/Interagir | Q/Clique=Atacar | F=Usar | G=Soltar | I=Inventario | C=Craft | K=Habilidades | J=Missoes | L=Conquistas | M=Mapa | P=Plantar | H=Salvar
+              WASD=Mover | E=Interagir | Q=Atacar | R=Magia | T=Grimorio | F=Usar | G=Soltar | I=Inv | C=Craft | K=Hab | J=Miss | L=Conq | M=Mapa | P=Plantar | H=Salvar
             </div>
           )}
         </>
@@ -234,6 +238,7 @@ function HUD({ game, stats, gameTime, selectedTool, hotbar, notifications, playe
         <BarBar label="❤️ Vida" current={stats.hp} max={stats.maxHp} color="#e53935" />
         <BarBar label="🍖 Fome" current={stats.hunger} max={stats.maxHunger} color="#ff9800" />
         <BarBar label="⚡ Stamina" current={player?.stamina ?? 0} max={player?.maxStamina ?? 100} color="#2196f3" />
+        <BarBar label="💧 Mana" current={player?.mana ?? 0} max={player?.maxMana ?? 100} color="#9c27b0" />
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] sm:text-xs text-white/70 mt-1">
           <span>⚔️ {stats.strength}</span>
           <span>🛡️ {stats.defense}</span>
@@ -2543,5 +2548,110 @@ function SleepPanel({ game }: { game: Game }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Spellbook Panel ────────────────────────────────────────────
+function SpellbookPanel({ game }: { game: Game }) {
+  const [, forceUpdate] = useState(0);
+  const refresh = () => forceUpdate(n => n + 1);
+  const state = game.state;
+  const unlockedSpells = game.unlockedSpells || [];
+  const hasSpells = unlockedSpells.length > 0;
+
+  const handleSelect = (idx: number) => {
+    state.player.selectedSpell = idx;
+    game.addNotification(`Magia selecionada: ${getSpell(unlockedSpells[idx])?.name || ''}`, 'info');
+    refresh();
+  };
+
+  const handleLearnFromInventory = () => {
+    // Check inventory for tome items
+    const allSlots = [...state.player.inventory, ...state.player.hotbar];
+    for (const slot of allSlots) {
+      if (slot.item && slot.item.id.endsWith('_tome')) {
+        const learned = game.learnSpell(slot.item.id);
+        if (learned) {
+          slot.count--;
+          if (slot.count <= 0) {
+            slot.item = null;
+          }
+          refresh();
+          return;
+        }
+      }
+    }
+    game.addNotification('🔮 Nenhum tomo de magia no inventário!', 'info');
+  };
+
+  return (
+    <Panel title="📖 Grimório Mágico" onClose={() => game.setActivePanel('none')}>
+      <div className="text-white/70 text-xs mb-3">💧 Mana: {Math.ceil(state.player.mana)}/{state.player.maxMana}</div>
+
+      {!hasSpells ? (
+        <div className="text-center py-6">
+          <div className="text-4xl mb-2">🔮</div>
+          <div className="text-white/50 text-xs mb-3">Você ainda não conhece nenhuma magia.</div>
+          <div className="text-white/30 text-[10px] mb-4">Encontre Tomos de Magia em baús e inimigos para aprender feitiços!</div>
+          <button onClick={handleLearnFromInventory}
+            className="px-4 py-2 rounded bg-purple-700 hover:bg-purple-600 text-white text-xs font-bold transition-all">
+            📖 Aprender do Inventário
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="text-white/50 text-[10px] mb-2">Selecione uma magia (Pressione [R] para conjurar):</div>
+          <div className="space-y-2">
+            {unlockedSpells.map((spellId, idx) => {
+              const spell = getSpell(spellId);
+              if (!spell) return null;
+              const isSelected = state.player.selectedSpell % unlockedSpells.length === idx;
+              const canCast = state.player.mana >= spell.manaCost;
+              const onCooldown = state.player.spellCooldown > 0;
+
+              return (
+                <div key={spell.id}
+                  onClick={() => handleSelect(idx)}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-purple-500/60 bg-purple-900/30 scale-[1.02]'
+                      : 'border-white/10 bg-white/5 hover:bg-white/10'
+                  } ${!canCast ? 'opacity-50' : ''}`}
+                >
+                  <div className="relative">
+                    <span className="text-2xl">{spell.icon}</span>
+                    {isSelected && (
+                      <div className="absolute -inset-1 rounded-full bg-purple-400/20 animate-ping" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-xs font-bold">{spell.name}</div>
+                    <div className="text-white/40 text-[9px]">{spell.description}</div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 text-[9px]">
+                      <span className="text-purple-400">💧 {spell.manaCost} Mana</span>
+                      {spell.damage > 0 && <span className="text-red-400">⚔️ {spell.damage} Dano</span>}
+                      {spell.healAmount && <span className="text-green-400">❤️ +{spell.healAmount} Cura</span>}
+                      <span className="text-white/40">⏱️ {spell.cooldown.toFixed(1)}s</span>
+                    </div>
+                  </div>
+                  <div>
+                    {onCooldown ? (
+                      <div className="text-[9px] text-yellow-400 animate-pulse">⏳ {state.player.spellCooldown.toFixed(1)}s</div>
+                    ) : (
+                      <div className={`text-[9px] ${canCast ? 'text-green-400' : 'text-red-400'}`}>
+                        {canCast ? '✅ Pronto' : '💧 Sem Mana'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 text-white/30 text-[9px] text-center">
+            Pressione [R] para conjurar a magia selecionada
+          </div>
+        </>
+      )}
+    </Panel>
   );
 }

@@ -479,6 +479,33 @@ export const ITEMS: Record<string, ItemDefinition> = {
     icon: '🥣', foodValue: 40, healAmount: 40, effects: [{ type: 'hunger', value: 40 }, { type: 'heal', value: 40 }, { type: 'energy', value: 30 }, { type: 'xp', value: 25 }],
   },
 
+  // ── Spell Tomes ───────────────────────────────────────────────
+  magic_missile_tome: {
+    id: 'magic_missile_tome', name: 'Tomo de Míssil Mágico', description: 'Um tomo básico com feitiço arcano. Conjura projéteis mágicos.',
+    category: ItemCategory.Quest, rarity: Rarity.Uncommon, stackSize: 1, weight: 0.5, value: 80,
+    icon: '📕',
+  },
+  fireball_tome: {
+    id: 'fireball_tome', name: 'Tomo de Bola de Fogo', description: 'Tomo flamejante que ensina o feitiço Bola de Fogo. Causa dano em área.',
+    category: ItemCategory.Quest, rarity: Rarity.Rare, stackSize: 1, weight: 0.5, value: 200,
+    icon: '📕',
+  },
+  ice_blast_tome: {
+    id: 'ice_blast_tome', name: 'Tomo de Explosão de Gelo', description: 'Tomo congelante que ensina o feitiço Explosão de Gelo. Congela inimigos.',
+    category: ItemCategory.Quest, rarity: Rarity.Rare, stackSize: 1, weight: 0.5, value: 180,
+    icon: '📘',
+  },
+  lightning_tome: {
+    id: 'lightning_tome', name: 'Tomo de Relâmpago', description: 'Tomo elétrico que ensina o feitiço Relâmpago. Dano massivo em um alvo.',
+    category: ItemCategory.Quest, rarity: Rarity.Epic, stackSize: 1, weight: 0.5, value: 350,
+    icon: '📗',
+  },
+  heal_tome: {
+    id: 'heal_tome', name: 'Tomo de Cura Arcana', description: 'Tomo restaurador que ensina o feitiço Cura Arcana. Restaura vida.',
+    category: ItemCategory.Quest, rarity: Rarity.Uncommon, stackSize: 1, weight: 0.5, value: 120,
+    icon: '📙',
+  },
+
   // ── Quest Items ───────────────────────────────────────────────
   ancient_key: {
     id: 'ancient_key', name: 'Chave Antiga', description: 'Uma chave misteriosa e antiga.',
