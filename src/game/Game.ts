@@ -5495,62 +5495,105 @@ export class Game {
 
     ctx.restore();
 
-    // ── Cave darkness overlay (always dark underground) ──
+    // ── Cave darkness overlay (improved lighting) ──
     if (this.inCave) {
-      // Deep cave darkness with torch light around player
-      ctx.fillStyle = 'rgba(0, 0, 10, 0.75)';
+      // Base cave atmosphere: lighter than before — still dark but playable
+      ctx.fillStyle = 'rgba(0, 0, 10, 0.35)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Dynamic torch light around player - gradient circle
+      // ── Warm ambient cave glow (torch-less visibility) ──
+      const ambTime = performance.now() / 1000;
+      const ambPulse = 0.85 + 0.15 * Math.sin(ambTime * 0.3);
+      const ambientGlow = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 0,
+        canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.7
+      );
+      ambientGlow.addColorStop(0, `rgba(180, 140, 80, ${0.04 * (ambPulse as number)})`);
+      ambientGlow.addColorStop(0.5, `rgba(100, 70, 40, ${0.03 * (ambPulse as number)})`);
+      ambientGlow.addColorStop(1, 'rgba(0, 0, 10, 0)');
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = ambientGlow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // ── Player-centered dynamic light ──
       const playerScreen = camera.worldToScreen(
         player.x + PLAYER_SIZE / 2,
         player.y + PLAYER_SIZE / 2
       );
-      const hasTorch = this.getCurrentItem()?.toolType === 'torch';
-      // Torch: intense warm light + noticeable flicker | Hands: tiny dim glow
-      const flicker = hasTorch ? Math.sin(performance.now() / 120 + player.x * 0.1) * 25 : 0;
-      const lightRadius = hasTorch ? 400 + flicker : 80;
-      const gradient = ctx.createRadialGradient(
-        playerScreen.x, playerScreen.y, hasTorch ? 10 : 20,
+      const hasTorchItem = this.getCurrentItem()?.toolType === 'torch';
+      
+      // Torch: wide warm light with strong flicker
+      // No torch: generous ambient visibility (still atmospheric)
+      const flickerVal = hasTorchItem 
+        ? Math.sin(ambTime * 6 + player.x * 0.1) * 30 + Math.sin(ambTime * 13) * 10
+        : Math.sin(ambTime * 2) * 5;
+      const lightRadius = hasTorchItem ? 480 + flickerVal : 240 + flickerVal;
+
+      // ── Warm light gradient (source-over) ──
+      const warmLight = ctx.createRadialGradient(
+        playerScreen.x, playerScreen.y, 0,
         playerScreen.x, playerScreen.y, lightRadius
       );
-
-      if (hasTorch) {
-        // Warm torch glow - stronger in center, fades to dark
-        gradient.addColorStop(0, 'rgba(255, 180, 60, 0.15)');
-        gradient.addColorStop(0.15, 'rgba(255, 180, 60, 0.05)');
-        gradient.addColorStop(0.5, 'rgba(255, 160, 40, 0.02)');
-        gradient.addColorStop(1, 'rgba(0, 0, 10, 0.75)');
-        // Warm glow overlay on the scene
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = 'destination-out';
-        // Punch hole for visibility with warm gradient
-        const holeGradient = ctx.createRadialGradient(
-          playerScreen.x, playerScreen.y, 15,
-          playerScreen.x, playerScreen.y, lightRadius - 30
-        );
-        holeGradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
-        holeGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.8)');
-        holeGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = holeGradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (hasTorchItem) {
+        warmLight.addColorStop(0, 'rgba(255, 200, 100, 0.20)');
+        warmLight.addColorStop(0.1, 'rgba(255, 180, 70, 0.10)');
+        warmLight.addColorStop(0.3, 'rgba(255, 160, 50, 0.04)');
+        warmLight.addColorStop(0.6, 'rgba(200, 140, 60, 0.02)');
+        warmLight.addColorStop(1, 'rgba(0, 0, 10, 0)');
       } else {
-        // No torch - small dim visibility circle
-        gradient.addColorStop(0, 'rgba(0, 0, 10, 0)');
-        gradient.addColorStop(1, 'rgba(0, 0, 10, 0.75)');
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Hands/ambient: soft cool-blue glow
+        warmLight.addColorStop(0, 'rgba(180, 200, 255, 0.04)');
+        warmLight.addColorStop(0.5, 'rgba(100, 120, 180, 0.02)');
+        warmLight.addColorStop(1, 'rgba(0, 0, 10, 0)');
       }
       ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = warmLight;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Subtle lava ambient glow
+      // ── Visibility punch-through (destination-out) ──
+      ctx.globalCompositeOperation = 'destination-out';
+      const visibilityHole = ctx.createRadialGradient(
+        playerScreen.x, playerScreen.y, 8,
+        playerScreen.x, playerScreen.y, lightRadius + 40
+      );
+      if (hasTorchItem) {
+        visibilityHole.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
+        visibilityHole.addColorStop(0.25, 'rgba(0, 0, 0, 0.70)');
+        visibilityHole.addColorStop(0.55, 'rgba(0, 0, 0, 0.35)');
+        visibilityHole.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      } else {
+        visibilityHole.addColorStop(0, 'rgba(0, 0, 0, 0.65)');
+        visibilityHole.addColorStop(0.3, 'rgba(0, 0, 0, 0.30)');
+        visibilityHole.addColorStop(0.6, 'rgba(0, 0, 0, 0.10)');
+        visibilityHole.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      }
+      ctx.fillStyle = visibilityHole;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'source-over';
+
+      // ── Lava ambient glow (pulsing, warmer) ──
       if (this.caveData) {
-        const lavaGlow = Math.sin(performance.now() / 2000) * 0.03 + 0.05;
+        const lavaGlow = Math.sin(ambTime * 0.8) * 0.04 + 0.08;
         ctx.fillStyle = `rgba(255, 80, 0, ${lavaGlow})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // ── Glowing shroom / crystal ambiance (random tiny dots) ──
+      const dotsSeed = Math.floor(this.state.player.x / 100) + Math.floor(this.state.player.y / 100);
+      const dotCount = 6 + Math.floor(Math.abs(Math.sin(dotsSeed)) * 6);
+      for (let d = 0; d < dotCount; d++) {
+        const dx2 = (Math.sin(dotsSeed * 13.7 + d * 7.3) * 0.5 + 0.5) * canvas.width;
+        const dy2 = (Math.cos(dotsSeed * 9.1 + d * 11.7) * 0.5 + 0.5) * canvas.height;
+        const dotPulse = 0.3 + 0.7 * Math.sin(ambTime * (0.5 + d * 0.1) + d * 2.1);
+        const dotColor = d % 3 === 0 
+          ? `rgba(100, 255, 150, ${dotPulse * 0.15})`
+          : d % 3 === 1
+            ? `rgba(80, 180, 255, ${dotPulse * 0.12})`
+            : `rgba(200, 100, 255, ${dotPulse * 0.10})`;
+        ctx.fillStyle = dotColor;
+        ctx.beginPath();
+        ctx.arc(dx2, dy2, 2 + dotPulse * 2, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
