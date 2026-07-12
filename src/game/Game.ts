@@ -102,6 +102,12 @@ export class Game {
   caveResources: { x: number; y: number; type: string; itemId: string; hp: number; id: string; maxHp: number; shakeTimer: number }[] = [];
   caveResourceRespawnQueue: { type: string; x: number; y: number; itemId: string; respawnTime: number }[] = [];
   surfacePosition: { x: number; y: number } = { x: 0, y: 0 };
+  /** Portal spawned inside cave after boss killed */
+  cavePortalSpawned = false;
+  /** Cave boss has been defeated this session */
+  caveBossDead = false;
+  /** Timer for the entrance warning overlay (seconds) */
+  caveEntranceWarningTimer = 0;
   decorations: DecorationDef[] = [];
 
   // ── Cursed Lands (Portal) System ────────────────────────────────
@@ -427,7 +433,10 @@ export class Game {
     this.updateFarming(dt);
     this.checkAchievements();
     this.updateResourceRespawn(dt);
-    if (this.inCave) this.updateCaveResourceRespawn(dt);
+    if (this.inCave) {
+      this.updateCaveResourceRespawn(dt);
+      if (this.caveEntranceWarningTimer > 0) this.caveEntranceWarningTimer -= dt;
+    }
     if (this.inCursedLands) this.updateCursedLandsResourceRespawn(dt);
     this.updateFurnaces(dt);
     this.updatePlacementGhost();
@@ -718,6 +727,29 @@ export class Game {
       }
     }
 
+    // ── Cave Portal: check for portal resource (spawned after boss kill) ──
+    if (this.inCave && this.cavePortalSpawned) {
+      for (const res of this.caveResources) {
+        if (res.type === 'portal') {
+          const size = this.resourceSizes['portal'];
+          if (!size) continue;
+          const dist = distance({ x: px, y: py }, { x: res.x + size.w / 2, y: res.y + size.h / 2 });
+          if (dist < INTERACT_RANGE) {
+            if (this.state.player.stats.level < 6) {
+              this.addNotification('🌑 Precisa de nível 6 para atravessar o portal!', 'warning');
+              return;
+            }
+            this.exitCave();
+            // Restore surface position first, then enter cursed lands from surface
+            this.state.player.x = this.surfacePosition.x;
+            this.state.player.y = this.surfacePosition.y;
+            this.enterCursedLands(this.surfacePosition.x, this.surfacePosition.y);
+            return;
+          }
+        }
+      }
+    }
+
     // ── Cursed Lands Portal: exit ──
     if (this.inCursedLands && this.cursedLandsData) {
       const ex = this.cursedLandsData.entranceX;
@@ -1001,10 +1033,16 @@ export class Game {
       shakeTimer: 0,
     }));
 
+    // Reset boss and portal state
+    this.cavePortalSpawned = false;
+    this.caveBossDead = false;
+    this.caveEntranceWarningTimer = 4.0; // Show warning overlay for 4 seconds
+
     this.inCave = true;
     this.achievementStats.hasEnteredCave = true;
-    this.addNotification('Você entrou na caverna...', 'info');
-    this.addNotification('Pressione [E] perto da entrada para sair ou encontre o portal 🌌 no fundo da caverna!', 'info');
+    this.addNotification('⚠️ VOCÊ ENTROU NA CAVERNA!', 'warning');
+    this.addNotification('🟢 [E] perto da entrada iluminada para sair', 'info');
+    this.addNotification('💀 Derrote o Shadow Lord nas profundezas para abrir o portal!', 'info');
   }
 
   private exitCave(): void {
@@ -1018,6 +1056,11 @@ export class Game {
     this.caveEnemies = [];
     this.caveResources = [];
     this.caveResourceRespawnQueue = [];
+
+    // Reset cave state
+    this.cavePortalSpawned = false;
+    this.caveBossDead = false;
+    this.caveEntranceWarningTimer = 0;
 
     this.inCave = false;
     this.addNotification('Você saiu da caverna.', 'info');
@@ -1590,6 +1633,42 @@ export class Game {
           }
         }
         this.spawnDroppedItem(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, loot.itemId, count, dropRarity);
+      }
+    }
+
+    // ── Cave Boss Kill: Spawn portal to Cursed Lands ──
+    if (this.inCave && (enemy.type === EnemyType.ShadowLord || enemy.definition.type === 'shadowLord')) {
+      this.caveBossDead = true;
+      this.cavePortalSpawned = true;
+
+      // Find a deep location in the cave to place the portal resource
+      const cd = this.caveData;
+      if (cd) {
+        const caveW = cd.tileMap[0].length;
+        const caveH = cd.tileMap.length;
+        // Place portal near the bottom-center of the cave
+        const portalX = Math.floor(caveW / 2) * TILE_SIZE + TILE_SIZE / 2 - 16;
+        const portalY = (caveH - 4) * TILE_SIZE + TILE_SIZE / 2 - 16;
+
+        this.caveResources.push({
+          x: portalX, y: portalY,
+          type: 'portal',
+          itemId: 'portal',
+          hp: 99999,
+          maxHp: 99999,
+          id: generateId(),
+          shakeTimer: 0,
+        });
+
+        // Spawn epic particles
+        this.spawnParticles(portalX + 16, portalY + 16, '#9944ff', 20, 'magic',
+          { spread: 300, speed: 150, sizeRange: [4, 8], lifeRange: [1.0, 2.0], color2: '#cc66ff' });
+        this.spawnParticles(portalX + 16, portalY + 16, '#ff44ff', 15, 'spark',
+          { spread: 200, speed: 120, sizeRange: [2, 5], lifeRange: [0.5, 1.5], color2: '#ff88ff' });
+
+        this.camera.shake(8, 0.3);
+        this.addNotification('🌌 O Shadow Lord foi derrotado! Um portal para as Terras Amaldiçoadas se abriu nas profundezas!', 'success');
+        this.updateQuestProgress('explore', 'portal');
       }
     }
 
@@ -4876,6 +4955,77 @@ export class Game {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     }
+
+      // ── Exit Beacon: green glow at cave entrance ──
+      if (this.caveData) {
+        const ex = this.caveData.entranceX;
+        const ey = this.caveData.entranceY;
+        const beaconPos = camera.worldToScreen(ex + 16, ey);
+        const beaconPulse = Math.sin(performance.now() / 500) * 0.3 + 0.7;
+        const beaconGrad = ctx.createRadialGradient(
+          beaconPos.x, beaconPos.y - 8, 0,
+          beaconPos.x, beaconPos.y - 8, 60
+        );
+        beaconGrad.addColorStop(0, 'rgba(0, 255, 100, ' + (0.4 * beaconPulse) + ')');
+        beaconGrad.addColorStop(0.3, 'rgba(0, 200, 80, ' + (0.15 * beaconPulse) + ')');
+        beaconGrad.addColorStop(1, 'rgba(0, 200, 80, 0)');
+        ctx.fillStyle = beaconGrad;
+        ctx.fillRect(beaconPos.x - 60, beaconPos.y - 68, 120, 120);
+        ctx.fillStyle = 'rgba(100, 255, 150, ' + (0.08 * beaconPulse) + ')';
+        ctx.fillRect(beaconPos.x - 4, beaconPos.y - 80, 8, 100);
+        ctx.fillStyle = 'rgba(150, 255, 200, ' + (0.9 * beaconPulse) + ')';
+        ctx.beginPath();
+        ctx.arc(beaconPos.x, beaconPos.y - 8, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // ── Portal Glow (if spawned after boss kill) ──
+      if (this.cavePortalSpawned) {
+        for (const res of this.caveResources) {
+          if (res.type === 'portal') {
+            const portalPos = camera.worldToScreen(res.x + 16, res.y + 16);
+            const portalPulse = Math.sin(performance.now() / 800) * 0.3 + 0.7;
+            const portalGrad = ctx.createRadialGradient(
+              portalPos.x, portalPos.y, 0,
+              portalPos.x, portalPos.y, 80
+            );
+            portalGrad.addColorStop(0, 'rgba(150, 50, 255, ' + (0.5 * portalPulse) + ')');
+            portalGrad.addColorStop(0.3, 'rgba(100, 0, 200, ' + (0.2 * portalPulse) + ')');
+            portalGrad.addColorStop(1, 'rgba(100, 0, 200, 0)');
+            ctx.fillStyle = portalGrad;
+            ctx.beginPath();
+            ctx.arc(portalPos.x, portalPos.y, 80, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+          }
+        }
+      }
+
+      // ── Entrance Warning Overlay ──
+      if (this.caveEntranceWarningTimer > 0) {
+        const alpha = Math.min(0.8, this.caveEntranceWarningTimer / 4.0);
+        const vignette = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, canvas.height * 0.2,
+          canvas.width / 2, canvas.height / 2, canvas.height * 0.8
+        );
+        vignette.addColorStop(0, 'rgba(100, 0, 0, 0)');
+        vignette.addColorStop(1, 'rgba(80, 0, 0, ' + (alpha * 0.6) + ')');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const fontSize = Math.min(canvas.width * 0.06, 36);
+        ctx.font = 'bold ' + fontSize + 'px "Press Start 2P", monospace';
+        ctx.fillStyle = 'rgba(255, 50, 50, ' + alpha + ')';
+        ctx.fillText('⚠️ VOCÊ ENTROU NA CAVERNA ⚠️', canvas.width / 2, canvas.height * 0.35);
+        ctx.font = (fontSize * 0.4) + 'px "Press Start 2P", monospace';
+        ctx.fillStyle = 'rgba(255, 200, 100, ' + (alpha * 0.8) + ')';
+        ctx.fillText('Siga a luz verde para sair', canvas.width / 2, canvas.height * 0.42);
+        ctx.fillText('Derrote o Shadow Lord no fundo', canvas.width / 2, canvas.height * 0.47);
+        ctx.fillText('para abrir o portal', canvas.width / 2, canvas.height * 0.52);
+        ctx.restore();
+      }
 
     // Night overlay
     if (!this.inCave && gameTime.isNight) {
