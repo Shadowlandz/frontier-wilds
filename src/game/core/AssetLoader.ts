@@ -22,6 +22,7 @@ export class AssetLoader {
     Fornalha: ['furnace'],
     Luva_Couro: ['iron_gloves'],
     Peitoral_Couro: ['leather_chest', 'iron_chest', 'void_chestplate'],
+    Maca: ['apple', 'berry'],
     Tocha: ['torch', 'torch_item'],
   };
 
