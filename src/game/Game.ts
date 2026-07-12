@@ -96,6 +96,23 @@ export class Game {
   // ── Cave System ─────────────────────────────────────────────────
   inCave = false;
   caveData: GeneratedLevel | null = null;
+
+  /** Get display name of current dungeon/level */
+  getLevelName(): string {
+    if (!this.caveData && !this.dungeonData) return '';
+    const configId = this.caveData?.configId || this.dungeonData?.configId || '';
+    return worldRegistry.getConfig(configId)?.name || configId;
+  }
+
+  /** Get cave depth as percentage (0=entrance, 100=deepest) */
+  getCaveDepth(): number {
+    if (!this.caveData) return 0;
+    const playerTy = Math.floor(this.state.player.y / TILE_SIZE);
+    const entranceTy = Math.floor(this.caveData.entranceY / TILE_SIZE);
+    const caveH = this.caveData.height;
+    const depthRatio = (playerTy - entranceTy) / (caveH - entranceTy);
+    return Math.min(100, Math.max(0, Math.round(depthRatio * 100)));
+  }
   /** Generic dungeon state for non-cave/non-cursed-lands dungeons */
   dungeonData: GeneratedLevel | null = null;
   caveEnemies: EnemyEntity[] = [];

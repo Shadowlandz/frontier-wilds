@@ -98,6 +98,7 @@ export default function GamePage() {
       ) : (
         <>
           <HUD
+            game={game!}
             stats={stats!}
             gameTime={gameTime!}
             selectedTool={player!.currentTool}
@@ -203,7 +204,8 @@ function getNotificationClass(type: string): string {
 }
 
 // ── HUD Component ─────────────────────────────────────────────────
-function HUD({ stats, gameTime, selectedTool, hotbar, notifications, player }: {
+function HUD({ game, stats, gameTime, selectedTool, hotbar, notifications, player }: {
+  game: Game;
   stats: GameState['player']['stats'];
   gameTime: GameState['gameTime'];
   selectedTool: number;
@@ -250,6 +252,32 @@ function HUD({ stats, gameTime, selectedTool, hotbar, notifications, player }: {
             />
           </div>
         </div>
+
+        {game.inCave && game.caveData && (() => {
+          const pct = game.getCaveDepth();
+          const name = game.getLevelName();
+          const isPortalSpawned = game.cavePortalSpawned;
+          return (
+            <div className="bg-black/70 backdrop-blur-sm rounded px-2 py-1.5 mt-1 w-36 sm:w-52 border border-amber-800/30">
+              <div className="flex items-center gap-1.5 text-[10px] text-amber-300 font-bold mb-0.5">
+                🕳️ {name || 'Caverna'}
+              </div>
+              <div className="text-[9px] text-white/50 mb-0.5">
+                ⬇️ Profundidade: {pct}%
+              </div>
+              <div className="h-1.5 bg-black/50 rounded-full overflow-hidden mb-0.5">
+                <div className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #666, #aaa, #fff)' }}
+                />
+              </div>
+              <div className="text-[8px] text-white/40">
+                {isPortalSpawned
+                  ? '✅ Portal ativo nas profundezas'
+                  : '💀 Derrote o Shadow Lord para abrir o portal'}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="absolute top-4 right-4 text-right pointer-events-none">
