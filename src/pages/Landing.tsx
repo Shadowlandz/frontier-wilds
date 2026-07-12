@@ -6,8 +6,8 @@ import {
   Biome, TileType, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT,
   EnemyType, Weather, Season, GameTime,
   Vec2,
-} from '../core/Types';
-import { fractalNoise, SeededRandom } from '../core/Utils';
+} from '../game/core/Types';
+import { fractalNoise, SeededRandom } from '../game/core/Utils';
 
 // ── Tile Colors ───────────────────────────────────────────────────
 export const TILE_COLORS: Record<TileType, string> = {
@@ -67,6 +67,8 @@ const BIOME_GRASS_COLORS: Record<Biome, string> = {
   [Biome.Village]: '#6a9a5a',      // Healthy farmland
   [Biome.Lake]: '#2a7aa8',         // Blue water
   [Biome.River]: '#3a88b8',        // River blue
+  [Biome.Coast]: '#7aae8a',        // Sandy coast green
+  [Biome.Volcanic]: '#5a4a3a',     // Ash-dark ground
 };
 
 // ── Decorative Element Types ──────────────────────────────────────
@@ -1053,9 +1055,130 @@ export function getSeasonTint(season: Season): string {
     case Season.Summer: return 'rgba(255, 200, 50, 0.05)';
     case Season.Autumn: return 'rgba(200, 120, 50, 0.1)';
     case Season.Winter: return 'rgba(150, 180, 220, 0.1)';
+    default: return 'rgba(200, 200, 200, 0.05)';
   }
 }
 
 export function getCaveSkyColor(): string {
   return '#0a0a0a'; // Caves are always pitch black
 }
+
+// ── Landing Page Component ────────────────────────────────────────
+import React from 'react';
+
+const LandingPage: React.FC = () => {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(180deg, #87ceeb 0%, #4a9e6e 50%, #2d6a1e 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      fontFamily: '"Press Start 2P", "VT323", monospace',
+      textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
+      {/* Sky gradient overlay */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'radial-gradient(ellipse at 50% 30%, rgba(255,200,100,0.3) 0%, transparent 60%)',
+        pointerEvents: 'none',
+      }} />
+      
+      {/* Decorative mountains */}
+      <svg style={{ position: 'absolute', bottom: '40%', width: '100%', height: '30%' }} viewBox="0 0 100 30" preserveAspectRatio="none">
+        <polygon points="0,30 10,5 20,15 30,0 40,10 50,3 60,12 70,2 80,8 90,0 100,10 100,30" fill="#3a6a3a" opacity="0.6" />
+        <polygon points="0,30 15,10 25,18 35,5 45,15 55,8 65,18 75,6 85,14 95,4 100,12 100,30" fill="#2a5a2a" opacity="0.8" />
+      </svg>
+      
+      {/* Foreground ground */}
+      <div style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '40%',
+        background: 'linear-gradient(180deg, #4a7c3f 0%, #2d6a1e 50%, #1a4a0e 100%)',
+      }} />
+      
+      {/* Content */}
+      <div style={{ position: 'relative', zIndex: 10, textAlign: 'center', padding: '2rem' }}>
+        <h1 style={{
+          fontSize: 'clamp(2rem, 6vw, 4rem)',
+          marginBottom: '0.5rem',
+          letterSpacing: '4px',
+          color: '#FFD700',
+          textShadow: '3px 3px 6px rgba(0,0,0,0.6)',
+        }}>
+          🌾 Farm Survival
+        </h1>
+        <p style={{
+          fontSize: 'clamp(0.8rem, 2vw, 1.2rem)',
+          marginBottom: '2rem',
+          opacity: 0.9,
+        }}>
+          Cultivate. Explore. Survive.
+        </p>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <a href="/auth" style={{
+            padding: '12px 32px',
+            background: 'linear-gradient(135deg, #4CAF50, #2E7D32)',
+            color: '#fff',
+            textDecoration: 'none',
+            borderRadius: '8px',
+            fontSize: 'clamp(0.7rem, 1.5vw, 1rem)',
+            border: '2px solid rgba(255,255,255,0.2)',
+            transition: 'all 0.3s',
+            cursor: 'pointer',
+          }}>
+            Start Farming
+          </a>
+          <a href="/game" style={{
+            padding: '12px 32px',
+            background: 'linear-gradient(135deg, #FF7043, #E64A19)',
+            color: '#fff',
+            textDecoration: 'none',
+            borderRadius: '8px',
+            fontSize: 'clamp(0.7rem, 1.5vw, 1rem)',
+            border: '2px solid rgba(255,255,255,0.2)',
+            transition: 'all 0.3s',
+            cursor: 'pointer',
+          }}>
+            Play Now
+          </a>
+        </div>
+      </div>
+      
+      {/* Decorative trees */}
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          bottom: '38%',
+          left: `${10 + i * 20}%`,
+          width: '20px',
+          height: '40px',
+        }}>
+          <div style={{
+            width: 0, height: 0,
+            borderLeft: '15px solid transparent',
+            borderRight: '15px solid transparent',
+            borderBottom: '25px solid #2d6a1e',
+            marginBottom: '-2px',
+          }} />
+          <div style={{
+            width: '6px',
+            height: '15px',
+            background: '#8d6e4a',
+            margin: '0 auto',
+          }} />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default LandingPage;
