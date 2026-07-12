@@ -4257,6 +4257,41 @@ export class Game {
           ctx.fillStyle = color;
           ctx.fillRect(screenPos.x, screenPos.y, TILE_SIZE + 1, TILE_SIZE + 1);
 
+          // Glowing blue/cyan moss on cave walls
+          if (tile === TileType.CaveWall) {
+            const mossNoise = fractalNoise(x + 400, y + 400, this.state.world.seed + 9000, 1, 4);
+            if (mossNoise > 0.55) {
+              const mossAlpha = 0.25 + 0.15 * Math.sin(performance.now() * 0.002 + x * 0.5 + y * 0.7);
+              const glowRadius = 4 + (mossNoise - 0.55) * 12;
+              // Outer cyan glow
+              const grad = ctx.createRadialGradient(
+                screenPos.x + TILE_SIZE / 2, screenPos.y + TILE_SIZE / 2, 0,
+                screenPos.x + TILE_SIZE / 2, screenPos.y + TILE_SIZE / 2, glowRadius
+              );
+              grad.addColorStop(0, `rgba(80, 220, 255, ${mossAlpha * 0.6})`);
+              grad.addColorStop(0.5, `rgba(40, 180, 220, ${mossAlpha * 0.3})`);
+              grad.addColorStop(1, 'rgba(20, 100, 160, 0)');
+              ctx.fillStyle = grad;
+              ctx.fillRect(
+                screenPos.x - glowRadius + TILE_SIZE / 2,
+                screenPos.y - glowRadius + TILE_SIZE / 2,
+                glowRadius * 2, glowRadius * 2
+              );
+              // Glowing spore dots
+              if (mossNoise > 0.7) {
+                const sporeAlpha = 0.4 + 0.3 * Math.sin(performance.now() * 0.003 + x * 1.3 + y * 0.9);
+                ctx.fillStyle = `rgba(120, 240, 255, ${sporeAlpha})`;
+                ctx.beginPath();
+                ctx.arc(
+                  screenPos.x + TILE_SIZE / 2 + (mossNoise - 0.55) * 8,
+                  screenPos.y + TILE_SIZE / 2 - (mossNoise - 0.55) * 6,
+                  1.5, 0, Math.PI * 2
+                );
+                ctx.fill();
+              }
+            }
+          }
+
           // Lava glow effect
           if (tile === TileType.Lava) {
             const lavaPulse = Math.sin(performance.now() / 800 + x + y) * 0.3 + 0.7;
