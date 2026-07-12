@@ -16,6 +16,7 @@ import { NPCS } from './data/Npcs';
 import { formatTime } from './core/Utils';
 import { getAllSaveSlots, formatSaveDate, getMaxSaveSlots, type SaveSlotInfo } from './systems/SaveSystem';
 import MobileHUD from './MobileHUD';
+import { AssetLoader } from './core/AssetLoader';
 
 // ── Time helpers for HUD ────────────────────────────────────────────
 
@@ -51,10 +52,9 @@ export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<Game | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [uiState, setUiState] = useState<GameUIState | null>(null);
-  const [selectedHotbar, setSelectedHotbar] = useState(0);
+  const [uiState, setUiState] = useState<GameUIState | null>(null);    const [selectedHotbar, setSelectedHotbar] = useState(0);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!canvasRef.current) return;
 
     const game = new Game(getAudioEngine());
@@ -410,6 +410,11 @@ function Hotbar({ hotbar, selected, onSelect, game }: {
   const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [dragSource, setDragSource] = useState<number | null>(null);
+  const [assetsReady, setAssetsReady] = useState(false);
+
+  useEffect(() => {
+    AssetLoader.preloadAll().then(() => setAssetsReady(true));
+  }, []);
 
   const handleDragStart = (i: number) => setDragSource(i);
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
@@ -438,7 +443,20 @@ function Hotbar({ hotbar, selected, onSelect, game }: {
           >
             {slot?.item && (
               <>
-                <span className="text-xl" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.unidentified ? '❓' : slot.item.icon}</span>
+                {slot.unidentified ? (
+          <span className="text-xl" style={{ color: RARITY_COLORS[slot.item.rarity] }}>❓</span>
+        ) : assetsReady && AssetLoader.hasSprite(slot.item.id) ? (
+          <img
+            src={AssetLoader.getSprite(slot.item.id)!}
+            alt={slot.item.name}
+            className="w-10 h-10 object-contain drop-shadow-lg"
+            style={{
+              filter: `drop-shadow(0 0 3px ${RARITY_COLORS[slot.item.rarity]}40)`,
+            }}
+          />
+        ) : (
+          <span className="text-xl" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.item.icon}</span>
+        )}
                 {slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[9px] text-white font-bold drop-shadow">{slot.count}</span>}
                 {slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold drop-shadow">?</span>}
                 {slot.durability !== undefined && slot.item.maxDurability && (
