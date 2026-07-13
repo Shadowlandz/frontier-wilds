@@ -1944,7 +1944,7 @@ function StoragePanel({ game }: { game: Game }) {
               onClick={() => { if (isMobile && slot.item) { game.takeFromStorage(i, chestId!, slot.count); refresh(); } }}
               className={`${isMobile ? 'w-full aspect-square' : 'w-10 h-10'} rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-pointer hover:border-white/30 group active:scale-90 transition-transform`}
             >
-              {slot.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>{slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
+              {slot.item && <><ItemIcon item={slot.item} size="sm" />{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
             </div>
           ))}
         </div>
@@ -1958,7 +1958,7 @@ function StoragePanel({ game }: { game: Game }) {
                 onClick={() => { if (isMobile && slot.item) { game.moveToStorage(i, chestId!, slot.count); refresh(); } }}
                 className={`${isMobile ? 'w-full aspect-square' : 'w-10 h-10'} rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-pointer hover:border-green-400/50 group active:scale-90 transition-transform`}
               >
-                {slot.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>{slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
+                {slot.item && <><ItemIcon item={slot.item} size="sm" />{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
               </div>
             ))}
           </div>
@@ -2191,7 +2191,7 @@ function FurnacePanel({ game }: { game: Game }) {
                   onDrop={(e) => { e.preventDefault(); setDragOverSlot(null); const data = e.dataTransfer.getData('text/plain'); if (data) handleSlotDrop('input', data); }}
                   className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center relative transition-all ${dragOverSlot === 'input' ? 'border-green-400 bg-green-900/30' : 'border-white/20 bg-black/40'}`}>
                   {fd.input?.item ? (
-                    <><span className="text-2xl" style={{ color: RARITY_COLORS[fd.input.item.rarity as Rarity] }}>{fd.input.item.icon}</span><div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: RARITY_COLORS[fd.input.item.rarity as Rarity] }} />{fd.input.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.input.count}</span>}</>
+                    <><ItemIcon item={fd.input.item} size="2xl" />{fd.input.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.input.count}</span>}</>
                   ) : (
                     <span className="text-white/20 text-[10px]">\u2B07\uFE0F</span>
                   )}
@@ -2211,7 +2211,7 @@ function FurnacePanel({ game }: { game: Game }) {
                   onDrop={(e) => { e.preventDefault(); setDragOverSlot(null); const data = e.dataTransfer.getData('text/plain'); if (data) handleSlotDrop('fuel', data); }}
                   className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center relative transition-all ${dragOverSlot === 'fuel' ? 'border-orange-400 bg-orange-900/30' : 'border-white/20 bg-black/40'}`}>
                   {fd.fuel?.item ? (
-                    <><span className="text-2xl" style={{ color: RARITY_COLORS[fd.fuel.item.rarity as Rarity] }}>{fd.fuel.item.icon}</span><div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: RARITY_COLORS[fd.fuel.item.rarity as Rarity] }} />{fd.fuel.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.fuel.count}</span>}</>
+                    <><ItemIcon item={fd.fuel.item} size="2xl" />{fd.fuel.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.fuel.count}</span>}</>
                   ) : (
                     <span className="text-white/20 text-[10px]">\uD83E\uDEB5</span>
                   )}
@@ -2228,7 +2228,7 @@ function FurnacePanel({ game }: { game: Game }) {
                   onMouseLeave={() => setHoveredSlot(null)}
                   className="w-14 h-14 rounded-lg border-2 border-yellow-600/40 bg-black/40 flex items-center justify-center relative">
                   {fd.output?.item ? (
-                    <><span className="text-2xl" style={{ color: RARITY_COLORS[fd.output.item.rarity as Rarity] }}>{fd.output.item.icon}</span><div className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: RARITY_COLORS[fd.output.item.rarity as Rarity] }} />{fd.output.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.output.count}</span>}</>
+                    <><ItemIcon item={fd.output.item} size="2xl" />{fd.output.count > 1 && <span className="absolute bottom-0 right-1 text-[10px] text-white font-bold">{fd.output.count}</span>}</>
                   ) : (
                     <span className="text-white/20 text-[10px]">\u27A1\uFE0F</span>
                   )}
@@ -2256,7 +2256,7 @@ function FurnacePanel({ game }: { game: Game }) {
                       className="w-9 h-9 rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-grab active:cursor-grabbing hover:border-orange-400/50 hover:bg-orange-900/20 transition-all group"
                       title={slot.item.name}
                     >
-                      <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>{slot.item.icon}</span>
+                      <ItemIcon item={slot.item} size="sm" />
                       {slot.count > 1 && <span className="absolute -bottom-0.5 -right-0.5 text-[7px] text-white font-bold bg-black/60 rounded px-0.5">{slot.count}</span>}
                       <div className="absolute inset-0 rounded border-2 border-transparent group-hover:border-orange-400/30 pointer-events-none" />
                     </div>
@@ -2270,7 +2270,7 @@ function FurnacePanel({ game }: { game: Game }) {
                       className="w-9 h-9 rounded border border-white/10 bg-black/40 flex items-center justify-center relative cursor-grab active:cursor-grabbing hover:border-orange-400/50 hover:bg-orange-900/20 transition-all group"
                       title={slot.item.name}
                     >
-                      <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity as Rarity] }}>{slot.item.icon}</span>
+                      <ItemIcon item={slot.item} size="sm" />
                       {slot.count > 1 && <span className="absolute -bottom-0.5 -right-0.5 text-[7px] text-white font-bold bg-black/60 rounded px-0.5">{slot.count}</span>}
                       <div className="absolute inset-0 rounded border-2 border-transparent group-hover:border-orange-400/30 pointer-events-none" />
                     </div>
@@ -2294,7 +2294,7 @@ function FurnacePanel({ game }: { game: Game }) {
                 <div className="fixed z-[100] pointer-events-none" style={{ left: tooltipPos.x + 16, top: tooltipPos.y - 8 }}>
                   <div className="bg-gray-900/95 backdrop-blur-md rounded-xl border border-orange-800/40 p-3 w-56 shadow-2xl shadow-orange-900/30">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl" style={{ color: RARITY_COLORS[resultItem.rarity as Rarity] }}>{resultItem.icon}</span>
+                      <ItemIcon item={resultItem} size="2xl" />
                       <div>
                         <div className="text-sm font-bold text-white">{currentRecipe.name}</div>
                         <div className="text-[9px]" style={{ color: RARITY_COLORS[resultItem.rarity as Rarity] }}>{resultItem.name}</div>
@@ -2317,7 +2317,7 @@ function FurnacePanel({ game }: { game: Game }) {
                         return (
                           <div key={ing.itemId} className="flex items-center justify-between text-[10px]">
                             <span className="flex items-center gap-1">
-                              <span>{item?.icon}</span>
+                              <span>{item && <ItemIcon item={item} size="sm" />}</span>
                               <span className={have >= ing.count ? 'text-green-400' : 'text-red-400'}>{item?.name}</span>
                             </span>
                             <span className={have >= ing.count ? 'text-green-400' : 'text-red-400'}>
@@ -2360,7 +2360,7 @@ function FurnacePanel({ game }: { game: Game }) {
                   className={`w-10 h-10 rounded border flex items-center justify-center cursor-pointer transition-all ${selectedItemIdx === i ? 'border-orange-400 bg-orange-900/30 scale-110' : 'border-white/20 bg-black/40 hover:border-white/40'}`}>
                   {slot.item && (
                     <div className="relative">
-                      <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.item.icon}</span>
+                      <ItemIcon item={slot.item} size="sm" />
                       <div className="absolute -top-0.5 -left-0.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: RARITY_COLORS[slot.item.rarity] }} />
                       {(slot.upgradeLevel ?? 0) > 0 && (
                         <span className="absolute -top-1 -right-2 text-[7px] text-orange-400 font-bold">+{slot.upgradeLevel}</span>
