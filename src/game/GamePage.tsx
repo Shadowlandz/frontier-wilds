@@ -1046,7 +1046,7 @@ function InventoryPanel({ game }: { game: Game }) {
                 className={`w-full aspect-square rounded border flex items-center justify-center relative cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/20 bg-black/40'} hover:border-white/40`}
               >
                 {equipped?.item ? (
-                  <><span className="text-lg" style={{ color: RARITY_COLORS[equipped.item.rarity] }}>{equipped.unidentified ? '❓' : equipped.item.icon}</span>{equipped.unidentified && <span className="absolute -top-1 left-0.5 text-[7px] text-cyan-400 font-bold">?</span>}<span className="absolute -top-1 -right-1 text-[7px] bg-white/20 rounded px-0.5">{equipLabels[equipSlot]?.split(' ')[0] || equipSlot.slice(0, 3)}</span></>
+                  <><ItemIcon item={equipped.item} size="lg" unidentified={equipped.unidentified} /><span className="absolute -top-1 -right-1 text-[7px] bg-white/20 rounded px-0.5">{equipLabels[equipSlot]?.split(' ')[0] || equipSlot.slice(0, 3)}</span></>
                 ) : <span className="text-white/20 text-[9px] uppercase">{equipLabels[equipSlot]?.split(' ')[1] || equipSlot}</span>}
               </div>
             );
@@ -1076,7 +1076,7 @@ function InventoryPanel({ game }: { game: Game }) {
               onTouchEnd={() => handleTouchEnd('hotbar', i)}
               className={`w-12 h-full aspect-square rounded border-2 flex items-center justify-center relative cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isSelected ? 'border-yellow-400 bg-yellow-400/15' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'} hover:border-white/40`}
             >
-              {slot?.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.unidentified ? '❓' : slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}{slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold">?</span>}</>}
+              {slot?.item && <><ItemIcon item={slot.item} size="sm" unidentified={slot.unidentified} />{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
               <span className="absolute top-0 left-0.5 text-[7px] text-white/40">{i + 1}</span>
             </div>
           );
@@ -1101,7 +1101,7 @@ function InventoryPanel({ game }: { game: Game }) {
               onTouchEnd={() => handleTouchEnd('inventory', i)}
               className={`w-full aspect-square rounded border flex items-center justify-center cursor-pointer transition-all ${isDrag ? 'opacity-30 scale-90' : ''} ${isDrop ? 'border-blue-400/60 bg-blue-900/20' : 'border-white/15 bg-black/40'} hover:border-white/30 hover:bg-white/10`}
             >
-              {slot?.item && <><span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.unidentified ? '❓' : slot.item.icon}</span>{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}{slot.unidentified && <span className="absolute top-0 left-0.5 text-[6px] text-cyan-400 font-bold">?</span>}</>}
+              {slot?.item && <><ItemIcon item={slot.item} size="sm" unidentified={slot.unidentified} />{slot.count > 1 && <span className="absolute bottom-0 right-0.5 text-[8px] text-white font-bold">{slot.count}</span>}</>}
             </div>
           );
         })}
@@ -1254,7 +1254,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
               onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
               onMouseLeave={() => setHoveredItem(null)}
             >
-              <span className="text-xl">{resultItem?.icon}</span>
+              {resultItem && <ItemIcon item={resultItem} size="xl" />}
               <div className="flex-1 min-w-0">
                 <div className="text-white text-xs font-bold truncate">{recipe.name}</div>
                 <div className="text-white/40 text-[10px]">
@@ -1266,7 +1266,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
                       onMouseEnter={(e) => { if (item) { setHoveredIngredient(item); setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
                       onMouseMove={(e) => { if (item) { setTooltipPos({ x: e.clientX, y: e.clientY }); } }}
                       onMouseLeave={() => setHoveredIngredient(null)}
-                    >{item?.icon} <span className="text-white/60">{item?.name}</span> {have}/{ing.count}</span>;
+                    >{item && <ItemIcon item={item} />} <span className="text-white/60">{item?.name}</span> {have}/{ing.count}</span>;
                   })}
                 </div>
                 <div className="flex flex-wrap gap-x-2 text-[9px] mt-0.5">
@@ -1307,7 +1307,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
           <div className="mb-3 p-3 rounded-lg border-2 border-amber-500/30 bg-gradient-to-r from-amber-900/30 via-yellow-900/20 to-amber-900/30 animate-pulse">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <span className="text-3xl animate-bounce" style={{ color: RARITY_COLORS[resultItem.rarity as Rarity] || '#fff' }}>{resultItem.icon}</span>
+                <ItemIcon item={resultItem} size="3xl" />
                 <div className="absolute -inset-2 rounded-full bg-yellow-400/10 animate-ping" />
               </div>
               <div className="flex-1">
@@ -1334,7 +1334,7 @@ function CraftingPanel({ game, uiState }: { game: Game; uiState: GameUIState }) 
         <div className="fixed z-[100] pointer-events-none" style={{ left: tooltipPos.x + 16, top: tooltipPos.y - 8 }}>
           <div className="bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 p-3 w-56 shadow-2xl shadow-black/50">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-lg">{hoveredIngredient.icon}</span>
+              <ItemIcon item={hoveredIngredient} size="lg" />
               <div>
                 <div className="text-xs font-bold text-white">{hoveredIngredient.name}</div>
                 <div className="text-[9px] text-white/50 uppercase tracking-wider">{hoveredIngredient.category} {hoveredIngredient.rarity}</div>
@@ -1603,7 +1603,7 @@ function ShopPanel({ game, uiState }: { game: Game; uiState: GameUIState }) {
             const canBuy = state.player.stats.gold >= price;
             return (
               <div key={item.id} className="flex items-center gap-2 p-2 rounded border border-white/10 bg-white/5">
-                <span className="text-lg">{item.icon}</span>
+                <ItemIcon item={item} size="lg" />
                 <div className="flex-1"><div className="text-white text-xs">{item.name}</div><div className="text-white/40 text-[10px]">{item.description}</div></div>
                 <div className="text-right"><div className="text-yellow-400 text-xs">{price} 🪙</div>
                   <button disabled={!canBuy} onClick={() => { game.buyItem(item.id); refresh(); }}
@@ -1630,7 +1630,7 @@ function ShopPanel({ game, uiState }: { game: Game; uiState: GameUIState }) {
               const price = entry.price;
               return (
                 <div key={entry.item.id} className="flex items-center gap-2 p-2 rounded border border-amber-700/30 bg-amber-900/20">
-                  <span className="text-lg">{entry.item.icon}</span>
+                  <ItemIcon item={entry.item} size="lg" />
                   <div className="flex-1">
                     <div className="text-white text-xs">{entry.item.name} <span className="text-white/40">x{playerCount}</span></div>
                     <div className="text-white/40 text-[10px]">{entry.item.description}</div>
@@ -1742,7 +1742,7 @@ function ForgePanel({ game }: { game: Game }) {
         {forgeableSlots.map((slot, i) => (
           <div key={i} onClick={() => { if (!isUpgrading) setSelectedItemIndex(i); }}
             className={`w-10 h-10 rounded border flex items-center justify-center cursor-pointer transition-all ${selectedItemIndex === i ? 'border-orange-400 bg-orange-900/30 scale-110' : 'border-white/20 bg-black/40 hover:border-white/40'}`}>
-            {slot.item && <span className="text-sm" style={{ color: RARITY_COLORS[slot.item.rarity] }}>{slot.item.icon}</span>}
+            {slot.item && <ItemIcon item={slot.item} size="sm" />}
           </div>
         ))}
       </div>
@@ -1815,7 +1815,7 @@ function ItemTooltip({ item, durability, position, compareWith, playerStats, aff
     <div className="fixed z-[100] pointer-events-none" style={{ left: position.x + 16, top: position.y - 8 }}>
       <div className="bg-gray-900/95 backdrop-blur-md rounded-xl border border-white/10 p-3 w-60 shadow-2xl shadow-black/50">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xl">{item.icon}</span>
+          {unidentified ? <span className="text-xl">❓</span> : <ItemIcon item={item} size="xl" />}
           <div>
             <div className="text-sm font-bold" style={{ color: rarityColor }}>{unidentified ? 'Item Misterioso' : item.name}</div>
             <div className="text-[10px]" style={{ color: rarityColor }}>{unidentified ? 'Desconhecido' : item.rarity} {unidentified ? '' : item.category}</div>
