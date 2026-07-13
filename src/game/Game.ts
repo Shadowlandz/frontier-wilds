@@ -31,6 +31,7 @@ import { SKILLS } from './data/Skills';
 import { SPELLS, getSpell, getSpellByTomeId } from './data/Spells';
 import { saveGame, loadGame, loadAutoSave, autoSave } from './systems/SaveSystem';
 import { AudioEngine } from './core/AudioEngine';
+import { SpriteAnimator } from './core/SpriteAnimator';
 import { TimeSystem, TimeSpeedMode, TimePeriod, PERIOD_LABELS, PERIOD_ICONS,
   PERIOD_COLORS, getFishingTimeMultiplier, getRareResourceChance, getXPMultiplier, TIME_EVENTS } from './systems/TimeSystem';
 
@@ -189,6 +190,9 @@ export class Game {
   /** Procedural audio engine */
   audio: AudioEngine;
 
+  /** Sprite animation system for the player character */
+  spriteAnimator: SpriteAnimator;
+
   /** Enhanced time-of-day system */
   timeSystem: TimeSystem;
 
@@ -216,6 +220,7 @@ export class Game {
     this.camera = new Camera();
     this.audio = audio ?? new AudioEngine();
     this.timeSystem = new TimeSystem(TimeSpeedMode.Normal, 8, 1);
+    this.spriteAnimator = new SpriteAnimator();
     this.ui = {
       activePanel: 'none',
       activeShopNpc: null,
@@ -306,6 +311,9 @@ export class Game {
         dialogueIndex: 0,
       };
     });
+
+    // Preload player sprites (async, não bloqueia init)
+    this.spriteAnimator.preload();
 
     // Init player state at village center
     const cx = (WORLD_WIDTH * TILE_SIZE) / 2;
@@ -6918,6 +6926,25 @@ export class Game {
       ctx.globalAlpha = 0.5;
     }
 
+    // ── Sprite rendering ──
+    if (this.spriteAnimator.hasSprites()) {
+      const move = this.input.getMovementVector();
+      const isMoving = move.x !== 0 || move.y !== 0;
+      const isRunning = isMoving && (this.input.isKeyDown('shift') || this.input.isKeyDown('control'));
+      const tool = this.getCurrentItem();
+      const animName = this.spriteAnimator.getAnimation(
+        isMoving, isRunning,
+        player.isAttacking,
+        tool?.toolType ?? null,
+        player.invincibleTimer > 0,
+      );
+      this.spriteAnimator.update(1 / 60, animName);
+      this.spriteAnimator.draw(ctx, ox, oy, pw, ph, player.facing.x, ctx.globalAlpha);
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    // ── Fallback: renderização procedural ──
     const cx = ox + pw / 2;
     const by = oy + ph - (2 + bob); // body bottom
     const headY = by - 16;
